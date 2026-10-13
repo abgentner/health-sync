@@ -3,5 +3,5 @@
 // It looks like: 1234567890-abc123def456.apps.googleusercontent.com
 // A Client ID is not a password — it is safe for it to be visible here.
 window.HEALTH_SYNC_CONFIG = {
-  clientId: ""
+  clientId: "444364329118-v8n4fsn8fstp78bujd6021tb30v648d5.apps.googleusercontent.com"
 };
