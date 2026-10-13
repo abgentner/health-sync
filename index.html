@@ -1,0 +1,1306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Health Sync</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a78d6'/%3E%3Cpath d='M5 17h6l3-7 4 13 3-6h6' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f5f5f3; --surface:#fcfcfb; --surface-2:#efeee9; --border:#e2e1db;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#7a7975;
+  --accent:#2a78d6; --accent-ink:#ffffff; --series:#2a78d6; --grid:#e8e7e2;
+  --good:#0f7a3a; --bad:#c23a39; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
+  --radius:12px; --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
+    --text:#ffffff; --text-2:#c3c2b7; --muted:#8f8e86;
+    --accent:#3987e5; --series:#3987e5; --grid:#2c2c29;
+    --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
+  --text:#ffffff; --text-2:#c3c2b7; --muted:#8f8e86;
+  --accent:#3987e5; --series:#3987e5; --grid:#2c2c29;
+  --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;line-height:1.2}
+h2{font-size:17px;font-weight:600}
+h3{font-size:14px;font-weight:600;color:var(--text-2)}
+a{color:var(--accent)}
+[hidden]{display:none!important}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+
+/* buttons & inputs */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn:disabled{opacity:.55;cursor:default}
+input[type=text],input[type=number],input[type=date],select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:90px;resize:vertical}
+label{display:block;font-size:13px;color:var(--text-2);margin-bottom:4px;font-weight:500}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* welcome */
+#welcome{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.welcome-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:var(--shadow)}
+.welcome-card h1{font-size:26px;margin-bottom:6px}
+.welcome-card p{color:var(--text-2);margin:0 0 18px}
+.welcome-card .stack{display:flex;flex-direction:column;gap:12px}
+.notice{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:10px 12px;font-size:13px}
+.err{color:var(--bad);font-size:13px}
+
+/* header & tabs */
+header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+.hdr{display:flex;align-items:center;gap:12px;height:56px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px}
+.logo svg{width:26px;height:26px}
+.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-left:auto}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.dot.busy{background:var(--accent);animation:pulse 1s infinite}
+.dot.err{background:var(--bad)}
+@keyframes pulse{50%{opacity:.3}}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{border:0;background:none;padding:10px 12px;cursor:pointer;color:var(--text-2);font-weight:500;border-bottom:2px solid transparent}
+nav button.on{color:var(--text);border-bottom-color:var(--accent)}
+main{padding:20px 0 60px}
+section.tab{display:flex;flex-direction:column;gap:16px}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.tile .k{font-size:12px;color:var(--text-2);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.tile .v{font-size:26px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+.tile .v .u{font-size:14px;font-weight:500;color:var(--text-2);margin-left:3px}
+.tile .s{font-size:12px;color:var(--muted);margin-top:2px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:12px}
+.chart-box{position:relative;height:200px}
+.datebar{display:flex;align-items:center;gap:6px}
+.datebar input{width:auto}
+.list{display:flex;flex-direction:column}
+.li{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--border)}
+.li:first-child{border-top:0}
+.li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.li .x{font-variant-numeric:tabular-nums;color:var(--text-2);white-space:nowrap}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--surface-2);color:var(--text-2);margin-left:6px;vertical-align:1px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.del{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 4px;font-size:16px;line-height:1}
+.del:hover{color:var(--bad)}
+
+/* mood */
+.scale{display:flex;gap:6px;flex-wrap:wrap}
+.scale button{border:1px solid var(--border);background:var(--surface);border-radius:10px;min-width:46px;height:44px;cursor:pointer;font-size:20px}
+.scale.num button{font-size:15px;font-weight:600}
+.scale button.on{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;color:var(--text-2);font-weight:600;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0;background:var(--surface)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface-2)}
+
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--surface-2);border-radius:8px;padding:10px 12px;max-height:280px;overflow:auto;white-space:pre-wrap}
+.drop{border:2px dashed var(--border);border-radius:var(--radius);padding:22px;text-align:center;color:var(--text-2)}
+.drop.over{border-color:var(--accent);background:var(--surface-2)}
+
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);z-index:20}
+#toast.show{opacity:1}
+@media (max-width:600px){
+  .welcome-card{padding:22px}
+  .tile .v{font-size:22px}
+  .status .lbl{display:none}
+}
+</style>
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- ============ WELCOME ============ -->
+<div id="welcome">
+  <div class="welcome-card">
+    <h1>Health Sync</h1>
+    <p>Workouts, steps, food, weight and feelings in one place, saved to your Google Drive.</p>
+    <div class="stack">
+      <div id="w-file" class="notice" hidden>This page was opened from a file on your computer. Google sign-in only works from the app's web address (for example <b>https://yourname.github.io/health-sync/</b>). See SETUP.md.</div>
+      <div id="w-noid" hidden class="stack">
+        <div class="notice">No Google Client ID is set yet. Add it to <b>config.js</b> (SETUP.md, Part 4), or paste it here to use it in this browser only.</div>
+        <div><label for="w-id">Google Client ID</label><input id="w-id" type="text" placeholder="1234-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></div>
+        <button class="btn" id="w-saveid">Save Client ID</button>
+      </div>
+      <button class="btn primary" id="w-connect" hidden>Connect Google Drive</button>
+      <div id="w-err" class="err" hidden></div>
+      <button class="btn ghost small" id="w-local">Try it without Drive (saves on this computer only)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" hidden>
+<header>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Health Sync</div>
+      <div class="status" title=""><span class="dot" id="st-dot"></span><span class="lbl" id="st-lbl">Ready</span></div>
+      <button class="btn small" id="btn-sync" title="Reload data and check the Drive Inbox">Sync</button>
+    </div>
+    <nav id="tabs">
+      <button data-tab="dash" class="on">Dashboard</button>
+      <button data-tab="log">Log today</button>
+      <button data-tab="hist">History</button>
+      <button data-tab="imp">Import</button>
+      <button data-tab="set">Settings</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- Dashboard -->
+<section class="tab" id="tab-dash">
+  <div class="row">
+    <div class="datebar">
+      <button class="btn small" id="d-prev" aria-label="Previous day">‹</button>
+      <input type="date" id="d-date">
+      <button class="btn small" id="d-next" aria-label="Next day">›</button>
+      <button class="btn small ghost" id="d-today">Today</button>
+    </div>
+  </div>
+  <div class="tiles" id="d-tiles"></div>
+  <div class="cols">
+    <div class="card"><div class="card-h"><h2>Workouts</h2></div><div class="list" id="d-workouts"></div></div>
+    <div class="card"><div class="card-h"><h2>Food</h2></div><div class="list" id="d-food"></div></div>
+    <div class="card"><div class="card-h"><h2>How you felt</h2><button class="btn small" id="d-editfeel" style="margin-left:auto">Edit</button></div><div id="d-feel"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-h">
+      <h2>Trends</h2>
+      <select id="d-range" style="width:auto;margin-left:auto">
+        <option value="7">Last 7 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="365">Last 12 months</option>
+      </select>
+    </div>
+    <div class="charts">
+      <div><h3>Steps</h3><div class="chart-box"><canvas id="c-steps"></canvas></div></div>
+      <div><h3>Weight</h3><div class="chart-box"><canvas id="c-weight"></canvas></div></div>
+      <div><h3>Calories eaten</h3><div class="chart-box"><canvas id="c-cal"></canvas></div></div>
+      <div><h3>Exercise minutes</h3><div class="chart-box"><canvas id="c-ex"></canvas></div></div>
+      <div><h3>Mood (1–5)</h3><div class="chart-box"><canvas id="c-mood"></canvas></div></div>
+      <div><h3>Sleep (hours)</h3><div class="chart-box"><canvas id="c-sleep"></canvas></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Log -->
+<section class="tab" id="tab-log" hidden>
+  <div class="row">
+    <div class="datebar">
+      <button class="btn small" id="l-prev" aria-label="Previous day">‹</button>
+      <input type="date" id="l-date">
+      <button class="btn small" id="l-next" aria-label="Next day">›</button>
+      <button class="btn small ghost" id="l-today">Today</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Feelings</h2></div>
+    <div class="form-grid">
+      <div><label>Mood</label><div class="scale" id="f-mood"></div></div>
+      <div><label>Energy</label><div class="scale num" id="f-energy"></div></div>
+      <div><label>Stress</label><div class="scale num" id="f-stress"></div></div>
+      <div><label for="f-sleep">Sleep (hours)</label><input type="number" id="f-sleep" min="0" max="24" step="0.25" placeholder="e.g. 7.5"></div>
+    </div>
+    <div style="margin-top:14px"><label for="f-tags">Tags <span class="muted">(comma separated, e.g. sore, motivated, headache)</span></label><input type="text" id="f-tags"></div>
+    <div style="margin-top:14px"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="How was today?"></textarea></div>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <div class="card-h"><h2>Weight</h2></div>
+      <div class="row"><input type="number" id="f-weight" step="0.1" min="0" class="grow" placeholder="Weight"><select id="f-wunit" style="width:auto"><option value="lb">lb</option><option value="kg">kg</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Steps</h2></div>
+      <input type="number" id="f-steps" min="0" step="1" placeholder="Usually imported from Garmin">
+    </div>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <div class="card-h"><h2>Workouts</h2></div>
+      <div class="list" id="l-workouts"></div>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="w-type" class="grow" placeholder="Type (e.g. Walk)">
+        <input type="number" id="w-min" placeholder="Min" style="width:80px" min="0">
+        <input type="number" id="w-cal" placeholder="Cal" style="width:80px" min="0">
+        <button class="btn small" id="w-add">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Food</h2></div>
+      <div class="list" id="l-food"></div>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="fd-name" class="grow" placeholder="Food">
+        <input type="number" id="fd-cal" placeholder="Cal" style="width:80px" min="0">
+        <select id="fd-meal" style="width:auto"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snacks</option></select>
+        <button class="btn small" id="fd-add">Add</button>
+      </div>
+    </div>
+  </div>
+  <div class="row"><button class="btn primary" id="l-save">Save day</button><span class="muted small" id="l-msg"></span></div>
+</section>
+
+<!-- History -->
+<section class="tab" id="tab-hist" hidden>
+  <div class="card">
+    <div class="card-h">
+      <h2>Daily history</h2>
+      <select id="h-range" style="width:auto;margin-left:auto">
+        <option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="0">Everything</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Date</th><th>Steps</th><th>Cal in</th><th>Protein g</th><th>Exercise min</th><th>Cal burned</th><th>Weight</th><th>Sleep h</th><th>Mood</th></tr></thead><tbody id="h-body"></tbody></table>
+    </div>
+    <p class="muted small" id="h-empty" hidden>No data yet. Go to Import to bring in your Lose It and Garmin files.</p>
+  </div>
+</section>
+
+<!-- Import -->
+<section class="tab" id="tab-imp" hidden>
+  <div class="card" id="imp-drive">
+    <div class="card-h"><h2>Google Drive Inbox</h2></div>
+    <p class="small" style="margin-top:0">Drop your Lose It and Garmin export files (Lose It Daily Report PDFs, CSV or ZIP) into <b>Health Sync › Inbox</b> in Google Drive. The app imports them every time it opens, then moves them to <b>Processed</b>.</p>
+    <div class="row"><button class="btn primary" id="imp-check">Check Inbox now</button><a id="imp-open" target="_blank" rel="noopener" class="btn">Open folder in Drive ↗</a></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Import from this computer</h2></div>
+    <div class="drop" id="imp-drop">Drag PDF, CSV or ZIP files here, or <label for="imp-file" style="display:inline;color:var(--accent);cursor:pointer;font-size:inherit">choose files</label>
+      <input type="file" id="imp-file" multiple accept=".csv,.zip,.pdf,text/csv,application/zip,application/pdf" hidden></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Import results</h2></div>
+    <div class="log" id="imp-log">Nothing imported yet in this session.</div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Import history</h2></div>
+    <div class="list" id="imp-hist"></div>
+  </div>
+</section>
+
+<!-- Settings -->
+<section class="tab" id="tab-set" hidden>
+  <div class="card">
+    <div class="card-h"><h2>Where your data lives</h2></div>
+    <p class="small" style="margin-top:0" id="s-where"></p>
+    <div class="row"><button class="btn" id="s-disconnect">Sign out</button></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Units</h2></div>
+    <div class="row">
+      <label style="margin:0">Distance</label>
+      <select id="s-units" style="width:auto"><option value="imperial">Miles</option><option value="metric">Kilometers</option></select>
+      <span class="muted small">Should match the unit setting in Garmin Connect.</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Backup</h2></div>
+    <p class="small" style="margin-top:0">Download a copy of everything, or restore from a backup file. Restoring merges with your current data.</p>
+    <div class="row">
+      <button class="btn" id="s-export">Download backup (JSON)</button>
+      <button class="btn" id="s-csv">Download daily summary (CSV)</button>
+      <label class="btn" style="margin:0;font-size:inherit;color:inherit" for="s-restore">Restore backup…</label>
+      <input type="file" id="s-restore" accept=".json,application/json" hidden>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Theme</h2></div>
+    <select id="s-theme" style="width:auto"><option value="">Match my computer</option><option value="light">Light</option><option value="dark">Dark</option></select>
+  </div>
+</section>
+
+</main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ================= utilities ================= */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const SS = {
+  get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch {} },
+};
+const pad = n => String(n).padStart(2, '0');
+const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+const dateKey = d => ymd(d.getFullYear(), d.getMonth() + 1, d.getDate());
+const todayKey = () => dateKey(new Date());
+const keyToDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (k, n) => { const d = keyToDate(k); d.setDate(d.getDate() + n); return dateKey(d); };
+const fmtDay = (k, opts = { weekday: 'short', month: 'short', day: 'numeric' }) => keyToDate(k).toLocaleDateString(undefined, opts);
+const fmtN = (n, dp = 0) => n == null || isNaN(n) ? '—' : Number(n).toLocaleString(undefined, { maximumFractionDigits: dp, minimumFractionDigits: 0 });
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function validKey(y, m, d) {
+  if (y < 1990 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  return ymd(y, m, d);
+}
+function parseDate(s) {
+  s = String(s ?? '').trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (m) return validKey(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);           // US style M/D/Y
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return validKey(y, +m[1], +m[2]); }
+  if (/[a-z]{3}/i.test(s) && /\d/.test(s)) {                    // "Oct 12, 2026", "Mon, Oct 12, 2026"
+    let d = new Date(s);
+    if (isNaN(d) && !/\d{4}/.test(s)) d = new Date(s + ', ' + new Date().getFullYear());
+    if (!isNaN(d)) return validKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  }
+  return null;
+}
+function num(s) {
+  if (s == null) return null;
+  const m = String(s).replace(/,/g, '').match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+// minutes; "hms" treats a:b as min:sec (Garmin activity time), "hm" treats it as hours:min (sleep)
+function parseDuration(s, mode = 'hms') {
+  if (s == null) return null;
+  s = String(s).trim();
+  if (!s || s === '--') return null;
+  let m = s.match(/^(\d+):(\d{2}):(\d{2})(\.\d+)?$/);
+  if (m) return +m[1] * 60 + +m[2] + +m[3] / 60;
+  m = s.match(/^(\d+):(\d{2})(\.\d+)?$/);
+  if (m) return mode === 'hm' ? +m[1] * 60 + +m[2] : +m[1] + +m[2] / 60;
+  const h = s.match(/(\d+(?:\.\d+)?)\s*h/i), mi = s.match(/(\d+)\s*m/i);
+  if (h || mi) return (h ? +h[1] * 60 : 0) + (mi ? +mi[1] : 0);
+  return num(s);
+}
+let toastT;
+function toast(msg, ms = 3200) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms);
+}
+function setStatus(text, kind = '') {
+  $('#st-lbl').textContent = text;
+  $('#st-dot').className = 'dot' + (kind ? ' ' + kind : '');
+}
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/* ================= data model ================= */
+// data.days["YYYY-MM-DD"] = { steps, stepsSource, weight, weightUnit, weightSource,
+//   sleep:{hours, score, source}, food:[...], workouts:[...], feel:{mood,energy,stress,tags,notes} }
+const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
+function normalize(d) {
+  d = d && typeof d === 'object' ? d : {};
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], updated: d.updated || null };
+}
+let data = emptyData();
+const dirty = new Set();
+let importsDirty = false;
+let settings = Object.assign({ units: 'imperial', theme: '' }, LS.get('hs-settings', {}));
+const saveSettings = () => LS.set('hs-settings', settings);
+
+function getDay(k) { return data.days[k]; }
+function day(k) {
+  const d = data.days[k] || (data.days[k] = {});
+  d.food ||= []; d.workouts ||= [];
+  return d;
+}
+function touch(k) {
+  const d = data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel)) delete data.days[k];
+  dirty.add(k);
+}
+const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
+
+function totals(d) {
+  const t = { calIn: 0, protein: 0, carbs: 0, fat: 0, burn: 0, exMin: 0, hasFood: false, hasEx: false };
+  if (!d) return t;
+  let itemMacros = false;
+  for (const f of d.food || []) { t.calIn += f.calories || 0; t.protein += f.protein || 0; t.carbs += f.carbs || 0; t.fat += f.fat || 0; t.hasFood = true; if (f.protein != null || f.carbs != null || f.fat != null) itemMacros = true; }
+  // Lose It's PDF report only gives macros for the whole day.
+  if (!itemMacros && d.nutrition) { t.protein = d.nutrition.protein || 0; t.carbs = d.nutrition.carbs || 0; t.fat = d.nutrition.fat || 0; }
+  for (const w of d.workouts || []) { t.burn += w.calories || 0; t.exMin += w.durationMin || 0; t.hasEx = true; }
+  return t;
+}
+function latestWeight(k, maxBack = 3650) {
+  const keys = Object.keys(data.days).filter(x => x <= k && data.days[x].weight != null).sort();
+  const last = keys[keys.length - 1];
+  if (!last) return null;
+  const d = data.days[last];
+  return { key: last, value: d.weight, unit: d.weightUnit || 'lb' };
+}
+const sleepHours = d => d?.sleep?.hours ?? null;
+
+/* ================= storage backends ================= */
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
+const FOLDER_MIME = 'application/vnd.google-apps.folder';
+const DATA_NAME = 'health-data.json';
+const CLIENT_ID = (window.HEALTH_SYNC_CONFIG && window.HEALTH_SYNC_CONFIG.clientId || '').trim() || LS.get('hs-client-id', '');
+
+const LocalStore = {
+  kind: 'local',
+  async init() {},
+  async load() { return normalize(LS.get('hs-local-data', null)); },
+  async save(obj) { LS.set('hs-local-data', obj); },
+};
+
+const Drive = {
+  kind: 'drive', token: null, exp: 0, client: null, ids: {},
+  ready() {
+    return new Promise((res, rej) => {
+      let n = 0;
+      const t = setInterval(() => {
+        if (window.google?.accounts?.oauth2) { clearInterval(t); res(); }
+        else if (++n > 150) { clearInterval(t); rej(new Error('Could not load Google sign-in. Check your internet connection and reload.')); }
+      }, 100);
+    });
+  },
+  initClient() {
+    if (this.client) return;
+    this.client = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: DRIVE_SCOPE, callback: () => {} });
+    const saved = SS.get('hs-token');
+    if (saved && saved.exp > Date.now()) { this.token = saved.token; this.exp = saved.exp; }
+  },
+  valid() { return !!this.token && Date.now() < this.exp; },
+  // Must be called directly from a click (no await before it) so the Google popup isn't blocked.
+  signIn() {
+    return new Promise((res, rej) => {
+      this.client.callback = r => {
+        if (r.error) return rej(new Error(r.error_description || r.error));
+        if (!google.accounts.oauth2.hasGrantedAllScopes(r, DRIVE_SCOPE)) return rej(new Error('Google Drive access was not allowed. Click Connect again and tick the box that lets Health Sync see and edit your Drive files.'));
+        this.token = r.access_token; this.exp = Date.now() + (Number(r.expires_in || 3600) - 60) * 1000;
+        SS.set('hs-token', { token: this.token, exp: this.exp });
+        res();
+      };
+      this.client.error_callback = e => rej(new Error(e?.type === 'popup_closed' ? 'Sign-in window was closed.' : e?.type === 'popup_failed_to_open' ? 'The sign-in window was blocked. Allow pop-ups for this site and try again.' : (e?.message || 'Sign-in failed.')));
+      this.client.requestAccessToken({ prompt: '' });
+    });
+  },
+  async api(url, opts = {}) {
+    if (!this.valid()) await this.signIn();
+    const full = url.startsWith('http') ? url : 'https://www.googleapis.com/drive/v3/' + url;
+    const r = await fetch(full, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + this.token } });
+    if (!r.ok) {
+      let msg = 'error ' + r.status;
+      try { const j = await r.json(); msg = j.error?.message || msg; } catch {}
+      if (r.status === 401) { this.token = null; SS.del('hs-token'); msg = 'your Google session expired. Click Sync to sign in again.'; }
+      throw new Error('Google Drive: ' + msg);
+    }
+    return r;
+  },
+  async list(q) {
+    const out = []; let page = '';
+    do {
+      const r = await this.api('files?pageSize=200&orderBy=createdTime&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,modifiedTime,size)') + '&q=' + encodeURIComponent(q) + (page ? '&pageToken=' + page : ''));
+      const j = await r.json(); out.push(...(j.files || [])); page = j.nextPageToken || '';
+    } while (page);
+    return out;
+  },
+  async folder(name, parent) {
+    const f = await this.list(`name='${name}' and mimeType='${FOLDER_MIME}' and '${parent}' in parents and trashed=false`);
+    if (f.length) return f[0].id;
+    const r = await this.api('files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parent] }) });
+    return (await r.json()).id;
+  },
+  async init() {
+    this.ids.root = await this.folder('Health Sync', 'root');
+    [this.ids.inbox, this.ids.processed] = await Promise.all([this.folder('Inbox', this.ids.root), this.folder('Processed', this.ids.root)]);
+    const f = await this.list(`name='${DATA_NAME}' and '${this.ids.root}' in parents and trashed=false`);
+    this.ids.data = f[0]?.id || null;
+  },
+  async load() {
+    if (!this.ids.data) return emptyData();
+    const r = await this.api(`files/${this.ids.data}?alt=media`);
+    return normalize(await r.json());
+  },
+  async save(obj) {
+    const body = JSON.stringify(obj);
+    if (this.ids.data) {
+      await this.api(`https://www.googleapis.com/upload/drive/v3/files/${this.ids.data}?uploadType=media`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body });
+      return;
+    }
+    const b = 'hs' + uid();
+    const meta = { name: DATA_NAME, parents: [this.ids.root], mimeType: 'application/json' };
+    const mp = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${b}--`;
+    const r = await this.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body: mp });
+    this.ids.data = (await r.json()).id;
+  },
+  inbox() { return this.list(`'${this.ids.inbox}' in parents and trashed=false and mimeType!='${FOLDER_MIME}'`); },
+  async fetchFile(f) {
+    if (f.mimeType === 'application/vnd.google-apps.spreadsheet') {
+      const r = await this.api(`files/${f.id}/export?mimeType=text%2Fcsv`);
+      return { name: f.name + '.csv', buf: await r.arrayBuffer() };
+    }
+    if (f.mimeType.startsWith('application/vnd.google-apps')) throw new Error('is a Google Doc/Slides file, not a spreadsheet export');
+    const r = await this.api(`files/${f.id}?alt=media`);
+    return { name: f.name, buf: await r.arrayBuffer() };
+  },
+  async moveToProcessed(f) {
+    await this.api(`files/${f.id}?addParents=${this.ids.processed}&removeParents=${this.ids.inbox}&fields=id`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  },
+};
+
+let store = null;
+let busy = false;
+
+async function persist() {
+  if (!dirty.size && !importsDirty) return;
+  setStatus('Saving…', 'busy');
+  try {
+    // Re-read the latest copy first so edits made on another computer aren't overwritten.
+    const remote = await store.load();
+    for (const k of dirty) { if (data.days[k]) remote.days[k] = data.days[k]; else delete remote.days[k]; }
+    const seen = new Set(remote.imports.map(i => i.id));
+    for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
+    remote.imports = remote.imports.slice(-500);
+    remote.updated = new Date().toISOString();
+    await store.save(remote);
+    data = remote; dirty.clear(); importsDirty = false;
+    setStatus('Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+  } catch (e) {
+    setStatus('Not saved', 'err');
+    throw e;
+  }
+}
+
+/* ================= importers ================= */
+function logImport(line) {
+  const el = $('#imp-log');
+  if (el.dataset.fresh !== '1') { el.textContent = ''; el.dataset.fresh = '1'; }
+  el.textContent += line + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function rangeText(keys) {
+  const s = [...keys].sort();
+  if (!s.length) return '';
+  return s.length === 1 ? fmtDay(s[0], { month: 'short', day: 'numeric', year: 'numeric' }) : `${fmtDay(s[0], { month: 'short', day: 'numeric', year: 'numeric' })} – ${fmtDay(s[s.length - 1], { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+async function importBuffer(name, buf) {
+  const bytes = new Uint8Array(buf.slice(0, 4));
+  if (/\.pdf$/i.test(name) || (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46)) return importPdf(name, buf);
+  const isZip = /\.zip$/i.test(name) || (bytes[0] === 0x50 && bytes[1] === 0x4b);
+  if (isZip) {
+    const zip = await JSZip.loadAsync(buf);
+    const entries = Object.values(zip.files).filter(f => !f.dir && /\.(csv|pdf)$/i.test(f.name) && !/__MACOSX/.test(f.name));
+    if (!entries.length) return [`${name}: no CSV or PDF files inside this ZIP`];
+    const out = [];
+    for (const e of entries) {
+      const base = e.name.split('/').pop();
+      if (/\.pdf$/i.test(base)) out.push(...await importPdf(`${name} › ${base}`, await e.async('arraybuffer')));
+      else out.push(...importCsv(base, await e.async('string'), name));
+    }
+    return out;
+  }
+  return importCsv(name, new TextDecoder('utf-8').decode(buf));
+}
+
+function importCsv(name, text, parent) {
+  const label = parent ? `${parent} › ${name}` : name;
+  text = text.replace(/^﻿/, '');
+  const rows = Papa.parse(text, { skipEmptyLines: true }).data;
+  const KEY = /date|time|activity type|steps|weight|name|calories|score|duration|day/i;
+  const hi = rows.findIndex(r => r.length >= 2 && r.some(c => KEY.test(c)) && rows.indexOf(r) < rows.length - 1);
+  if (hi < 0) return [`${label}: skipped (didn't recognize the columns)`];
+  const headers = rows[hi].map((h, i) => String(h).trim().toLowerCase() || `col${i}`);
+  const body = rows.slice(hi + 1).map(r => {
+    const o = { _first: String(r[0] ?? '').trim() };
+    headers.forEach((h, i) => { o[h] = String(r[i] ?? '').trim(); });
+    return o;
+  });
+  const has = h => headers.includes(h);
+  const find = re => headers.find(h => re.test(h));
+  const fn = name.toLowerCase();
+
+  let res;
+  if (has('activity type')) res = impGarminActivities(body);
+  else if (has('meal') && find(/^calories/)) res = impLoseItFood(body, find);
+  else if (/exercise/.test(fn) && find(/^name/) && find(/calories/)) res = impLoseItExercise(body, find);
+  else if (/sleep/.test(fn) || find(/sleep/)) res = impSleep(body, headers, find);
+  else if (find(/weight/) && !find(/^steps|steps$/)) res = impWeight(body, headers, find, fn);
+  else if (find(/steps/) || /step/.test(fn)) res = impSteps(body, headers, find);
+  else return [`${label}: skipped (not a file type Health Sync knows yet — columns: ${headers.slice(0, 6).join(', ')}…)`];
+
+  importsDirty = true;
+  data.imports.push({ id: uid(), at: new Date().toISOString(), name: label, what: res.what, count: res.count, range: rangeText(res.dates) });
+  return [`${label}: ${res.count} ${res.what}${res.dates.size ? ' (' + rangeText(res.dates) + ')' : ''}${res.note ? ' — ' + res.note : ''}`];
+}
+
+function impGarminActivities(rows) {
+  const dates = new Set(); let count = 0;
+  for (const r of rows) {
+    const k = parseDate(r['date']);
+    if (!k) continue;
+    const start = (r['date'].match(/(\d{1,2}:\d{2})/) || [])[1] || '';
+    const type = r['activity type'] || 'Activity';
+    const w = {
+      id: `garmin|${k}|${start}|${type}`, source: 'garmin', type, title: r['title'] || type, start,
+      durationMin: parseDuration(r['time'] || r['elapsed time'] || r['moving time']),
+      distance: num(r['distance']), calories: num(r['calories']),
+      avgHR: num(r['avg hr']), maxHR: num(r['max hr']), steps: num(r['steps']),
+    };
+    const d = day(k);
+    const i = d.workouts.findIndex(x => x.id === w.id);
+    if (i >= 0) d.workouts[i] = w; else d.workouts.push(w);
+    touch(k); dates.add(k); count++;
+  }
+  return { what: 'Garmin activities', count, dates };
+}
+
+function impLoseItFood(rows, find) {
+  const c = { date: find(/^date/), name: find(/^name/), meal: find(/^meal/), qty: find(/^quantity/), units: find(/^units?$/), cal: find(/^calories/),
+    del: find(/^deleted/), fat: find(/^fat/), protein: find(/^protein/), carbs: find(/^carbohydrates|^carbs/), fiber: find(/^fiber/), sugar: find(/^sugar/), sodium: find(/^sodium/) };
+  const byDay = {}; let count = 0;
+  rows.forEach((r, idx) => {
+    const k = parseDate(r[c.date] ?? r._first);
+    if (!k) return;
+    if (c.del && /^(1|true|yes)$/i.test(r[c.del])) return;
+    (byDay[k] ||= []).push({
+      id: `loseit|${k}|${idx}`, source: 'loseit', name: r[c.name] || 'Food', meal: r[c.meal] || '',
+      qty: num(r[c.qty]), units: r[c.units] || '', calories: num(r[c.cal]) || 0,
+      fat: num(r[c.fat]), protein: num(r[c.protein]), carbs: num(r[c.carbs]), fiber: num(r[c.fiber]), sugar: num(r[c.sugar]), sodium: num(r[c.sodium]),
+    });
+    count++;
+  });
+  // A Lose It export is the full log for each day it covers, so it replaces that day's Lose It entries.
+  for (const [k, items] of Object.entries(byDay)) {
+    const d = day(k);
+    d.food = d.food.filter(f => f.source !== 'loseit').concat(items);
+    touch(k);
+  }
+  return { what: 'Lose It food entries', count, dates: new Set(Object.keys(byDay)) };
+}
+
+function impLoseItExercise(rows, find) {
+  const c = { date: find(/^date/), name: find(/^name/), qty: find(/^quantity/), units: find(/^units?$/), cal: find(/calories/), del: find(/^deleted/), min: find(/minutes|duration/) };
+  const byDay = {}; let count = 0, skipped = 0;
+  rows.forEach((r, idx) => {
+    const k = parseDate(r[c.date] ?? r._first);
+    if (!k) return;
+    if (c.del && /^(1|true|yes)$/i.test(r[c.del])) return;
+    const name = r[c.name] || 'Exercise';
+    // Lose It can mirror Garmin workouts; those already come in from the Garmin file.
+    if (/garmin/i.test(name)) { skipped++; return; }
+    let mins = c.min ? parseDuration(r[c.min], 'hm') : null;
+    if (mins == null && c.qty) { const q = num(r[c.qty]), u = (r[c.units] || '').toLowerCase(); mins = /hour/.test(u) ? q * 60 : /min/.test(u) ? q : null; }
+    (byDay[k] ||= []).push({ id: `loseit|${k}|${idx}`, source: 'loseit', type: name, title: name, durationMin: mins, calories: num(r[c.cal]) });
+    count++;
+  });
+  for (const [k, items] of Object.entries(byDay)) {
+    const d = day(k);
+    d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(items);
+    touch(k);
+  }
+  return { what: 'Lose It exercises', count, dates: new Set(Object.keys(byDay)), note: skipped ? `skipped ${skipped} that came from Garmin` : '' };
+}
+
+function dateCol(headers, find) { return find(/^(date|day|time|timestamp)/) || headers[0]; }
+
+function impWeight(rows, headers, find, fn) {
+  const dc = dateCol(headers, find), wc = find(/weight/);
+  const source = headers.includes('bmi') || /garmin/.test(fn) ? 'garmin' : 'loseit';
+  const dates = new Set(); let count = 0, cur = null;
+  for (const r of rows) {
+    const k = parseDate(r[dc]) || parseDate(r._first);
+    if (k) cur = k;                 // Garmin puts the date on its own row above the time-stamped readings
+    const v = num(r[wc]);
+    if (v == null || v <= 0 || !cur) continue;
+    const unit = /kg/i.test(r[wc] + ' ' + wc) ? 'kg' : 'lb';
+    const d = day(cur);
+    d.weight = v; d.weightUnit = unit; d.weightSource = source;
+    touch(cur); dates.add(cur); count++;
+  }
+  return { what: 'weight readings', count, dates };
+}
+
+function impSteps(rows, headers, find) {
+  const dc = dateCol(headers, find), sc = find(/^steps$|^total steps|steps|^actual/);
+  const dates = new Set(); let count = 0;
+  for (const r of rows) {
+    const k = parseDate(r[dc]) || parseDate(r._first);
+    const v = num(r[sc]);
+    if (!k || v == null) continue;
+    const d = day(k);
+    d.steps = Math.round(v); d.stepsSource = 'garmin';
+    touch(k); dates.add(k); count++;
+  }
+  return { what: 'days of steps', count, dates };
+}
+
+function impSleep(rows, headers, find) {
+  const dc = dateCol(headers, find), durc = find(/duration|total sleep|sleep time|^sleep$/), sc = find(/score/);
+  const dates = new Set(); let count = 0;
+  for (const r of rows) {
+    const k = parseDate(r[dc]) || parseDate(r._first);
+    if (!k) continue;
+    const mins = durc ? parseDuration(r[durc], 'hm') : null;
+    const score = sc ? num(r[sc]) : null;
+    if (mins == null && score == null) continue;
+    const d = day(k);
+    d.sleep = { hours: mins != null ? Math.round(mins / 6) / 10 : d.sleep?.hours ?? null, score, source: 'garmin' };
+    touch(k); dates.add(k); count++;
+  }
+  return { what: 'nights of sleep', count, dates };
+}
+
+
+/* ---- Lose It "Daily Report" PDF ---- */
+// Rebuild the PDF's table rows: text pieces on the same line, grouped into cells by horizontal gaps.
+async function pdfLines(buf) {
+  if (!window.pdfjsLib) throw new Error('the PDF reader did not load — check your internet connection');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  const lines = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const content = await (await pdf.getPage(p)).getTextContent();
+    const rows = [];
+    for (const it of content.items) {
+      if (!it.str || !it.str.trim()) continue;
+      const x = it.transform[4], y = it.transform[5];
+      let r = rows.find(r => Math.abs(r.y - y) < 3);
+      if (!r) rows.push(r = { y, items: [] });
+      r.items.push({ x, w: it.width, s: it.str });
+    }
+    rows.sort((a, b) => b.y - a.y);
+    for (const r of rows) {
+      r.items.sort((a, b) => a.x - b.x);
+      const cells = []; let cur = null;
+      for (const it of r.items) {
+        const gap = cur ? it.x - (cur.x + cur.w) : Infinity;
+        if (gap < 8) { cur.s += (gap > 0.5 && !/\s$/.test(cur.s) ? ' ' : '') + it.s; cur.w = it.x + it.w - cur.x; }
+        else cells.push(cur = { ...it });
+      }
+      lines.push(cells.map(c => c.s.replace(/\s+/g, ' ').trim()).filter(Boolean));
+    }
+  }
+  return lines;
+}
+
+async function importPdf(name, buf) {
+  const lines = await pdfLines(buf);
+  const days = {};
+  let k = null, section = '', meal = '';
+  const NUT = { 'fat': 'fat', 'saturated fat': 'satFat', 'cholesterol': 'cholesterol', 'sodium': 'sodium', 'carbohydrates': 'carbs', 'fiber': 'fiber', 'sugar': 'sugar', 'sugars': 'sugar', 'protein': 'protein' };
+  for (const l of lines) {
+    const t = l.join(' ');
+    let m = t.match(/Daily Report for (.+)$/i);
+    if (m) { k = parseDate(m[1]); section = 'summary'; meal = ''; if (k) days[k] ||= { food: [], ex: [], nut: {}, extra: {} }; continue; }
+    if (!k) continue;
+    const D = days[k];
+    if (/^(Summary|Daily Log|Nutrients|Goals)$/i.test(t)) { section = t.toLowerCase(); continue; }
+    if (section === 'summary') {
+      m = t.match(/^Weight\s+([\d.,]+)\s*(lbs?|kg)?/i);
+      if (m) { D.weight = num(m[1]); D.unit = /kg/i.test(m[2] || '') ? 'kg' : 'lb'; }
+      continue;
+    }
+    if (section === 'daily log') {
+      m = t.match(/^(Breakfast|Lunch|Dinner|Snacks?|Exercise)\s*-?[\d,]*$/i);
+      if (m) { meal = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase(); continue; }
+      if (!meal) continue;
+      let nm, qty = '', cal;
+      if (l.length >= 3) { nm = l.slice(0, -2).join(' '); qty = l[l.length - 2]; cal = num(l[l.length - 1]); }
+      else {
+        m = t.match(/^(.*?)\s+((?:[\d.]+|\d+\/\d+)\s+[A-Za-z][\w .]*?)\s+(-?[\d,]+)$/) || t.match(/^(.*?)()\s+(-?[\d,]+)$/);
+        if (!m) continue;
+        [nm, qty, cal] = [m[1], m[2], num(m[3])];
+      }
+      if (cal == null) continue;
+      if (meal === 'Exercise') {
+        if (/garmin/i.test(nm)) continue;        // Garmin's own workouts come from the Garmin export
+        D.ex.push({ name: nm, mins: parseDuration(qty, 'hm'), cal });
+      } else {
+        const q = qty.match(/^([\d.]+|\d+\/\d+)\s+(.*)$/);
+        const qn = q ? (q[1].includes('/') ? q[1].split('/')[0] / q[1].split('/')[1] : +q[1]) : null;
+        D.food.push({ name: nm, meal, qty: qn, units: q ? q[2] : qty, cal });
+      }
+      continue;
+    }
+    // Nutrients block and the extra table after it: "Protein 32 g", "Steps 2,203 steps", "Sleep 6 hours 53 minutes hrs"
+    m = t.match(/^([A-Za-z][A-Za-z /]*?)\s*(?:\([^)]*\))?\s+(-?[\d,.]+.*)$/);
+    if (!m) continue;
+    const label = m[1].trim().toLowerCase(), val = m[2];
+    if (NUT[label]) { if (D.nut[NUT[label]] == null) D.nut[NUT[label]] = num(val); }
+    else if (label === 'steps') D.extra.steps = num(val);
+    else if (label === 'sleep') D.extra.sleep = parseDuration(val, 'hm');
+    else if (label === 'weight') { D.weight = num(val); D.unit = /kg/i.test(val) ? 'kg' : 'lb'; }
+  }
+  const keys = Object.keys(days);
+  if (!keys.length) return [`${name}: skipped (this PDF isn't a Lose It Daily Report)`];
+  let foods = 0;
+  for (const key of keys) {
+    const D = days[key], d = day(key);
+    d.food = d.food.filter(f => f.source !== 'loseit').concat(D.food.map((f, i) => ({ id: `loseit|${key}|${i}`, source: 'loseit', name: f.name, meal: f.meal, qty: f.qty, units: f.units, calories: f.cal })));
+    d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(D.ex.map((e, i) => ({ id: `loseit|${key}|x${i}`, source: 'loseit', type: e.name, title: e.name, durationMin: e.mins, calories: e.cal })));
+    if (Object.keys(D.nut).length) d.nutrition = { ...D.nut, source: 'loseit' }; else delete d.nutrition;
+    // Garmin files and hand-entered values win over the copies Lose It shows.
+    if (D.weight && d.weightSource !== 'manual' && d.weightSource !== 'garmin') { d.weight = D.weight; d.weightUnit = D.unit; d.weightSource = 'loseit'; }
+    if (D.extra.steps != null && d.stepsSource !== 'manual' && d.stepsSource !== 'garmin') { d.steps = Math.round(D.extra.steps); d.stepsSource = 'loseit'; }
+    if (D.extra.sleep != null && (!d.sleep || d.sleep.source === 'loseit')) d.sleep = { hours: Math.round(D.extra.sleep / 6) / 10, score: null, source: 'loseit' };
+    touch(key); foods += D.food.length;
+  }
+  const dates = new Set(keys);
+  importsDirty = true;
+  data.imports.push({ id: uid(), at: new Date().toISOString(), name, what: 'Lose It food entries', count: foods, range: rangeText(dates) });
+  return [`${name}: ${keys.length} day${keys.length > 1 ? 's' : ''}, ${foods} food entries (${rangeText(dates)})`];
+}
+
+async function checkInbox(quiet = false) {
+  if (store !== Drive) return;
+  const files = await Drive.inbox();
+  if (!files.length) { if (!quiet) logImport('Inbox is empty — nothing new to import.'); return 0; }
+  setStatus(`Importing ${files.length} file${files.length > 1 ? 's' : ''}…`, 'busy');
+  let done = 0;
+  const imported = [];
+  for (const f of files) {
+    try {
+      const { name, buf } = await Drive.fetchFile(f);
+      (await importBuffer(name, buf)).forEach(logImport);
+      imported.push(f); done++;
+    } catch (e) {
+      logImport(`${f.name}: could not import — ${e.message}`);
+    }
+  }
+  await persist();
+  // Only move files after the data is safely saved.
+  for (const f of imported) { try { await Drive.moveToProcessed(f); } catch (e) { logImport(`${f.name}: imported, but could not move it to Processed — ${e.message}`); } }
+  return done;
+}
+
+/* ================= rendering ================= */
+const MOODS = ['😞', '🙁', '😐', '🙂', '😄'];
+let dashDate = todayKey(), logDate = todayKey();
+const charts = {};
+
+function render() {
+  renderDash(); renderLog(); renderHist(); renderImports(); renderSettings();
+}
+
+function tile(k, v, unit, sub) {
+  return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${v}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div><div class="s">${sub || '&nbsp;'}</div></div>`;
+}
+
+function renderDash() {
+  $('#d-date').value = dashDate;
+  const d = getDay(dashDate), t = totals(d);
+  const w = latestWeight(dashDate);
+  let wSub = '';
+  if (w) {
+    const prev = latestWeight(addDays(dashDate, -30));
+    if (w.key !== dashDate) wSub = 'last logged ' + fmtDay(w.key, { month: 'short', day: 'numeric' });
+    if (prev && prev.key !== w.key && prev.unit === w.unit) { const diff = w.value - prev.value; wSub = (wSub ? wSub + ' · ' : '') + `${diff > 0 ? '+' : ''}${fmtN(diff, 1)} vs 30 days ago`; }
+  }
+  const f = d?.feel;
+  $('#d-tiles').innerHTML = [
+    tile('Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcName(d.stepsSource)) : 'none yet'),
+    tile('Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
+    tile('Exercise', t.hasEx ? fmtN(t.exMin) : '—', t.hasEx ? 'min' : '', t.hasEx ? `${fmtN(t.burn)} cal burned` : 'no workouts'),
+    tile('Weight', w ? fmtN(w.value, 1) : '—', w ? w.unit : '', wSub),
+    tile('Mood', f?.mood ? MOODS[f.mood - 1] : '—', '', f?.mood ? [f.energy && `energy ${f.energy}/5`, f.stress && `stress ${f.stress}/5`].filter(Boolean).join(' · ') : 'not logged'),
+    tile('Sleep', sleepHours(d) != null ? fmtN(sleepHours(d), 1) : '—', sleepHours(d) != null ? 'h' : '', d?.sleep?.score ? `score ${d.sleep.score}` : ''),
+  ].join('');
+
+  const dist = settings.units === 'metric' ? 'km' : 'mi';
+  const ws = (d?.workouts || []).slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+  $('#d-workouts').innerHTML = ws.length ? ws.map(x => `<div class="li"><span class="n">${esc(x.title || x.type)}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${[x.durationMin != null && fmtN(x.durationMin) + ' min', x.distance && fmtN(x.distance, 2) + ' ' + dist, x.calories && fmtN(x.calories) + ' cal', x.avgHR && '♥ ' + fmtN(x.avgHR)].filter(Boolean).join(' · ')}</span></div>`).join('') : '<p class="muted small" style="margin:0">No workouts on this day.</p>';
+
+  const fd = d?.food || [];
+  if (fd.length) {
+    const meals = {};
+    fd.forEach(x => (meals[x.meal || 'Other'] ||= []).push(x));
+    const order = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+    const names = Object.keys(meals).sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9));
+    $('#d-food').innerHTML = names.map(m => `<div class="li"><span class="n"><b>${esc(m)}</b></span><span class="x"><b>${fmtN(meals[m].reduce((s, x) => s + (x.calories || 0), 0))} cal</b></span></div>` +
+      meals[m].map(x => `<div class="li"><span class="n">${esc(x.name)}${x.qty ? ` <span class="muted small">${fmtN(x.qty, 2)} ${esc(x.units)}</span>` : ''}</span><span class="x">${fmtN(x.calories)}</span></div>`).join('')).join('');
+  } else $('#d-food').innerHTML = '<p class="muted small" style="margin:0">No food on this day.</p>';
+
+  $('#d-feel').innerHTML = hasFeel(f) ? `
+    <div style="font-size:30px">${f.mood ? MOODS[f.mood - 1] : ''}</div>
+    <div class="small muted">${[f.energy && `Energy ${f.energy}/5`, f.stress && `Stress ${f.stress}/5`].filter(Boolean).join(' · ')}</div>
+    ${f.tags?.length ? `<div style="margin-top:6px">${f.tags.map(t => `<span class="tag" style="margin:0 4px 4px 0">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${f.notes ? `<p style="margin:8px 0 0;white-space:pre-wrap">${esc(f.notes)}</p>` : ''}` : '<p class="muted small" style="margin:0">Nothing logged yet.</p>';
+
+  renderCharts();
+}
+const srcName = s => ({ garmin: 'Garmin', loseit: 'Lose It', manual: 'Manual' }[s] || s || '');
+
+function renderCharts() {
+  if (!window.Chart) return;
+  const n = +$('#d-range').value;
+  const keys = []; for (let i = n - 1; i >= 0; i--) keys.push(addDays(dashDate, -i));
+  const long = n > 60;
+  const labels = keys.map(k => fmtDay(k, long ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric' }));
+  const D = keys.map(k => getDay(k));
+  const units = new Set(D.filter(d => d?.weight != null).map(d => d.weightUnit || 'lb'));
+  const wUnit = units.size === 1 ? [...units][0] : 'lb';
+  const toUnit = d => d.weightUnit === wUnit || !d.weightUnit ? d.weight : (wUnit === 'lb' ? d.weight * 2.20462 : d.weight / 2.20462);
+  draw('c-steps', 'bar', labels, D.map(d => d?.steps ?? null), v => fmtN(v) + ' steps');
+  draw('c-weight', 'line', labels, D.map(d => d?.weight != null ? +toUnit(d).toFixed(1) : null), v => fmtN(v, 1) + ' ' + wUnit, { beginAtZero: false });
+  draw('c-cal', 'bar', labels, D.map(d => { const t = totals(d); return t.hasFood ? Math.round(t.calIn) : null; }), v => fmtN(v) + ' cal');
+  draw('c-ex', 'bar', labels, D.map(d => { const t = totals(d); return t.hasEx ? Math.round(t.exMin) : null; }), v => fmtN(v) + ' min');
+  draw('c-mood', 'line', labels, D.map(d => d?.feel?.mood ?? null), v => MOODS[v - 1] + ' ' + v + '/5', { min: 1, max: 5, ticks: { stepSize: 1 } });
+  draw('c-sleep', 'bar', labels, D.map(d => sleepHours(d)), v => fmtN(v, 1) + ' h');
+}
+
+function draw(id, type, labels, values, fmt, yOpts = {}) {
+  const cs = getComputedStyle(document.documentElement);
+  const color = cs.getPropertyValue('--series').trim(), grid = cs.getPropertyValue('--grid').trim(), muted = cs.getPropertyValue('--muted').trim(), surface = cs.getPropertyValue('--surface').trim();
+  const empty = values.every(v => v == null);
+  const box = document.getElementById(id).parentElement;
+  box.querySelector('.empty')?.remove();
+  if (empty) box.insertAdjacentHTML('beforeend', '<div class="empty muted small" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">No data in this range</div>');
+  charts[id]?.destroy();
+  const { ticks: yTicks, ...yRest } = yOpts;
+  charts[id] = new Chart(document.getElementById(id), {
+    type,
+    data: { labels, datasets: [{
+      data: values, backgroundColor: color, borderColor: color, borderWidth: type === 'line' ? 2 : 0, borderRadius: 4, borderSkipped: 'start',
+      pointRadius: values.length > 45 ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: color, pointBorderColor: surface, pointBorderWidth: 2,
+      spanGaps: true, tension: 0.3, maxBarThickness: 22, categoryPercentage: 0.85, barPercentage: 0.9,
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => c.parsed.y == null ? 'no data' : fmt(c.parsed.y) } } },
+      scales: {
+        x: { grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxTicksLimit: 6, maxRotation: 0, autoSkip: true } },
+        y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 5, ...(yTicks || {}) }, ...yRest },
+      },
+    },
+  });
+}
+
+/* ---- Log tab ---- */
+let feelDraft = {};
+function scaleUI(el, field, labels) {
+  el.innerHTML = labels.map((l, i) => `<button type="button" data-v="${i + 1}" aria-label="${field} ${i + 1}">${l}</button>`).join('');
+  el.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const v = +b.dataset.v; feelDraft[field] = feelDraft[field] === v ? null : v;
+    paintScales(); markLogDirty();
+  };
+}
+function paintScales() {
+  for (const f of ['mood', 'energy', 'stress']) $$(`#f-${f} button`).forEach(b => b.classList.toggle('on', +b.dataset.v === feelDraft[f]));
+}
+let logDirty = false;
+function markLogDirty() { logDirty = true; $('#l-msg').textContent = 'Unsaved changes'; }
+
+function renderLog() {
+  $('#l-date').value = logDate;
+  const d = getDay(logDate);
+  const f = d?.feel || {};
+  feelDraft = { mood: f.mood || null, energy: f.energy || null, stress: f.stress || null };
+  paintScales();
+  $('#f-tags').value = (f.tags || []).join(', ');
+  $('#f-notes').value = f.notes || '';
+  $('#f-sleep').value = d?.sleep?.hours ?? '';
+  $('#f-weight').value = d?.weight ?? '';
+  $('#f-wunit').value = d?.weightUnit || latestWeight(logDate)?.unit || 'lb';
+  $('#f-steps').value = d?.steps ?? '';
+  renderLogLists();
+  logDirty = false; $('#l-msg').textContent = '';
+}
+function renderLogLists() {
+  const d = getDay(logDate);
+  const ws = d?.workouts || [], fd = d?.food || [];
+  $('#l-workouts').innerHTML = ws.length ? ws.map((x, i) => `<div class="li"><span class="n">${esc(x.title || x.type)}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${[x.durationMin != null && fmtN(x.durationMin) + ' min', x.calories && fmtN(x.calories) + ' cal'].filter(Boolean).join(' · ')}</span><button class="del" data-del="workouts" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">None yet.</p>';
+  $('#l-food').innerHTML = fd.length ? fd.map((x, i) => `<div class="li"><span class="n">${esc(x.name)}<span class="tag">${esc(x.meal || srcName(x.source))}</span></span><span class="x">${fmtN(x.calories)} cal</span><button class="del" data-del="food" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">None yet.</p>';
+}
+
+async function saveLogDay() {
+  const k = logDate, d = day(k);
+  const tags = $('#f-tags').value.split(',').map(s => s.trim()).filter(Boolean);
+  const notes = $('#f-notes').value.trim();
+  const feel = { mood: feelDraft.mood || null, energy: feelDraft.energy || null, stress: feelDraft.stress || null, tags, notes };
+  if (hasFeel(feel)) d.feel = feel; else delete d.feel;
+  const sl = num($('#f-sleep').value);
+  if (sl != null) d.sleep = { ...(d.sleep || {}), hours: sl, source: d.sleep?.hours === sl ? d.sleep.source : 'manual' };
+  else if (d.sleep) { delete d.sleep.hours; if (!d.sleep.score) delete d.sleep; }
+  const wt = num($('#f-weight').value), wu = $('#f-wunit').value;
+  if (wt != null && wt > 0) { if (d.weight !== wt || d.weightUnit !== wu) { d.weight = wt; d.weightUnit = wu; d.weightSource = 'manual'; } }
+  else { delete d.weight; delete d.weightUnit; delete d.weightSource; }
+  const st = num($('#f-steps').value);
+  if (st != null) { if (d.steps !== Math.round(st)) { d.steps = Math.round(st); d.stepsSource = 'manual'; } }
+  else { delete d.steps; delete d.stepsSource; }
+  touch(k);
+  await runTask(persist);
+  logDirty = false; $('#l-msg').textContent = 'Saved';
+  renderDash(); renderHist();
+}
+
+/* ---- History ---- */
+function renderHist() {
+  const n = +$('#h-range').value;
+  let keys = Object.keys(data.days).sort().reverse();
+  if (n) { const cut = addDays(todayKey(), -(n - 1)); keys = keys.filter(k => k >= cut); }
+  $('#h-empty').hidden = !!keys.length;
+  $('#h-body').innerHTML = keys.map(k => {
+    const d = data.days[k], t = totals(d);
+    return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${d.feel?.mood ? MOODS[d.feel.mood - 1] : '—'}</td></tr>`;
+  }).join('');
+}
+
+/* ---- Import & Settings ---- */
+function renderImports() {
+  const list = data.imports.slice().reverse().slice(0, 40);
+  $('#imp-hist').innerHTML = list.length ? list.map(i => `<div class="li"><span class="n">${esc(i.name)}<div class="muted small">${esc(i.count)} ${esc(i.what)}${i.range ? ' · ' + esc(i.range) : ''}</div></span><span class="x small">${esc(new Date(i.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>`).join('') : '<p class="muted small" style="margin:0">No imports yet.</p>';
+  $('#imp-drive').hidden = store !== Drive;
+  if (Drive.ids.inbox) $('#imp-open').href = 'https://drive.google.com/drive/folders/' + Drive.ids.inbox;
+}
+function renderSettings() {
+  $('#s-where').innerHTML = store === Drive
+    ? `Your data is saved in your Google Drive, in <b>Health Sync › ${DATA_NAME}</b>. Open this app on any computer and connect the same Google account to see the same data.`
+    : `You're in <b>this computer only</b> mode: data is saved in this browser and won't sync. Sign out and choose <b>Connect Google Drive</b> to sync. Anything saved here will be copied into Drive.`;
+  $('#s-units').value = settings.units;
+  $('#s-theme').value = settings.theme;
+}
+
+function applyTheme() {
+  if (settings.theme) document.documentElement.dataset.theme = settings.theme; else delete document.documentElement.dataset.theme;
+}
+
+/* ================= actions ================= */
+async function runTask(fn) {
+  if (busy) { toast('Hang on — still working on the last step.'); return; }
+  busy = true; $('#btn-sync').disabled = true;
+  try { return await fn(); }
+  catch (e) { console.error(e); setStatus('Problem', 'err'); toast(e.message || String(e), 6000); }
+  finally { busy = false; $('#btn-sync').disabled = false; }
+}
+
+async function syncNow() {
+  await runTask(async () => {
+    setStatus('Syncing…', 'busy');
+    if (dirty.size || importsDirty) await persist();
+    data = await store.load();
+    if (store === Drive) await checkInbox(true);
+    setStatus('Up to date');
+    render();
+  });
+}
+
+function exportCsv() {
+  const head = ['date', 'steps', 'calories_in', 'protein_g', 'carbs_g', 'fat_g', 'exercise_min', 'calories_burned', 'weight', 'weight_unit', 'sleep_hours', 'mood', 'energy', 'stress', 'tags', 'notes'];
+  const q = v => v == null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  const lines = [head.join(',')];
+  for (const k of Object.keys(data.days).sort()) {
+    const d = data.days[k], t = totals(d), f = d.feel || {};
+    lines.push([k, d.steps, t.hasFood ? Math.round(t.calIn) : '', t.hasFood ? Math.round(t.protein) : '', t.hasFood ? Math.round(t.carbs) : '', t.hasFood ? Math.round(t.fat) : '', t.hasEx ? Math.round(t.exMin) : '', t.hasEx ? Math.round(t.burn) : '', d.weight, d.weight != null ? d.weightUnit : '', sleepHours(d), f.mood, f.energy, f.stress, (f.tags || []).join('; '), f.notes].map(q).join(','));
+  }
+  download(`health-sync-daily-${todayKey()}.csv`, lines.join('\n'), 'text/csv');
+}
+
+async function restoreBackup(file) {
+  let incoming;
+  try { incoming = normalize(JSON.parse(await file.text())); } catch { toast('That file is not a Health Sync backup.'); return; }
+  const n = Object.keys(incoming.days).length;
+  if (!confirm(`Restore ${n} days from this backup? Days in the backup will replace the same days in your current data.`)) return;
+  for (const [k, v] of Object.entries(incoming.days)) { data.days[k] = v; dirty.add(k); }
+  await runTask(persist);
+  render(); toast(`Restored ${n} days.`);
+}
+
+async function importLocalFiles(files) {
+  await runTask(async () => {
+    for (const f of files) {
+      try { (await importBuffer(f.name, await f.arrayBuffer())).forEach(logImport); }
+      catch (e) { logImport(`${f.name}: could not import — ${e.message}`); }
+    }
+    await persist();
+    render();
+  });
+}
+
+/* ================= startup ================= */
+async function startApp(kind) {
+  store = kind === 'drive' ? Drive : LocalStore;
+  LS.set('hs-mode', kind);
+  setStatus('Loading…', 'busy');
+  await store.init();
+  data = await store.load();
+
+  // First time connecting Drive after using local mode: carry local-only days over.
+  const local = normalize(LS.get('hs-local-data', null));
+  if (store === Drive && Object.keys(local.days).length) {
+    let added = 0;
+    for (const [k, v] of Object.entries(local.days)) if (!data.days[k]) { data.days[k] = v; dirty.add(k); added++; }
+    if (added) { await persist(); toast(`Copied ${added} days from this computer into Google Drive.`); }
+    LS.del('hs-local-data');
+  }
+
+  $('#welcome').hidden = true; $('#app').hidden = false;
+  setStatus('Up to date');
+  render();
+  if (store === Drive) {
+    const n = await checkInbox(true);
+    if (n) { render(); toast(`Imported ${n} new file${n > 1 ? 's' : ''} from your Drive Inbox.`); }
+  }
+}
+
+function showWelcomeError(e) {
+  console.error(e);
+  const el = $('#w-err'); el.textContent = e.message || String(e); el.hidden = false;
+  $('#w-connect').disabled = false; $('#w-connect').textContent = 'Connect Google Drive';
+}
+
+async function boot() {
+  applyTheme();
+  scaleUI($('#f-mood'), 'mood', MOODS);
+  scaleUI($('#f-energy'), 'energy', ['1', '2', '3', '4', '5']);
+  scaleUI($('#f-stress'), 'stress', ['1', '2', '3', '4', '5']);
+
+  const onFile = location.protocol === 'file:';
+  $('#w-file').hidden = !onFile;
+  $('#w-noid').hidden = !!CLIENT_ID || onFile;
+  $('#w-connect').hidden = !CLIENT_ID || onFile;
+
+  $('#w-saveid').onclick = () => {
+    const v = $('#w-id').value.trim();
+    if (!/\.apps\.googleusercontent\.com$/.test(v)) { showWelcomeError(new Error('That doesn\'t look like a Client ID. It should end in .apps.googleusercontent.com')); return; }
+    LS.set('hs-client-id', v); location.reload();
+  };
+  $('#w-local').onclick = () => startApp('local').catch(showWelcomeError);
+  $('#w-connect').onclick = () => {
+    $('#w-err').hidden = true;
+    if (!Drive.client) { showWelcomeError(new Error('Google sign-in is still loading — try again in a moment.')); return; }
+    $('#w-connect').disabled = true; $('#w-connect').textContent = 'Connecting…';
+    const go = Drive.valid() ? Promise.resolve() : Drive.signIn();
+    go.then(() => startApp('drive')).catch(showWelcomeError);
+  };
+
+  const mode = LS.get('hs-mode', null);
+  if (mode === 'local') { startApp('local').catch(showWelcomeError); return; }
+  if (CLIENT_ID && !onFile) {
+    try {
+      await Drive.ready();
+      Drive.initClient();
+      if (mode === 'drive' && Drive.valid()) startApp('drive').catch(e => { $('#welcome').hidden = false; $('#app').hidden = true; showWelcomeError(e); });
+    } catch (e) { showWelcomeError(e); }
+  }
+}
+
+/* ---- wire up controls ---- */
+$('#tabs').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (logDirty && b.dataset.tab !== 'log' && !confirm('You have unsaved changes in Log. Leave without saving?')) return;
+  if (b.dataset.tab !== 'log' && logDirty) renderLog();
+  $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  $$('section.tab').forEach(s => s.hidden = s.id !== 'tab-' + b.dataset.tab);
+  if (b.dataset.tab === 'dash') renderCharts();
+};
+function goTab(t) { $(`#tabs button[data-tab="${t}"]`).click(); }
+
+$('#btn-sync').onclick = () => {
+  // Start Google sign-in straight from the click if the session expired, so the popup isn't blocked.
+  if (store === Drive && !Drive.valid()) Drive.signIn().then(syncNow).catch(e => toast(e.message, 6000));
+  else syncNow();
+};
+
+$('#d-date').onchange = e => { if (e.target.value) { dashDate = e.target.value; renderDash(); } };
+$('#d-prev').onclick = () => { dashDate = addDays(dashDate, -1); renderDash(); };
+$('#d-next').onclick = () => { dashDate = addDays(dashDate, 1); renderDash(); };
+$('#d-today').onclick = () => { dashDate = todayKey(); renderDash(); };
+$('#d-range').onchange = renderCharts;
+$('#d-editfeel').onclick = () => { logDate = dashDate; renderLog(); goTab('log'); };
+
+function moveLog(k) {
+  if (logDirty && !confirm('You have unsaved changes for this day. Discard them?')) { $('#l-date').value = logDate; return; }
+  logDate = k; renderLog();
+}
+$('#l-date').onchange = e => { if (e.target.value) moveLog(e.target.value); };
+$('#l-prev').onclick = () => moveLog(addDays(logDate, -1));
+$('#l-next').onclick = () => moveLog(addDays(logDate, 1));
+$('#l-today').onclick = () => moveLog(todayKey());
+['#f-tags', '#f-notes', '#f-sleep', '#f-weight', '#f-wunit', '#f-steps'].forEach(s => $(s).addEventListener('input', markLogDirty));
+$('#l-save').onclick = saveLogDay;
+
+$('#w-add').onclick = () => {
+  const type = $('#w-type').value.trim(); if (!type) { $('#w-type').focus(); return; }
+  day(logDate).workouts.push({ id: 'manual|' + uid(), source: 'manual', type, title: type, durationMin: num($('#w-min').value), calories: num($('#w-cal').value) });
+  touch(logDate); $('#w-type').value = $('#w-min').value = $('#w-cal').value = '';
+  renderLogLists(); markLogDirty();
+};
+$('#fd-add').onclick = () => {
+  const name = $('#fd-name').value.trim(); if (!name) { $('#fd-name').focus(); return; }
+  day(logDate).food.push({ id: 'manual|' + uid(), source: 'manual', name, meal: $('#fd-meal').value, calories: num($('#fd-cal').value) || 0 });
+  touch(logDate); $('#fd-name').value = $('#fd-cal').value = '';
+  renderLogLists(); markLogDirty();
+};
+$('#tab-log').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  const d = getDay(logDate); if (!d) return;
+  d[b.dataset.del].splice(+b.dataset.i, 1);
+  touch(logDate); renderLogLists(); markLogDirty();
+});
+
+$('#h-range').onchange = renderHist;
+$('#h-body').onclick = e => { const tr = e.target.closest('tr'); if (!tr) return; dashDate = tr.dataset.k; goTab('dash'); renderDash(); };
+
+$('#imp-check').onclick = () => {
+  const run = () => runTask(async () => { const n = await checkInbox(false); setStatus('Up to date'); render(); if (n) toast(`Imported ${n} file${n > 1 ? 's' : ''}.`); });
+  if (!Drive.valid()) Drive.signIn().then(run).catch(e => toast(e.message, 6000)); else run();
+};
+$('#imp-file').onchange = e => { const f = [...e.target.files]; e.target.value = ''; if (f.length) importLocalFiles(f); };
+const drop = $('#imp-drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); const f = [...e.dataTransfer.files]; if (f.length) importLocalFiles(f); });
+
+$('#s-units').onchange = e => { settings.units = e.target.value; saveSettings(); renderDash(); };
+$('#s-theme').onchange = e => { settings.theme = e.target.value; saveSettings(); applyTheme(); renderCharts(); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!$('#app').hidden) renderCharts(); });
+$('#s-export').onclick = () => download(`health-sync-backup-${todayKey()}.json`, JSON.stringify(data, null, 1), 'application/json');
+$('#s-csv').onclick = exportCsv;
+$('#s-restore').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreBackup(f); };
+$('#s-disconnect').onclick = () => {
+  if ((dirty.size || importsDirty) && !confirm('Some changes are not saved yet. Sign out anyway?')) return;
+  if (Drive.token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(Drive.token, () => {});
+  SS.del('hs-token'); LS.del('hs-mode');
+  location.reload();
+};
+window.addEventListener('beforeunload', e => { if (dirty.size || importsDirty || logDirty) { e.preventDefault(); e.returnValue = ''; } });
+
+boot();
+</script>
+</body>
+</html>
