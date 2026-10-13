@@ -623,7 +623,7 @@ async function importBuffer(name, buf) {
   if (isZip) {
     const zip = await JSZip.loadAsync(buf);
     const entries = Object.values(zip.files).filter(f => !f.dir && /\.(csv|pdf)$/i.test(f.name) && !/__MACOSX/.test(f.name));
-    if (!entries.length) return [`${name}: no CSV or PDF files inside this ZIP`];
+    if (!entries.length) return [`${name}: skipped (no CSV or PDF files inside this ZIP)`];
     const out = [];
     for (const e of entries) {
       const base = e.name.split('/').pop();
@@ -639,6 +639,8 @@ function importCsv(name, text, parent) {
   const label = parent ? `${parent} › ${name}` : name;
   text = text.replace(/^﻿/, '');
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
+  if (rows.some(r => /^total activity time$/i.test(String(r[0]).trim())) && rows.some(r => /^average step count$/i.test(String(r[0]).trim())))
+    return [`${label}: skipped (this is Garmin's Progress Summary — totals only, with no dates. Export Activities › All Activities › Export CSV instead)`];
   const KEY = /date|time|activity type|steps|weight|name|calories|score|duration|day/i;
   const hi = rows.findIndex(r => r.length >= 2 && r.some(c => KEY.test(c)) && rows.indexOf(r) < rows.length - 1);
   if (hi < 0) return [`${label}: skipped (didn't recognize the columns)`];
@@ -653,6 +655,7 @@ function importCsv(name, text, parent) {
   const fn = name.toLowerCase();
 
   let res;
+  if (has('activity type') && !has('date')) return [`${label}: skipped (this is Garmin's monthly Activities report — counts only. Use the activity list at connect.garmin.com/modern/activities › Export CSV instead)`];
   if (has('activity type')) res = impGarminActivities(body);
   else if (has('meal') && find(/^calories/)) res = impLoseItFood(body, find);
   else if (/exercise/.test(fn) && find(/^name/) && find(/calories/)) res = impLoseItExercise(body, find);
@@ -661,6 +664,7 @@ function importCsv(name, text, parent) {
   else if (find(/steps/) || /step/.test(fn)) res = impSteps(body, headers, find);
   else return [`${label}: skipped (not a file type Health Sync knows yet — columns: ${headers.slice(0, 6).join(', ')}…)`];
 
+  if (!res.count) return [`${label}: skipped (found no dated rows to import)`];
   importsDirty = true;
   data.imports.push({ id: uid(), at: new Date().toISOString(), name: label, what: res.what, count: res.count, range: rangeText(res.dates) });
   return [`${label}: ${res.count} ${res.what}${res.dates.size ? ' (' + rangeText(res.dates) + ')' : ''}${res.note ? ' — ' + res.note : ''}`];
@@ -894,7 +898,10 @@ async function checkInbox(quiet = false) {
   for (const f of files) {
     try {
       const { name, buf } = await Drive.fetchFile(f);
-      (await importBuffer(name, buf)).forEach(logImport);
+      const lines = await importBuffer(name, buf);
+      lines.forEach(logImport);
+      // Leave unreadable files in the Inbox so they can be checked.
+      if (lines.every(l => / skipped \(/.test(l))) continue;
       imported.push(f); done++;
     } catch (e) {
       logImport(`${f.name}: could not import — ${e.message}`);
