@@ -240,7 +240,7 @@ tbody tr:hover{background:var(--surface-2)}
     <div class="card-h">
       <h2>Mood words</h2>
       <span class="muted small" id="cloud-range"></span>
-      <label class="small" style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cloud-notes"> Include words from notes</label>
+      <label class="small" style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cloud-notes"> Include feelings from notes</label>
     </div>
     <div class="cloud" id="cloud"></div>
     <div class="cloud-key" id="cloud-key"><span>Bigger = more often</span><span>·</span><span>Lower mood</span><i></i><span>Higher mood</span></div>
@@ -1043,8 +1043,27 @@ function renderDash() {
 const srcName = s => ({ garmin: 'Garmin', loseit: 'Lose It', manual: 'Manual' }[s] || s || '');
 
 
-const STOP = new Set(("the and for that with was were this have had has but not you your are our out all just get got really very too can could would should about from into then than them they their there what when where which while who will been being also some more much like felt feel feeling feels today day days yesterday tomorrow its it's i'm i've i'd i'll didn't don't doesn't wasn't isn't can't won't did does doing done after before again over under because so" +
-  " any are back bit both each even ever going gone good how let lot made make many may might most need now off one only other own same see still such take that's thing things think through time two way well went what's will yet").split(/\s+/));
+// Words from notes only count if they describe a feeling (emotional or physical). Tags always count.
+const FEELINGS = new Set(`
+happy happier happiest joy joyful glad cheerful content contented satisfied pleased delighted elated ecstatic euphoric thrilled excited
+grateful thankful blessed lucky hopeful optimistic positive proud confident accomplished productive successful inspired motivated
+determined focused driven ambitious eager enthusiastic energized energetic refreshed rested recharged alive strong powerful capable
+calm relaxed peaceful serene centered grounded balanced mellow chill comfortable cozy safe secure settled steady stable
+loved loving affectionate connected supported appreciated valued understood included social playful silly amused curious interested
+fulfilled free relieved light lighthearted carefree brave courageous resilient patient kind compassionate generous
+good great fine okay ok alright better best amazing awesome wonderful fantastic
+sad sadder unhappy down blue low depressed gloomy miserable heartbroken hurt grieving lonely isolated alone empty numb hopeless
+helpless worthless disappointed discouraged defeated regretful guilty ashamed embarrassed insecure inadequate rejected
+anxious anxiety nervous worried worry uneasy tense stressed stress stressful overwhelmed panicked panicky scared afraid fearful
+frightened restless jittery on-edge pressured rushed busy hectic frazzled
+angry mad furious irritated irritable annoyed frustrated grumpy cranky agitated resentful bitter impatient moody snappy
+bored unmotivated lazy sluggish lethargic drained exhausted tired sleepy fatigued weary wiped burnt burned-out burnout
+foggy unfocused distracted scattered confused lost stuck unsure doubtful indifferent apathetic meh blah
+sick ill unwell nauseous queasy sore achy aching stiff tight pain painful hurting headache migraine crampy bloated
+hungry starving full stuffed thirsty dehydrated hangry weak dizzy shaky feverish congested
+fit healthy strong-willed disciplined consistent recovered recovering
+`.trim().split(/\s+/));
+const NEGATORS = new Set(['not', 'never', 'no', "isn't", "wasn't", "didn't", "don't", "doesn't", "wasnt", "didnt", "dont", 'hardly', 'barely', 'less']);
 
 function moodColor(m) {
   if (m == null) return 'var(--muted)';
@@ -1061,9 +1080,12 @@ function renderCloud() {
     const f = getDay(k)?.feel;
     if (!f) continue;
     const seen = new Set((f.tags || []).map(t => t.toLowerCase().trim()).filter(Boolean));
-    if (settings.cloudNotes && f.notes) for (let w of f.notes.toLowerCase().match(/[a-z][a-z'’-]+/g) || []) {
-      w = w.replace(/’/g, "'").replace(/'s$/, '').replace(/^-+|-+$/g, '');
-      if (w.length > 2 && !STOP.has(w)) seen.add(w);
+    if (settings.cloudNotes && f.notes) {
+      const toks = (f.notes.toLowerCase().replace(/’/g, "'").match(/[a-z][a-z'-]*/g) || []).map(w => w.replace(/^-+|-+$/g, ''));
+      toks.forEach((w, idx) => {
+        // Skip "not tired", "wasn't happy", "never felt anxious".
+        if (FEELINGS.has(w) && !NEGATORS.has(toks[idx - 1]) && !(NEGATORS.has(toks[idx - 2]) && /^(feel|felt|feeling|very|too|so|that|really)$/.test(toks[idx - 1]))) seen.add(w);
+      });
     }
     for (const w of seen) { const e = words[w] ||= { n: 0, moods: [] }; e.n++; if (f.mood) e.moods.push(f.mood); }
   }
