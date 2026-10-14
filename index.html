@@ -527,7 +527,8 @@ const Drive = {
   initClient() {
     if (this.client) return;
     this.client = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: DRIVE_SCOPE, callback: () => {} });
-    const saved = SS.get('hs-token');
+    // Kept for its full hour (about) so reopening the app within that time needs no click.
+    const saved = LS.get('hs-token', null);
     if (saved && saved.exp > Date.now()) { this.token = saved.token; this.exp = saved.exp; }
   },
   valid() { return !!this.token && Date.now() < this.exp; },
@@ -538,11 +539,13 @@ const Drive = {
         if (r.error) return rej(new Error(r.error_description || r.error));
         if (!google.accounts.oauth2.hasGrantedAllScopes(r, DRIVE_SCOPE)) return rej(new Error('Google Drive access was not allowed. Click Connect again and tick the box that lets Health Sync see and edit your Drive files.'));
         this.token = r.access_token; this.exp = Date.now() + (Number(r.expires_in || 3600) - 60) * 1000;
-        SS.set('hs-token', { token: this.token, exp: this.exp });
+        LS.set('hs-token', { token: this.token, exp: this.exp });
         res();
       };
       this.client.error_callback = e => rej(new Error(e?.type === 'popup_closed' ? 'Sign-in window was closed.' : e?.type === 'popup_failed_to_open' ? 'The sign-in window was blocked. Allow pop-ups for this site and try again.' : (e?.message || 'Sign-in failed.')));
-      this.client.requestAccessToken({ prompt: '' });
+      // Naming the remembered account lets Google skip the account chooser.
+      const email = LS.get('hs-email', '');
+      this.client.requestAccessToken(email ? { prompt: '', login_hint: email } : { prompt: '' });
     });
   },
   async api(url, opts = {}) {
@@ -552,7 +555,7 @@ const Drive = {
     if (!r.ok) {
       let msg = 'error ' + r.status;
       try { const j = await r.json(); msg = j.error?.message || msg; } catch {}
-      if (r.status === 401) { this.token = null; SS.del('hs-token'); msg = 'your Google session expired. Click Sync to sign in again.'; }
+      if (r.status === 401) { this.token = null; LS.del('hs-token'); msg = 'your Google session expired. Click Sync to sign in again.'; }
       throw new Error('Google Drive: ' + msg);
     }
     return r;
@@ -572,6 +575,11 @@ const Drive = {
     return (await r.json()).id;
   },
   async init() {
+    try {
+      const about = await (await this.api('about?fields=user(emailAddress)')).json();
+      this.email = about.user?.emailAddress || '';
+      if (this.email) LS.set('hs-email', this.email);
+    } catch {}
     this.ids.root = await this.folder('Health Sync', 'root');
     [this.ids.inbox, this.ids.processed] = await Promise.all([this.folder('Inbox', this.ids.root), this.folder('Processed', this.ids.root)]);
     const f = await this.list(`name='${DATA_NAME}' and '${this.ids.root}' in parents and trashed=false`);
@@ -1238,7 +1246,7 @@ function renderImports() {
 }
 function renderSettings() {
   $('#s-where').innerHTML = store === Drive
-    ? `Your data is saved in your Google Drive, in <b>Health Sync › ${DATA_NAME}</b>. Open this app on any computer and connect the same Google account to see the same data.`
+    ? `Connected as <b>${esc(Drive.email || LS.get('hs-email', '') || 'your Google account')}</b>. Your data is saved in your Google Drive, in <b>Health Sync › ${DATA_NAME}</b>. Open this app on any computer and connect the same Google account to see the same data.`
     : `You're in <b>this computer only</b> mode: data is saved in this browser and won't sync. Sign out and choose <b>Connect Google Drive</b> to sync. Anything saved here will be copied into Drive.`;
   $('#s-units').value = settings.units;
   $('#s-theme').value = settings.theme;
@@ -1453,7 +1461,7 @@ $('#s-restore').onchange = e => { const f = e.target.files[0]; e.target.value = 
 $('#s-disconnect').onclick = () => {
   if ((dirty.size || importsDirty) && !confirm('Some changes are not saved yet. Sign out anyway?')) return;
   if (Drive.token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(Drive.token, () => {});
-  SS.del('hs-token'); LS.del('hs-mode');
+  LS.del('hs-token'); LS.del('hs-email'); LS.del('hs-mode');
   location.reload();
 };
 window.addEventListener('beforeunload', e => { if (dirty.size || importsDirty || logDirty) { e.preventDefault(); e.returnValue = ''; } });
