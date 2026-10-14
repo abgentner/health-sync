@@ -12,6 +12,7 @@
   --text:#0b0b0b; --text-2:#52514e; --muted:#7a7975;
   --accent:#2a78d6; --accent-ink:#ffffff; --series:#2a78d6; --grid:#e8e7e2;
   --good:#0f7a3a; --bad:#c23a39; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
+  --mood-lo:#c8501c; --mood-mid:#8a8984; --mood-hi:#2a78d6;
   --radius:12px; --shadow:0 1px 2px rgba(0,0,0,.05);
 }
 @media (prefers-color-scheme: dark){
@@ -21,6 +22,7 @@
     --text:#ffffff; --text-2:#c3c2b7; --muted:#8f8e86;
     --accent:#3987e5; --series:#3987e5; --grid:#2c2c29;
     --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
+    --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
   }
 }
 :root[data-theme="dark"]{
@@ -29,6 +31,7 @@
   --text:#ffffff; --text-2:#c3c2b7; --muted:#8f8e86;
   --accent:#3987e5; --series:#3987e5; --grid:#2c2c29;
   --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
+    --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
@@ -124,6 +127,19 @@ tbody tr:hover{background:var(--surface-2)}
 .drop{border:2px dashed var(--border);border-radius:var(--radius);padding:22px;text-align:center;color:var(--text-2)}
 .drop.over{border-color:var(--accent);background:var(--surface-2)}
 
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-2);border-left:1px solid var(--border)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.span-lbl{font-size:13px;color:var(--text-2);margin-top:-6px}
+.cloud{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 14px;padding:12px 4px;min-height:120px;line-height:1.15}
+.cloud .w{cursor:default;border-radius:6px;padding:0 3px}
+.cloud .w:hover{background:var(--surface-2)}
+.cloud-key{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-2);justify-content:center}
+.cloud-key i{display:inline-block;width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--mood-lo),var(--mood-mid),var(--mood-hi))}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips button{border:1px solid var(--border);background:var(--surface);border-radius:99px;padding:2px 10px;font-size:12.5px;cursor:pointer;color:var(--text-2)}
+.chips button:hover{border-color:var(--accent);color:var(--text)}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);z-index:20}
 #toast.show{opacity:1}
 @media (max-width:600px){
@@ -190,12 +206,16 @@ tbody tr:hover{background:var(--surface-2)}
       <button class="btn small" id="d-next" aria-label="Next day">›</button>
       <button class="btn small ghost" id="d-today">Today</button>
     </div>
+    <div class="seg" id="d-span" role="group" aria-label="Summary period">
+      <button data-n="1">Day</button><button data-n="5">5-day avg</button><button data-n="7">7-day avg</button><button data-n="15">15-day avg</button><button data-n="30">30-day avg</button>
+    </div>
   </div>
+  <div class="span-lbl" id="d-span-lbl"></div>
   <div class="tiles" id="d-tiles"></div>
   <div class="cols">
-    <div class="card"><div class="card-h"><h2>Workouts</h2></div><div class="list" id="d-workouts"></div></div>
-    <div class="card"><div class="card-h"><h2>Food</h2></div><div class="list" id="d-food"></div></div>
-    <div class="card"><div class="card-h"><h2>How you felt</h2><button class="btn small" id="d-editfeel" style="margin-left:auto">Edit</button></div><div id="d-feel"></div></div>
+    <div class="card"><div class="card-h"><h2>Workouts</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-workouts"></div></div>
+    <div class="card"><div class="card-h"><h2>Food</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-food"></div></div>
+    <div class="card"><div class="card-h"><h2>How you felt</h2><span class="muted small day-lbl"></span><button class="btn small" id="d-editfeel" style="margin-left:auto">Edit</button></div><div id="d-feel"></div></div>
   </div>
   <div class="card">
     <div class="card-h">
@@ -215,6 +235,15 @@ tbody tr:hover{background:var(--surface-2)}
       <div><h3>Mood (1–5)</h3><div class="chart-box"><canvas id="c-mood"></canvas></div></div>
       <div><h3>Sleep (hours)</h3><div class="chart-box"><canvas id="c-sleep"></canvas></div></div>
     </div>
+  </div>
+  <div class="card">
+    <div class="card-h">
+      <h2>Mood words</h2>
+      <span class="muted small" id="cloud-range"></span>
+      <label class="small" style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cloud-notes"> Include words from notes</label>
+    </div>
+    <div class="cloud" id="cloud"></div>
+    <div class="cloud-key" id="cloud-key"><span>Bigger = more often</span><span>·</span><span>Lower mood</span><i></i><span>Higher mood</span></div>
   </div>
 </section>
 
@@ -236,7 +265,7 @@ tbody tr:hover{background:var(--surface-2)}
       <div><label>Stress</label><div class="scale num" id="f-stress"></div></div>
       <div><label for="f-sleep">Sleep (hours)</label><input type="number" id="f-sleep" min="0" max="24" step="0.25" placeholder="e.g. 7.5"></div>
     </div>
-    <div style="margin-top:14px"><label for="f-tags">Tags <span class="muted">(comma separated, e.g. sore, motivated, headache)</span></label><input type="text" id="f-tags"></div>
+    <div style="margin-top:14px"><label for="f-tags">Tags <span class="muted">(comma separated, e.g. sore, motivated, headache)</span></label><input type="text" id="f-tags"><div class="chips" id="f-tagsugg"></div></div>
     <div style="margin-top:14px"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="How was today?"></textarea></div>
   </div>
   <div class="cols">
@@ -436,7 +465,7 @@ function normalize(d) {
 let data = emptyData();
 const dirty = new Set();
 let importsDirty = false;
-let settings = Object.assign({ units: 'imperial', theme: '' }, LS.get('hs-settings', {}));
+let settings = Object.assign({ units: 'imperial', theme: '', span: 7, cloudNotes: true }, LS.get('hs-settings', {}));
 const saveSettings = () => LS.set('hs-settings', settings);
 
 function getDay(k) { return data.days[k]; }
@@ -926,8 +955,11 @@ function tile(k, v, unit, sub) {
   return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${v}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div><div class="s">${sub || '&nbsp;'}</div></div>`;
 }
 
-function renderDash() {
-  $('#d-date').value = dashDate;
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const windowKeys = (end, n) => { const ks = []; for (let i = n - 1; i >= 0; i--) ks.push(addDays(end, -i)); return ks; };
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+function dayTiles() {
   const d = getDay(dashDate), t = totals(d);
   const w = latestWeight(dashDate);
   let wSub = '';
@@ -937,15 +969,53 @@ function renderDash() {
     if (prev && prev.key !== w.key && prev.unit === w.unit) { const diff = w.value - prev.value; wSub = (wSub ? wSub + ' · ' : '') + `${diff > 0 ? '+' : ''}${fmtN(diff, 1)} vs 30 days ago`; }
   }
   const f = d?.feel;
-  $('#d-tiles').innerHTML = [
+  $('#d-span-lbl').textContent = fmtDay(dashDate, { weekday: 'long', month: 'long', day: 'numeric' });
+  return [
     tile('Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcName(d.stepsSource)) : 'none yet'),
     tile('Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
     tile('Exercise', t.hasEx ? fmtN(t.exMin) : '—', t.hasEx ? 'min' : '', t.hasEx ? `${fmtN(t.burn)} cal burned` : 'no workouts'),
     tile('Weight', w ? fmtN(w.value, 1) : '—', w ? w.unit : '', wSub),
     tile('Mood', f?.mood ? MOODS[f.mood - 1] : '—', '', f?.mood ? [f.energy && `energy ${f.energy}/5`, f.stress && `stress ${f.stress}/5`].filter(Boolean).join(' · ') : 'not logged'),
     tile('Sleep', sleepHours(d) != null ? fmtN(sleepHours(d), 1) : '—', sleepHours(d) != null ? 'h' : '', d?.sleep?.score ? `score ${d.sleep.score}` : ''),
-  ].join('');
+  ];
+}
 
+// Averages end the day before the selected date (today's data is usually still incomplete),
+// and skip days with no data for that measure so days that haven't synced yet don't drag them down.
+function avgTiles(n) {
+  const end = addDays(dashDate, -1);
+  const ks = windowKeys(end, n), D = ks.map(getDay).filter(Boolean);
+  const T = D.map(totals);
+  const steps = D.filter(d => d.steps != null).map(d => d.steps);
+  const food = T.filter(t => t.hasFood);
+  const exDays = D.length, exMin = T.reduce((s, t) => s + t.exMin, 0), burn = T.reduce((s, t) => s + t.burn, 0), nW = D.reduce((s, d) => s + d.workouts.length, 0);
+  const wD = D.filter(d => d.weight != null);
+  const unit = wD.length ? wD[wD.length - 1].weightUnit || 'lb' : 'lb';
+  const inUnit = d => (d.weightUnit || 'lb') === unit ? d.weight : unit === 'lb' ? d.weight * 2.20462 : d.weight / 2.20462;
+  const wts = wD.map(inUnit);
+  const feel = D.map(d => d.feel).filter(Boolean);
+  const moods = feel.map(f => f.mood).filter(Boolean), energy = feel.map(f => f.energy).filter(Boolean), stress = feel.map(f => f.stress).filter(Boolean);
+  const sleep = D.map(sleepHours).filter(h => h != null);
+  const days = c => c ? `avg of ${plural(c, 'day')}` : 'no data in this period';
+  const am = avg(moods);
+  $('#d-span-lbl').textContent = `${n}-day average · ${fmtDay(ks[0], { month: 'short', day: 'numeric' })} – ${fmtDay(end, { month: 'short', day: 'numeric' })} · ${plural(D.length, 'day')} with data`;
+  return [
+    tile('Steps', fmtN(avg(steps)), steps.length ? '/day' : '', days(steps.length)),
+    tile('Calories eaten', food.length ? fmtN(avg(food.map(t => t.calIn))) : '—', food.length ? '/day' : '', food.length ? `P ${fmtN(avg(food.map(t => t.protein)))}g · C ${fmtN(avg(food.map(t => t.carbs)))}g · F ${fmtN(avg(food.map(t => t.fat)))}g · ${plural(food.length, 'day')}` : days(0)),
+    tile('Exercise', exDays ? fmtN(exMin / exDays) : '—', exDays ? 'min/day' : '', exDays ? `${plural(nW, 'workout')} · ${fmtN(burn)} cal total` : days(0)),
+    tile('Weight', wts.length ? fmtN(avg(wts), 1) : '—', wts.length ? unit : '', wts.length > 1 ? `${wts[wts.length - 1] - wts[0] > 0 ? '+' : ''}${fmtN(wts[wts.length - 1] - wts[0], 1)} over ${plural(wts.length, 'reading')}` : days(wts.length)),
+    tile('Mood', am ? `${MOODS[Math.round(am) - 1]} ${fmtN(am, 1)}` : '—', '', moods.length ? [energy.length && `energy ${fmtN(avg(energy), 1)}`, stress.length && `stress ${fmtN(avg(stress), 1)}`, plural(moods.length, 'day')].filter(Boolean).join(' · ') : 'not logged'),
+    tile('Sleep', sleep.length ? fmtN(avg(sleep), 1) : '—', sleep.length ? 'h/night' : '', days(sleep.length)),
+  ];
+}
+
+function renderDash() {
+  $('#d-date').value = dashDate;
+  $$('#d-span button').forEach(b => b.classList.toggle('on', +b.dataset.n === settings.span));
+  const d = getDay(dashDate);
+  $('#d-tiles').innerHTML = (settings.span > 1 ? avgTiles(settings.span) : dayTiles()).join('');
+
+  $$('.day-lbl').forEach(el => el.textContent = fmtDay(dashDate, { weekday: 'short', month: 'short', day: 'numeric' }));
   const dist = settings.units === 'metric' ? 'km' : 'mi';
   const ws = (d?.workouts || []).slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
   $('#d-workouts').innerHTML = ws.length ? ws.map(x => `<div class="li"><span class="n">${esc(x.title || x.type)}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${[x.durationMin != null && fmtN(x.durationMin) + ' min', x.distance && fmtN(x.distance, 2) + ' ' + dist, x.calories && fmtN(x.calories) + ' cal', x.avgHR && '♥ ' + fmtN(x.avgHR)].filter(Boolean).join(' · ')}</span></div>`).join('') : '<p class="muted small" style="margin:0">No workouts on this day.</p>';
@@ -960,6 +1030,7 @@ function renderDash() {
       meals[m].map(x => `<div class="li"><span class="n">${esc(x.name)}${x.qty ? ` <span class="muted small">${fmtN(x.qty, 2)} ${esc(x.units)}</span>` : ''}</span><span class="x">${fmtN(x.calories)}</span></div>`).join('')).join('');
   } else $('#d-food').innerHTML = '<p class="muted small" style="margin:0">No food on this day.</p>';
 
+  const f = d?.feel;
   $('#d-feel').innerHTML = hasFeel(f) ? `
     <div style="font-size:30px">${f.mood ? MOODS[f.mood - 1] : ''}</div>
     <div class="small muted">${[f.energy && `Energy ${f.energy}/5`, f.stress && `Stress ${f.stress}/5`].filter(Boolean).join(' · ')}</div>
@@ -967,8 +1038,49 @@ function renderDash() {
     ${f.notes ? `<p style="margin:8px 0 0;white-space:pre-wrap">${esc(f.notes)}</p>` : ''}` : '<p class="muted small" style="margin:0">Nothing logged yet.</p>';
 
   renderCharts();
+  renderCloud();
 }
 const srcName = s => ({ garmin: 'Garmin', loseit: 'Lose It', manual: 'Manual' }[s] || s || '');
+
+
+const STOP = new Set(("the and for that with was were this have had has but not you your are our out all just get got really very too can could would should about from into then than them they their there what when where which while who will been being also some more much like felt feel feeling feels today day days yesterday tomorrow its it's i'm i've i'd i'll didn't don't doesn't wasn't isn't can't won't did does doing done after before again over under because so" +
+  " any are back bit both each even ever going gone good how let lot made make many may might most need now off one only other own same see still such take that's thing things think through time two way well went what's will yet").split(/\s+/));
+
+function moodColor(m) {
+  if (m == null) return 'var(--muted)';
+  const t = Math.max(-1, Math.min(1, (m - 3) / 2));
+  return `color-mix(in oklab, var(${t >= 0 ? '--mood-hi' : '--mood-lo'}) ${Math.round(Math.abs(t) * 100)}%, var(--mood-mid))`;
+}
+
+function renderCloud() {
+  const n = +$('#d-range').value, ks = windowKeys(dashDate, n);
+  $('#cloud-notes').checked = settings.cloudNotes;
+  $('#cloud-range').textContent = $('#d-range').selectedOptions[0].textContent;
+  const words = {};
+  for (const k of ks) {
+    const f = getDay(k)?.feel;
+    if (!f) continue;
+    const seen = new Set((f.tags || []).map(t => t.toLowerCase().trim()).filter(Boolean));
+    if (settings.cloudNotes && f.notes) for (let w of f.notes.toLowerCase().match(/[a-z][a-z'’-]+/g) || []) {
+      w = w.replace(/’/g, "'").replace(/'s$/, '').replace(/^-+|-+$/g, '');
+      if (w.length > 2 && !STOP.has(w)) seen.add(w);
+    }
+    for (const w of seen) { const e = words[w] ||= { n: 0, moods: [] }; e.n++; if (f.mood) e.moods.push(f.mood); }
+  }
+  const list = Object.entries(words).sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0])).slice(0, 45);
+  $('#cloud-key').hidden = !list.length;
+  if (!list.length) { $('#cloud').innerHTML = '<p class="muted small" style="margin:0">Add tags (or notes) in <b>Log today</b> and your most common mood words will show up here.</p>'; return; }
+  const max = list[0][1].n, min = list[list.length - 1][1].n;
+  // Most frequent words in the middle, tapering out to both sides.
+  const arranged = [];
+  list.forEach((x, i) => i % 2 ? arranged.push(x) : arranged.unshift(x));
+  $('#cloud').innerHTML = arranged.map(([w, e]) => {
+    const r = max === min ? 0.5 : (e.n - min) / (max - min);
+    const am = avg(e.moods);
+    const tip = `${w}: ${plural(e.n, 'day')}${am ? ` · average mood ${fmtN(am, 1)} ${MOODS[Math.round(am) - 1]}` : ''}`;
+    return `<span class="w" title="${esc(tip)}" style="font-size:${Math.round(14 + r * 26)}px;font-weight:${r > 0.55 ? 650 : 500};color:${moodColor(am)}">${esc(w)}</span>`;
+  }).join('');
+}
 
 function renderCharts() {
   if (!window.Chart) return;
@@ -1039,6 +1151,7 @@ function renderLog() {
   feelDraft = { mood: f.mood || null, energy: f.energy || null, stress: f.stress || null };
   paintScales();
   $('#f-tags').value = (f.tags || []).join(', ');
+  renderTagSugg();
   $('#f-notes').value = f.notes || '';
   $('#f-sleep').value = d?.sleep?.hours ?? '';
   $('#f-weight').value = d?.weight ?? '';
@@ -1046,6 +1159,13 @@ function renderLog() {
   $('#f-steps').value = d?.steps ?? '';
   renderLogLists();
   logDirty = false; $('#l-msg').textContent = '';
+}
+function renderTagSugg() {
+  const cur = new Set($('#f-tags').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
+  const freq = {};
+  for (const d of Object.values(data.days)) for (const t of d.feel?.tags || []) { const k = t.toLowerCase(); freq[k] = (freq[k] || 0) + 1; }
+  const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).map(x => x[0]).filter(t => !cur.has(t)).slice(0, 14);
+  $('#f-tagsugg').innerHTML = top.map(t => `<button type="button" data-tag="${esc(t)}">+ ${esc(t)}</button>`).join('');
 }
 function renderLogLists() {
   const d = getDay(logDate);
@@ -1247,7 +1367,15 @@ $('#d-date').onchange = e => { if (e.target.value) { dashDate = e.target.value; 
 $('#d-prev').onclick = () => { dashDate = addDays(dashDate, -1); renderDash(); };
 $('#d-next').onclick = () => { dashDate = addDays(dashDate, 1); renderDash(); };
 $('#d-today').onclick = () => { dashDate = todayKey(); renderDash(); };
-$('#d-range').onchange = renderCharts;
+$('#d-range').onchange = () => { renderCharts(); renderCloud(); };
+$('#d-span').onclick = e => { const b = e.target.closest('button'); if (!b) return; settings.span = +b.dataset.n; saveSettings(); renderDash(); };
+$('#cloud-notes').onchange = e => { settings.cloudNotes = e.target.checked; saveSettings(); renderCloud(); };
+$('#f-tagsugg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const v = $('#f-tags').value.trim();
+  $('#f-tags').value = (v && !v.endsWith(',') ? v + ', ' : v ? v + ' ' : '') + b.dataset.tag;
+  renderTagSugg(); markLogDirty();
+};
 $('#d-editfeel').onclick = () => { logDate = dashDate; renderLog(); goTab('log'); };
 
 function moveLog(k) {
@@ -1258,6 +1386,7 @@ $('#l-date').onchange = e => { if (e.target.value) moveLog(e.target.value); };
 $('#l-prev').onclick = () => moveLog(addDays(logDate, -1));
 $('#l-next').onclick = () => moveLog(addDays(logDate, 1));
 $('#l-today').onclick = () => moveLog(todayKey());
+$('#f-tags').addEventListener('input', renderTagSugg);
 ['#f-tags', '#f-notes', '#f-sleep', '#f-weight', '#f-wunit', '#f-steps'].forEach(s => $(s).addEventListener('input', markLogDirty));
 $('#l-save').onclick = saveLogDay;
 
