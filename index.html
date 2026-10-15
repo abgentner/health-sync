@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 1.0 -->
+<!-- Health Sync app · version 1.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -223,6 +223,35 @@ tbody tr:hover{background:var(--surface-2)}
 @media (max-width:640px){.an-sum{grid-template-columns:1fr}}
 .pdf-pages{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 .pdf-page{width:100%;height:auto;border-radius:10px;border:1px solid var(--border);background:#fff;box-shadow:var(--shadow)}
+[data-metric]{cursor:pointer}
+.charts>[data-metric]{border-radius:12px;padding:6px 8px 4px;margin:-6px -8px -4px;transition:background .15s}
+.charts>[data-metric]:hover{background:var(--surface-2)}
+.charts>[data-metric] h3::after,.card-h .more{content:"Details ›";margin-left:auto;font-size:12px;font-weight:600;color:var(--accent);opacity:0;transition:opacity .15s}
+.charts>[data-metric]:hover h3::after{opacity:1}
+.tile[data-metric]{transition:transform .12s,box-shadow .15s}
+.tile[data-metric]:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(20,22,28,.06),0 10px 24px rgba(20,22,28,.08)}
+.an-sum[data-metric]{border-radius:12px;transition:background .15s}
+.an-sum[data-metric]:hover{background:var(--surface-2)}
+.m-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.m-top .hello{display:flex;align-items:center;gap:10px}
+.m-top .sw{width:14px;height:14px;border-radius:4px;background:var(--c)}
+.m-top select{width:auto;margin-left:auto}
+.m-stats{grid-template-columns:repeat(6,minmax(0,1fr))}
+.m-stats .tile .v{font-size:24px}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--text-2);margin-left:auto;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .bx{width:12px;height:12px;border-radius:3px;background:var(--c);opacity:.45}
+.legend .ln{width:16px;height:3px;border-radius:2px;background:var(--c)}
+.hbars{display:grid;grid-template-columns:minmax(80px,38%) 1fr auto;gap:9px 10px;align-items:center;font-size:13.5px}
+.hb{display:contents}
+.hb .l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb .t{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.hb .t i{display:block;height:100%;border-radius:5px;background:var(--c)}
+.hb .x{font-variant-numeric:tabular-nums;color:var(--text-2);white-space:nowrap}
+.sub-h{font-size:12px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 10px}
+.sub-h:first-child{margin-top:0}
+@media (max-width:1060px){.m-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.m-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -317,18 +346,18 @@ tbody tr:hover{background:var(--surface-2)}
         <option value="365">Last 12 months</option>
       </select>
     </div>
-    <div class="an-sum" id="an-sum"></div>
+    <div class="an-sum" id="an-sum" data-metric="anchor" role="button" tabindex="0" aria-label="Open daily anchors details"></div>
     <div class="charts">
-      <div><h3 style="--c:var(--c-anchor)"><span class="sw"></span><span id="an-chart-t">Daily anchors per week</span></h3><div class="chart-box"><canvas id="c-anchor"></canvas></div></div>
-      <div><h3 style="--c:var(--c-steps)"><span class="sw"></span>Steps</h3><div class="chart-box"><canvas id="c-steps"></canvas></div></div>
-      <div><h3 style="--c:var(--c-weight)"><span class="sw"></span>Weight</h3><div class="chart-box"><canvas id="c-weight"></canvas></div></div>
-      <div><h3 style="--c:var(--c-cal)"><span class="sw"></span>Calories eaten</h3><div class="chart-box"><canvas id="c-cal"></canvas></div></div>
-      <div><h3 style="--c:var(--c-ex)"><span class="sw"></span>Exercise minutes</h3><div class="chart-box"><canvas id="c-ex"></canvas></div></div>
-      <div><h3 style="--c:var(--c-mood)"><span class="sw"></span>Mood (1–5)</h3><div class="chart-box"><canvas id="c-mood"></canvas></div></div>
-      <div><h3 style="--c:var(--c-sleep)"><span class="sw"></span>Sleep (hours)</h3><div class="chart-box"><canvas id="c-sleep"></canvas></div></div>
+      <div data-metric="anchor" role="button" tabindex="0" aria-label="Open anchor details"><h3 style="--c:var(--c-anchor)"><span class="sw"></span><span id="an-chart-t">Daily anchors per week</span></h3><div class="chart-box"><canvas id="c-anchor"></canvas></div></div>
+      <div data-metric="steps" role="button" tabindex="0" aria-label="Open steps details"><h3 style="--c:var(--c-steps)"><span class="sw"></span>Steps</h3><div class="chart-box"><canvas id="c-steps"></canvas></div></div>
+      <div data-metric="weight" role="button" tabindex="0" aria-label="Open weight details"><h3 style="--c:var(--c-weight)"><span class="sw"></span>Weight</h3><div class="chart-box"><canvas id="c-weight"></canvas></div></div>
+      <div data-metric="cal" role="button" tabindex="0" aria-label="Open cal details"><h3 style="--c:var(--c-cal)"><span class="sw"></span>Calories eaten</h3><div class="chart-box"><canvas id="c-cal"></canvas></div></div>
+      <div data-metric="ex" role="button" tabindex="0" aria-label="Open ex details"><h3 style="--c:var(--c-ex)"><span class="sw"></span>Exercise minutes</h3><div class="chart-box"><canvas id="c-ex"></canvas></div></div>
+      <div data-metric="mood" role="button" tabindex="0" aria-label="Open mood details"><h3 style="--c:var(--c-mood)"><span class="sw"></span>Mood (1–5)</h3><div class="chart-box"><canvas id="c-mood"></canvas></div></div>
+      <div data-metric="sleep" role="button" tabindex="0" aria-label="Open sleep details"><h3 style="--c:var(--c-sleep)"><span class="sw"></span>Sleep (hours)</h3><div class="chart-box"><canvas id="c-sleep"></canvas></div></div>
     </div>
   </div>
-  <div class="card">
+  <div class="card" id="cloud-card">
     <div class="card-h">
       <h2>Mood words</h2>
       <span class="muted small" id="cloud-range"></span>
@@ -336,6 +365,31 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="cloud" id="cloud"></div>
     <div class="cloud-key" id="cloud-key"><span>Bigger = more often</span><span>·</span><span>Lower mood</span><i></i><span>Higher mood</span></div>
+  </div>
+</section>
+
+<!-- Metric details -->
+<section class="tab" id="tab-metric" hidden>
+  <div class="m-top">
+    <button class="btn" id="m-back" title="Back to the dashboard (Esc)">← Dashboard</button>
+    <div class="hello" id="m-title"></div>
+    <select id="m-range" aria-label="Date range">
+      <option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="180">Last 6 months</option><option value="365">Last 12 months</option><option value="0">All time</option>
+    </select>
+  </div>
+  <div class="span-lbl" id="m-sub"></div>
+  <div class="tiles m-stats" id="m-stats"></div>
+  <div class="card">
+    <div class="card-h"><h2 id="m-chart-t">Day by day</h2><div class="legend" id="m-legend"></div></div>
+    <div class="chart-box" style="height:300px"><canvas id="m-chart"></canvas></div>
+  </div>
+  <div class="cols">
+    <div class="card"><div class="card-h"><h2>By day of the week</h2><span class="muted small">average</span></div><div class="chart-box"><canvas id="m-dow"></canvas></div></div>
+    <div class="card" id="m-extra-card"><div class="card-h"><h2 id="m-extra-t">Breakdown</h2></div><div id="m-extra"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Daily log</h2><span class="muted small">click a day to open it on the dashboard</span></div>
+    <div class="tbl-wrap" style="max-height:440px;overflow:auto"><table><thead id="m-thead"></thead><tbody id="m-tbody"></tbody></table></div>
   </div>
 </section>
 
@@ -527,7 +581,7 @@ tbody tr:hover{background:var(--surface-2)}
 
 <script>
 'use strict';
-const APP_VERSION = '1.0';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '1.1';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1230,6 +1284,7 @@ let dashDate = todayKey(), logDate = todayKey();
 const charts = {};
 
 function render() {
+  if (metricKey) renderMetric();
   renderDash(); renderLog(); renderHist(); renderImports(); renderSettings(); if (!planEditing) renderPlan();
 }
 
@@ -1242,7 +1297,7 @@ const ICONS = {
   sleep: '<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>',
 };
 function tile(kind, k, v, unit, sub) {
-  return `<div class="tile" style="--c:var(--c-${kind})"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind]}</svg></span><span class="k">${esc(k)}</span></div><div class="v">${v}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div><div class="s">${sub || '&nbsp;'}</div></div>`;
+  return `<div class="tile" style="--c:var(--c-${kind})" data-metric="${kind}" role="button" tabindex="0"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind]}</svg></span><span class="k">${esc(k)}</span></div><div class="v">${v}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div><div class="s">${sub || '&nbsp;'}</div></div>`;
 }
 
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
@@ -1878,6 +1933,250 @@ function applyTheme() {
   if (settings.theme) document.documentElement.dataset.theme = settings.theme; else delete document.documentElement.dataset.theme;
 }
 
+
+/* ================= metric details ================= */
+const METRICS = {
+  steps:  { name: 'Steps', c: '--c-steps', unit: 'steps', dp: 0, kind: 'bar', sum: true },
+  cal:    { name: 'Calories eaten', c: '--c-cal', unit: 'cal', dp: 0, kind: 'bar', sum: true },
+  ex:     { name: 'Exercise', c: '--c-ex', unit: 'min', dp: 0, kind: 'bar', sum: true },
+  weight: { name: 'Weight', c: '--c-weight', unit: 'lb', dp: 1, kind: 'line', lowerIsBetter: true },
+  mood:   { name: 'Mood', c: '--c-mood', unit: '/ 5', dp: 1, kind: 'line', min: 1, max: 5 },
+  sleep:  { name: 'Sleep', c: '--c-sleep', unit: 'h', dp: 1, kind: 'bar' },
+  anchor: { name: 'Daily anchors', c: '--c-anchor', unit: 'boxes', dp: 1, kind: 'bar' },
+};
+let metricKey = null;
+
+function weightUnit() { const w = latestWeight(todayKey()); return w ? w.unit : 'lb'; }
+function metricValue(key, k, wUnit) {
+  const d = getDay(k);
+  if (!d) return null;
+  switch (key) {
+    case 'steps': return d.steps ?? null;
+    case 'cal': { const t = totals(d); return t.hasFood ? t.calIn : null; }
+    case 'ex': return totals(d).exMin;   // a day with data but no workout counts as 0
+    case 'weight': return d.weight == null ? null : (d.weightUnit || 'lb') === wUnit ? d.weight : wUnit === 'lb' ? d.weight * 2.20462 : d.weight / 2.20462;
+    case 'mood': return d.feel?.mood ?? null;
+    case 'sleep': return sleepHours(d);
+    case 'anchor': return anchorCount(d);
+  }
+  return null;
+}
+const rolling = (vals, n = 7) => vals.map((_, i) => avg(vals.slice(Math.max(0, i - n + 1), i + 1).filter(v => v != null)));
+function slopePerWeek(vals) {
+  const pts = vals.map((v, i) => v == null ? null : [i, v]).filter(Boolean);
+  if (pts.length < 3) return null;
+  const mx = avg(pts.map(p => p[0])), my = avg(pts.map(p => p[1]));
+  const den = pts.reduce((s, [x]) => s + (x - mx) ** 2, 0);
+  return den ? pts.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0) / den * 7 : null;
+}
+const median = a => { if (!a.length) return null; const b = [...a].sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+
+function openMetric(key) {
+  if (!METRICS[key]) return;
+  // Going from one metric to another replaces the page in history, so Back always returns to the dashboard.
+  if (location.hash !== '#m/' + key) history[metricKey ? 'replaceState' : 'pushState']({ m: key }, '', '#m/' + key);
+  showMetric(key);
+}
+function showMetric(key) {
+  metricKey = key;
+  $$('section.tab').forEach(s => s.hidden = s.id !== 'tab-metric');
+  $$('#tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === 'dash'));
+  if (!$('#m-range').dataset.set) { $('#m-range').value = ['30', '90', '365'].includes($('#d-range').value) ? $('#d-range').value : '90'; }
+  window.scrollTo(0, 0);
+  renderMetric();
+}
+function closeMetric() {
+  metricKey = null;
+  $$('section.tab').forEach(s => s.hidden = s.id !== 'tab-dash');
+  $$('#tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === 'dash'));
+  renderDash();
+}
+function backToDash() {
+  if (history.state && history.state.m) history.back();
+  else { history.replaceState(null, '', location.pathname + location.search); closeMetric(); }
+}
+
+function renderMetric() {
+  const key = metricKey, M = METRICS[key];
+  if (!key) return;
+  const wUnit = weightUnit();
+  const unit = key === 'weight' ? wUnit : M.unit;
+  const end = dashDate;
+  let n = +$('#m-range').value;
+  const allKeys = Object.keys(data.days).sort();
+  if (!n) n = allKeys.length ? Math.max(7, Math.round((keyToDate(end) - keyToDate(allKeys[0])) / 864e5) + 1) : 30;
+  const keys = windowKeys(end, n);
+  const vals = keys.map(k => metricValue(key, k, wUnit));
+  const have = vals.filter(v => v != null);
+  const prevVals = windowKeys(addDays(keys[0], -1), n).map(k => metricValue(key, k, wUnit)).filter(v => v != null);
+
+  $('#m-title').innerHTML = `<span class="sw" style="--c:var(${M.c})"></span>${esc(M.name)}`;
+  $('#m-sub').textContent = `${fmtDay(keys[0], { month: 'short', day: 'numeric', year: 'numeric' })} – ${fmtDay(end, { month: 'short', day: 'numeric', year: 'numeric' })} · ${plural(have.length, 'day')} with data`;
+
+  // ---- stat tiles
+  const f = v => v == null ? '—' : fmtN(v, M.dp);
+  const a = avg(have), pa = avg(prevVals);
+  let bestI = -1, lowI = -1;
+  vals.forEach((v, i) => { if (v == null) return; if (bestI < 0 || v > vals[bestI]) bestI = i; if (lowI < 0 || v < vals[lowI]) lowI = i; });
+  const day = i => i < 0 ? '' : fmtDay(keys[i], { month: 'short', day: 'numeric' });
+  const slope = slopePerWeek(vals);
+  const change = a != null && pa != null && pa !== 0 ? (a - pa) / Math.abs(pa) * 100 : null;
+  const st = (label, v, u, sub) => `<div class="tile" style="--c:var(${M.c})"><div class="top"><span class="k">${esc(label)}</span></div><div class="v">${v}${u ? `<span class="u">${esc(u)}</span>` : ''}</div><div class="s">${sub || '&nbsp;'}</div></div>`;
+  const tiles = [
+    st('Average', f(a), a != null ? unit + (M.sum || key === 'sleep' || key === 'anchor' ? ' / day' : '') : '', key === 'mood' && a ? MOODS[Math.round(a) - 1] + ' on average' : `median ${f(median(have))}`),
+    st(M.lowerIsBetter ? 'Highest' : 'Best day', bestI < 0 ? '—' : f(vals[bestI]), bestI < 0 ? '' : unit, day(bestI)),
+    st('Lowest', lowI < 0 ? '—' : f(vals[lowI]), lowI < 0 ? '' : unit, day(lowI)),
+    M.sum ? st('Total', fmtN(have.reduce((x, y) => x + y, 0)), unit, `over ${plural(have.length, 'day')}`)
+      : key === 'weight' ? st('Change', have.length > 1 ? `${have[have.length - 1] - have[0] > 0 ? '+' : ''}${fmtN(have[have.length - 1] - have[0], 1)}` : '—', have.length > 1 ? unit : '', 'first to last reading')
+      : st('Days logged', String(have.length), `of ${n}`, `${Math.round(have.length / n * 100)}% of days`),
+    st('vs previous period', change == null ? '—' : `${change > 0 ? '+' : ''}${fmtN(change, 0)}%`, '', pa == null ? 'no earlier data' : `was ${f(pa)} ${unit}`),
+    st('Trend', slope == null ? '—' : `${slope > 0 ? '+' : ''}${fmtN(slope, M.dp || (Math.abs(slope) < 10 ? 1 : 0))}`, slope == null ? '' : unit + ' / week', slope == null ? 'needs more data' : Math.abs(slope) < 1e-9 ? 'flat' : slope > 0 ? 'going up' : 'going down'),
+  ];
+  $('#m-stats').innerHTML = tiles.join('');
+
+  // ---- main chart: daily values + 7-day average
+  const cs = getComputedStyle(document.documentElement);
+  const color = cs.getPropertyValue(M.c).trim(), grid = cs.getPropertyValue('--grid').trim(), muted = cs.getPropertyValue('--muted').trim(), surface = cs.getPropertyValue('--surface').trim();
+  const roll = rolling(vals);
+  $('#m-legend').innerHTML = `<span style="--c:${color}"><i class="${M.kind === 'bar' ? 'bx' : 'bx'}" style="--c:${color}"></i>Daily</span><span><i class="ln" style="--c:${color}"></i>7-day average</span>`;
+  $('#m-legend').querySelectorAll('i').forEach(i => { i.style.display = 'inline-block'; });
+  const labels = keys.map(k => fmtDay(k, n > 200 ? { month: 'short', year: '2-digit' } : { month: 'short', day: 'numeric' }));
+  charts['m-chart']?.destroy();
+  charts['m-chart'] = new Chart($('#m-chart'), {
+    data: { labels, datasets: [
+      M.kind === 'bar'
+        ? { type: 'bar', label: 'Daily', data: vals, backgroundColor: hexA(color, 0.4), borderRadius: 3, borderSkipped: 'start', maxBarThickness: 18, categoryPercentage: 0.9, barPercentage: 0.9, order: 2 }
+        : { type: 'line', label: 'Daily', data: vals, borderColor: hexA(color, 0.45), backgroundColor: hexA(color, 0.45), borderWidth: 1.5, pointRadius: n > 60 ? 1.5 : 3, pointHoverRadius: 5, spanGaps: true, order: 2 },
+      { type: 'line', label: '7-day average', data: roll, borderColor: color, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: color, pointBorderColor: surface, tension: 0.3, cubicInterpolationMode: 'monotone', spanGaps: true, order: 1 },
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      onClick: (_, els) => { if (els.length) { dashDate = keys[els[0].index]; backToDash(); } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y == null ? 'no data' : f(c.parsed.y) + ' ' + unit}` } } },
+      scales: {
+        x: { grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxTicksLimit: 8, maxRotation: 0, autoSkip: true } },
+        y: { beginAtZero: key !== 'weight', ...(M.min ? { min: M.min, max: M.max } : {}), grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 6 } },
+      },
+    },
+  });
+
+  // ---- by day of week (Mon–Sun)
+  const dow = [[], [], [], [], [], [], []];
+  keys.forEach((k, i) => { if (vals[i] != null) dow[(keyToDate(k).getDay() + 6) % 7].push(vals[i]); });
+  const dowAvg = dow.map(avg);
+  charts['m-dow']?.destroy();
+  charts['m-dow'] = new Chart($('#m-dow'), {
+    type: 'bar',
+    data: { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], datasets: [{ data: dowAvg, backgroundColor: color, borderRadius: 4, borderSkipped: 'start', maxBarThickness: 28 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => c.parsed.y == null ? 'no data' : `${f(c.parsed.y)} ${unit} (${plural(dow[c.dataIndex].length, 'day')})` } } },
+      scales: { x: { grid: { display: false }, border: { color: grid }, ticks: { color: muted } }, y: { beginAtZero: key !== 'weight', ...(M.min ? { min: M.min, max: M.max } : {}), grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 5 } } },
+    },
+  });
+
+  // ---- breakdown card
+  const [title, html] = metricExtra(key, keys, vals, color, unit);
+  $('#m-extra-t').textContent = title;
+  $('#m-extra').innerHTML = html;
+
+  // ---- daily table, newest first
+  const cols = metricColumns(key);
+  $('#m-thead').innerHTML = `<tr><th>Date</th><th>${esc(M.name)}</th><th>7-day avg</th>${cols.map(c => `<th>${esc(c[0])}</th>`).join('')}</tr>`;
+  $('#m-tbody').innerHTML = keys.map((k, i) => ({ k, i })).filter(r => vals[r.i] != null).reverse().map(({ k, i }) =>
+    `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${f(vals[i])}</td><td>${f(roll[i])}</td>${cols.map(c => `<td>${c[1](getDay(k)) ?? '—'}</td>`).join('')}</tr>`).join('')
+    || `<tr><td colspan="${3 + cols.length}" class="muted">No data in this period.</td></tr>`;
+}
+
+function metricColumns(key) {
+  switch (key) {
+    case 'cal': return [['Protein g', d => fmtN(totals(d).protein)], ['Carbs g', d => fmtN(totals(d).carbs)], ['Fat g', d => fmtN(totals(d).fat)]];
+    case 'ex': return [['Workouts', d => esc((d.workouts || []).map(w => w.title || w.type).join(', ')) || '—'], ['Cal burned', d => totals(d).hasEx ? fmtN(totals(d).burn) : '—']];
+    case 'mood': return [['Energy', d => d.feel?.energy ?? '—'], ['Stress', d => d.feel?.stress ?? '—'], ['Tags', d => esc((d.feel?.tags || []).join(', ')) || '—']];
+    case 'sleep': return [['Score', d => d.sleep?.score ?? '—'], ['Source', d => esc(srcName(d.sleep?.source))]];
+    case 'steps': return [['Source', d => esc(srcName(d.stepsSource))]];
+    case 'weight': return [['Source', d => esc(srcName(d.weightSource))]];
+    case 'anchor': return anchorCfg().names.map((nm, i) => [nm, d => anchorState(d, i).on ? '✓' : '·']);
+  }
+  return [];
+}
+
+function hbars(rows, color, fmt) {
+  const max = Math.max(...rows.map(r => r[1]), 0) || 1;
+  return `<div class="hbars" style="--c:${color}">${rows.map(([l, v, extra]) => `<div class="hb"><span class="l" title="${esc(l)}">${esc(l)}</span><span class="t"><i style="width:${Math.max(2, v / max * 100)}%"></i></span><span class="x">${fmt(v)}${extra ? ' · ' + extra : ''}</span></div>`).join('')}</div>`;
+}
+
+function metricExtra(key, keys, vals, color, unit) {
+  const D = keys.map(getDay).filter(Boolean);
+  const none = '<p class="muted small" style="margin:0">Not enough data in this period yet.</p>';
+  const have = vals.filter(v => v != null);
+  if (key === 'steps') {
+    const b = [['Under 5,000', v => v < 5000], ['5,000 – 7,499', v => v >= 5000 && v < 7500], ['7,500 – 9,999', v => v >= 7500 && v < 10000], ['10,000+', v => v >= 10000]];
+    return ['How many steps', have.length ? hbars(b.map(([l, t]) => [l, have.filter(t).length]), color, v => plural(v, 'day')) : none];
+  }
+  if (key === 'cal') {
+    const T = D.map(totals).filter(t => t.hasFood);
+    if (!T.length) return ['Breakdown', none];
+    const P = avg(T.map(t => t.protein)), C = avg(T.map(t => t.carbs)), F = avg(T.map(t => t.fat));
+    const kc = P * 4 + C * 4 + F * 9 || 1;
+    const meals = {};
+    D.forEach(d => { const per = {}; (d.food || []).forEach(x => { const m = x.meal || 'Other'; per[m] = (per[m] || 0) + (x.calories || 0); }); Object.entries(per).forEach(([m, c]) => (meals[m] ||= []).push(c)); });
+    const order = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+    const mealRows = Object.entries(meals).sort((a, b) => (order.indexOf(a[0]) + 1 || 9) - (order.indexOf(b[0]) + 1 || 9)).map(([m, a]) => [m, avg(a), `${plural(a.length, 'day')}`]);
+    const foods = {};
+    D.forEach(d => (d.food || []).forEach(x => { const e = foods[x.name] ||= { n: 0, cal: 0 }; e.n++; e.cal += x.calories || 0; }));
+    const top = Object.entries(foods).sort((a, b) => b[1].n - a[1].n).slice(0, 8).map(([nm, e]) => [nm, e.n, `${fmtN(e.cal / e.n)} cal each`]);
+    return ['Nutrition breakdown',
+      `<div class="sub-h">Average macros per day</div>${hbars([['Protein', P, `${Math.round(P * 4 / kc * 100)}%`], ['Carbs', C, `${Math.round(C * 4 / kc * 100)}%`], ['Fat', F, `${Math.round(F * 9 / kc * 100)}%`]], color, v => fmtN(v) + ' g')}
+       <div class="sub-h">Average calories by meal</div>${hbars(mealRows, color, v => fmtN(v) + ' cal')}
+       <div class="sub-h">Most-logged foods</div>${hbars(top, color, v => v + '×')}`];
+  }
+  if (key === 'ex') {
+    const types = {};
+    let dist = 0, longest = null;
+    D.forEach((d, i) => (d.workouts || []).forEach(w => { const e = types[w.type || 'Workout'] ||= { min: 0, n: 0 }; e.min += w.durationMin || 0; e.n++; dist += w.distance || 0; if (!longest || (w.durationMin || 0) > (longest.durationMin || 0)) longest = w; }));
+    const rows = Object.entries(types).sort((a, b) => b[1].min - a[1].min).map(([t, e]) => [t, e.min, plural(e.n, 'workout')]);
+    if (!rows.length) return ['By activity', none];
+    const du = settings.units === 'metric' ? 'km' : 'mi';
+    return ['By activity', `${hbars(rows, color, v => fmtN(v) + ' min')}<p class="small muted" style="margin:14px 0 0">Total distance ${fmtN(dist, 1)} ${du}${longest ? ` · longest: ${esc(longest.title || longest.type)}, ${fmtN(longest.durationMin)} min` : ''}</p>`];
+  }
+  if (key === 'weight') {
+    const weeks = {};
+    keys.forEach((k, i) => { if (vals[i] != null) (weeks[weekStart(k)] ||= []).push(vals[i]); });
+    const rows = Object.entries(weeks).sort().map(([w, a]) => [w, avg(a)]);
+    if (!rows.length) return ['Weekly averages', none];
+    return ['Weekly averages', `<div class="list">${rows.reverse().slice(0, 16).map(([w, v], i, arr) => { const prev = arr[i + 1]?.[1]; const dlt = prev != null ? v - prev : null; return `<div class="li"><span class="n">Week of ${esc(fmtDay(w, { month: 'short', day: 'numeric' }))}</span><span class="x">${fmtN(v, 1)} ${esc(unit)}${dlt != null ? ` <span class="muted">(${dlt > 0 ? '+' : ''}${fmtN(dlt, 1)})</span>` : ''}</span></div>`; }).join('')}</div>`];
+  }
+  if (key === 'mood') {
+    const F = D.map(d => d.feel).filter(Boolean);
+    if (!F.length) return ['Mood breakdown', none];
+    const dist = [5, 4, 3, 2, 1].map(m => [`${MOODS[m - 1]}  ${m}`, F.filter(f => f.mood === m).length]);
+    const tags = {};
+    F.forEach(f => (f.tags || []).forEach(t => { const e = tags[t.toLowerCase()] ||= []; if (f.mood) e.push(f.mood); }));
+    const trows = Object.entries(tags).sort((a, b) => b[1].length - a[1].length).slice(0, 8).map(([t, m]) => [t, m.length, m.length ? `avg mood ${fmtN(avg(m), 1)}` : '']);
+    const en = avg(F.map(f => f.energy).filter(Boolean)), sx = avg(F.map(f => f.stress).filter(Boolean));
+    return ['Mood breakdown', `<div class="sub-h">How often</div>${hbars(dist, color, v => plural(v, 'day'))}
+      <p class="small muted" style="margin:12px 0 0">Average energy ${en ? fmtN(en, 1) : '—'} / 5 · average stress ${sx ? fmtN(sx, 1) : '—'} / 5</p>
+      ${trows.length ? `<div class="sub-h">Top tags</div>${hbars(trows, color, v => plural(v, 'day'))}` : ''}`];
+  }
+  if (key === 'sleep') {
+    const b = [['Under 6 h', v => v < 6], ['6 – 7 h', v => v >= 6 && v < 7], ['7 – 8 h', v => v >= 7 && v < 8], ['8 h +', v => v >= 8]];
+    const sc = avg(D.map(d => d.sleep?.score).filter(v => typeof v === 'number'));
+    return ['How long you slept', have.length ? `${hbars(b.map(([l, t]) => [l, have.filter(t).length]), color, v => plural(v, 'night'))}${sc ? `<p class="small muted" style="margin:12px 0 0">Average sleep score ${fmtN(sc)}</p>` : ''}` : none];
+  }
+  if (key === 'anchor') {
+    const c = anchorCfg();
+    const per = c.names.map((nm, i) => [nm, D.filter(d => anchorState(d, i, undefined, c).on).length]);
+    const weeks = [...new Set(keys.map(weekStart))].filter(ws => addDays(ws, 6) < todayKey() && ws >= keys[0]);
+    const met = weeks.filter(ws => weekTotal(ws) >= c.target).length;
+    let streak = 0; for (const ws of [...weeks].reverse()) { if (weekTotal(ws) >= c.target) streak++; else break; }
+    return ['Box by box', `${hbars(per.map(([nm, v]) => [nm, v, `${Math.round(v / keys.length * 100)}%`]), color, v => plural(v, 'day'))}
+      <p class="small muted" style="margin:14px 0 0">Goal of ${c.target} met in <b>${met} of ${plural(weeks.length, 'full week')}</b>${streak ? ` · current streak: ${plural(streak, 'week')} 🔥` : ''}</p>`];
+  }
+  return ['Breakdown', none];
+}
+
 /* ================= actions ================= */
 async function runTask(fn) {
   if (busy) { toast('Hang on — still working on the last step.'); return; }
@@ -2004,12 +2303,30 @@ $('#tabs').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   if (logDirty && b.dataset.tab !== 'log' && !confirm('You have unsaved changes in Log. Leave without saving?')) return;
   if (b.dataset.tab !== 'log' && logDirty) renderLog();
+  if (metricKey) { metricKey = null; history.replaceState(null, '', location.pathname + location.search); }
   $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
   $$('section.tab').forEach(s => s.hidden = s.id !== 'tab-' + b.dataset.tab);
   if (b.dataset.tab === 'dash') renderCharts();
   if (b.dataset.tab === 'plan') loadPlanDocs(false).catch(e => toast(e.message, 6000));
 };
 function goTab(t) { $(`#tabs button[data-tab="${t}"]`).click(); }
+
+// Metric details: click a chart, tile, anchors box or the mood words card
+$('#tab-dash').addEventListener('click', e => {
+  if (e.target.closest('button, a, input, select, label')) return;
+  const el = e.target.closest('[data-metric]');
+  if (el) openMetric(el.dataset.metric);
+  else if (e.target.closest('#cloud')) openMetric('mood');
+});
+$('#tab-dash').addEventListener('keydown', e => { const el = e.target.closest('[data-metric]'); if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openMetric(el.dataset.metric); } });
+$('#m-back').onclick = backToDash;
+$('#m-range').onchange = () => { $('#m-range').dataset.set = '1'; renderMetric(); };
+$('#m-tbody').onclick = e => { const tr = e.target.closest('tr[data-k]'); if (!tr) return; dashDate = tr.dataset.k; backToDash(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && metricKey && !e.target.closest?.('input, textarea, select')) backToDash(); });
+window.addEventListener('popstate', () => {
+  const m = location.hash.match(/^#m\/(\w+)/);
+  if (m && METRICS[m[1]]) showMetric(m[1]); else if (metricKey) closeMetric();
+});
 
 $('#btn-sync').onclick = () => {
   // Start Google sign-in straight from the click if the session expired, so the popup isn't blocked.
@@ -2098,7 +2415,7 @@ drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('
 
 $('#s-units').onchange = e => { settings.units = e.target.value; saveSettings(); renderDash(); };
 $('#s-theme').onchange = e => { settings.theme = e.target.value; saveSettings(); applyTheme(); renderCharts(); };
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!$('#app').hidden) renderCharts(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!$('#app').hidden) { renderCharts(); if (metricKey) renderMetric(); } });
 $('#s-export').onclick = () => download(`health-sync-backup-${todayKey()}.json`, JSON.stringify(data, null, 1), 'application/json');
 $('#s-csv').onclick = exportCsv;
 $('#s-restore').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreBackup(f); };

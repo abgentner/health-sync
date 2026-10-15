@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.0** · October 15, 2026 · [Version history](#version-history)
+> **Version 1.1** · October 15, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -577,6 +577,7 @@ The hourly check only goes back 30 days the first time. To bring in **everything
   - Next to it, a little grid shows how many boxes you got each day (Mon–Sun).
   - Under it, a message tells you how many more you need and how many days are left.
   - The **Daily anchors per week** chart shows each week's total against a dashed **goal line**. The current week is shown lighter, because it isn't finished yet.
+- **Click any chart, tile, the anchors box or the mood words** to open that metric's [detail page](#metric-detail-pages).
 - **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep.
 - **Workouts / Food / How you felt:** the details for the selected day.
 - **Trends:** charts for steps, weight, calories, exercise, mood and sleep. Pick the last 7 days, 30 days, 90 days or 12 months. Hover over a bar or point to see its exact number.
@@ -587,6 +588,35 @@ The hourly check only goes back 30 days the first time. To bring in **everything
   - Negatives are left out, so "*not* tired" doesn't add "tired".
   - Untick **Include feelings from notes** to use only your tags.
   - Hover over a word for the details.
+
+### Metric detail pages
+
+Click any chart or summary tile on the Dashboard (or the daily anchors box, or the mood words) to open a full page for that metric. **Details ›** appears when you hover over a chart.
+
+- **Date range:** last 30 days, 90 days, 6 months, 12 months, or all time (top right). The period ends on the date selected on the Dashboard.
+- **Key stats:**
+  - average (and median)
+  - best and lowest day
+  - total, or change for weight, or days logged
+  - **vs previous period** (the same number of days just before)
+  - **trend** (how much it's going up or down per week)
+- **Day by day chart:** each day, plus a smooth **7-day average** line. Click a day on the chart to open it on the Dashboard.
+- **By day of the week:** your average for each weekday, Monday to Sunday.
+- **Breakdown**, different for each metric:
+
+  | Metric | Breakdown |
+  |---|---|
+  | Steps | How many days fell into each range (under 5,000 … 10,000+) |
+  | Calories | Average protein/carbs/fat (with % of calories), average calories per meal, most-logged foods |
+  | Exercise | Minutes and number of workouts for each activity type, total distance, longest workout |
+  | Weight | Weekly averages and the change from the week before |
+  | Mood | How often you felt each mood, average energy and stress, your top tags and the mood on those days |
+  | Sleep | How many nights fell into each range (under 6 h … 8 h+), average sleep score |
+  | Daily anchors | How often each box was checked, how many full weeks met the goal, and your current streak 🔥 |
+
+- **Daily log table:** every day in the period, newest first. Click a row to open that day on the Dashboard.
+
+**Getting back to the Dashboard:** click **← Dashboard** (top left), press **Esc**, or use your browser's or mouse's **Back** button.
 
 ### Plan
 
@@ -800,9 +830,18 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.0** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.1** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.1 (October 15, 2026)
+
+- **Metric detail pages.** Click any chart, summary tile, the daily anchors box or the mood words on the Dashboard to see everything about that metric:
+  - key stats, a daily chart with a 7-day average, and averages by day of the week
+  - a breakdown for that metric
+  - a day-by-day table
+- Get back with **← Dashboard**, the **Esc** key, or your browser's Back button.
+- Script: only the version number changed. Pasting the new copy is optional.
 
 ### v1.0 (October 15, 2026)
 
