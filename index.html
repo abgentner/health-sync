@@ -5,55 +5,69 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Health Sync</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a78d6'/%3E%3Cpath d='M5 17h6l3-7 4 13 3-6h6' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
   color-scheme:light;
-  --bg:#f5f5f3; --surface:#fcfcfb; --surface-2:#efeee9; --border:#e2e1db;
-  --text:#0b0b0b; --text-2:#52514e; --muted:#7a7975;
-  --accent:#2a78d6; --accent-ink:#ffffff; --series:#2a78d6; --grid:#e8e7e2;
+  --bg:#f4f5f8; --bg-tint:#e9effb; --surface:#ffffff; --surface-2:#f2f3f6; --border:#e6e7ec;
+  --text:#14161c; --text-2:#545862; --muted:#868a94;
+  --accent:#2a78d6; --accent-2:#5b54d6; --accent-ink:#ffffff; --series:#2a78d6; --grid:#eceef2;
+  --c-steps:#2a78d6; --c-cal:#eb6834; --c-ex:#1baf7a; --c-weight:#4a3aa7; --c-mood:#e87ba4; --c-sleep:#eda100;
   --good:#0f7a3a; --bad:#c23a39; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
   --mood-lo:#c8501c; --mood-mid:#8a8984; --mood-hi:#2a78d6;
-  --radius:12px; --shadow:0 1px 2px rgba(0,0,0,.05);
+  --radius:16px; --shadow:0 1px 2px rgba(20,22,28,.04),0 4px 16px rgba(20,22,28,.05);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --bg:#121211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
-    --text:#ffffff; --text-2:#c3c2b7; --muted:#8f8e86;
-    --accent:#3987e5; --series:#3987e5; --grid:#2c2c29;
+    --bg:#0f1013; --bg-tint:#16192a; --surface:#181a1f; --surface-2:#22252b; --border:#2b2e35;
+    --text:#f4f5f7; --text-2:#c0c3ca; --muted:#8b8f98;
+    --accent:#3987e5; --accent-2:#8079ec; --series:#3987e5; --grid:#26292f;
+    --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500;
     --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
     --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#121211; --surface:#1a1a19; --surface-2:#242422; --border:#33332f;
-  --text:#ffffff; --text-2:#c3c2b7; --muted:#8f8e86;
-  --accent:#3987e5; --series:#3987e5; --grid:#2c2c29;
+  --bg:#0f1013; --bg-tint:#16192a; --surface:#181a1f; --surface-2:#22252b; --border:#2b2e35;
+  --text:#f4f5f7; --text-2:#c0c3ca; --muted:#8b8f98;
+  --accent:#3987e5; --accent-2:#8079ec; --series:#3987e5; --grid:#26292f;
+  --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500;
   --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
-    --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
+  --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;background:radial-gradient(1200px 420px at 50% -120px,var(--bg-tint),transparent 70%) no-repeat,var(--bg);color:var(--text);font:15px/1.5 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
 button,input,select,textarea{font:inherit;color:inherit}
-h1,h2,h3{margin:0;line-height:1.2}
-h2{font-size:17px;font-weight:600}
-h3{font-size:14px;font-weight:600;color:var(--text-2)}
+h1,h2,h3{margin:0;line-height:1.2;letter-spacing:-.01em}
+h2{font-size:16px;font-weight:650}
+h3{font-size:13px;font-weight:600;color:var(--text-2);display:flex;align-items:center;gap:8px;margin-bottom:6px}
+h3 .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
 a{color:var(--accent)}
 [hidden]{display:none!important}
-.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
 
 /* buttons & inputs */
-.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:550;white-space:nowrap;text-decoration:none;color:var(--text);transition:background .15s,border-color .15s,transform .05s}
 .btn:hover{background:var(--surface-2)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.btn.primary:hover{filter:brightness(1.07)}
-.btn.small{padding:4px 10px;font-size:13px}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:var(--accent-ink);box-shadow:0 2px 8px color-mix(in oklab,var(--accent) 35%,transparent)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.danger{color:var(--bad);border-color:color-mix(in oklab,var(--bad) 35%,var(--border))}
+.btn.danger:hover{background:color-mix(in oklab,var(--bad) 10%,var(--surface))}
+.btn.small{padding:5px 11px;font-size:13px;border-radius:9px}
 .btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--surface-2)}
 .btn:disabled{opacity:.55;cursor:default}
-input[type=text],input[type=number],input[type=date],select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;width:100%}
-textarea{min-height:90px;resize:vertical}
-label{display:block;font-size:13px;color:var(--text-2);margin-bottom:4px;font-weight:500}
+input[type=text],input[type=number],input[type=date],select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 11px;width:100%;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 18%,transparent)}
+textarea{min-height:96px;resize:vertical}
+label{display:block;font-size:13px;color:var(--text-2);margin-bottom:5px;font-weight:550}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .grow{flex:1;min-width:0}
 .muted{color:var(--muted)}
@@ -61,91 +75,114 @@ label{display:block;font-size:13px;color:var(--text-2);margin-bottom:4px;font-we
 
 /* welcome */
 #welcome{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
-.welcome-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:var(--shadow)}
-.welcome-card h1{font-size:26px;margin-bottom:6px}
-.welcome-card p{color:var(--text-2);margin:0 0 18px}
-.welcome-card .stack{display:flex;flex-direction:column;gap:12px}
-.notice{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:10px 12px;font-size:13px}
+.welcome-card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:36px;max-width:460px;width:100%;box-shadow:var(--shadow);text-align:center}
+.welcome-card .big-logo{width:64px;height:64px;margin:0 auto 14px;display:block}
+.welcome-card h1{font-size:28px;margin-bottom:6px;font-weight:750}
+.welcome-card p{color:var(--text-2);margin:0 0 22px}
+.welcome-card .stack{display:flex;flex-direction:column;gap:12px;text-align:left}
+.notice{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:10px 12px;font-size:13px}
 .err{color:var(--bad);font-size:13px}
 
 /* header & tabs */
-header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
-.hdr{display:flex;align-items:center;gap:12px;height:56px}
-.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px}
-.logo svg{width:26px;height:26px}
-.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-left:auto}
+header{background:color-mix(in oklab,var(--surface) 80%,transparent);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+.hdr{display:flex;align-items:center;gap:12px;height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:750;font-size:17px;letter-spacing:-.01em}
+.logo svg{width:30px;height:30px}
+.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-left:auto;background:var(--surface-2);padding:4px 10px;border-radius:99px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
 .dot.busy{background:var(--accent);animation:pulse 1s infinite}
 .dot.err{background:var(--bad)}
 @keyframes pulse{50%{opacity:.3}}
-nav{display:flex;gap:4px;overflow-x:auto}
-nav button{border:0;background:none;padding:10px 12px;cursor:pointer;color:var(--text-2);font-weight:500;border-bottom:2px solid transparent}
-nav button.on{color:var(--text);border-bottom-color:var(--accent)}
-main{padding:20px 0 60px}
+nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+nav button{border:0;background:none;padding:7px 14px;cursor:pointer;color:var(--text-2);font-weight:550;border-radius:99px;white-space:nowrap;transition:background .15s,color .15s}
+nav button:hover{background:var(--surface-2);color:var(--text)}
+nav button.on{color:var(--surface);background:var(--text)}
+main{padding:22px 0 64px}
 section.tab{display:flex;flex-direction:column;gap:16px}
 
+/* hero */
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.hello{font-size:26px;font-weight:750;letter-spacing:-.02em}
+.hello-sub{color:var(--text-2);font-size:14px;margin-top:2px}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
 /* cards */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
 .card-h{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
-.tile .k{font-size:12px;color:var(--text-2);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
-.tile .v{font-size:26px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
-.tile .v .u{font-size:14px;font-weight:500;color:var(--text-2);margin-left:3px}
-.tile .s{font-size:12px;color:var(--muted);margin-top:2px}
-.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:12px}
-.chart-box{position:relative;height:200px}
-.datebar{display:flex;align-items:center;gap:6px}
-.datebar input{width:auto}
+.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+@media (max-width:1060px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+main{padding-top:28px!important}
+.tile{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px 14px;box-shadow:var(--shadow);overflow:hidden}
+.tile::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--c)}
+.tile .top{display:flex;align-items:center;gap:8px}
+.tile .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:color-mix(in oklab,var(--c) 14%,transparent);color:var(--c);flex:none}
+.tile .ic svg{width:17px;height:17px}
+.tile .k{font-size:12.5px;color:var(--text-2);font-weight:600}
+.tile .v{font-size:28px;font-weight:750;margin-top:10px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .v .u{font-size:13px;font-weight:550;color:var(--text-2);margin-left:4px;letter-spacing:0}
+.tile .s{font-size:12px;color:var(--muted);margin-top:4px;min-height:18px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:20px 22px}
+.chart-box{position:relative;height:190px}
+.datebar{display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:3px;box-shadow:var(--shadow)}
+.datebar input{width:auto;border:0;padding:5px 6px;background:transparent;box-shadow:none!important}
+.datebar .btn{border:0;background:transparent}
+.datebar .btn:hover{background:var(--surface-2)}
 .list{display:flex;flex-direction:column}
-.li{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--border)}
+.li{display:flex;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--border)}
 .li:first-child{border-top:0}
 .li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .li .x{font-variant-numeric:tabular-nums;color:var(--text-2);white-space:nowrap}
-.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--surface-2);color:var(--text-2);margin-left:6px;vertical-align:1px}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:var(--surface-2);color:var(--text-2);margin-left:6px;vertical-align:1px;font-weight:550}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
-.del{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 4px;font-size:16px;line-height:1}
-.del:hover{color:var(--bad)}
+.del{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 4px;font-size:18px;line-height:1;border-radius:6px}
+.del:hover{color:var(--bad);background:var(--surface-2)}
+.empty-note{color:var(--muted);font-size:13px;margin:0;padding:6px 0}
 
 /* mood */
 .scale{display:flex;gap:6px;flex-wrap:wrap}
-.scale button{border:1px solid var(--border);background:var(--surface);border-radius:10px;min-width:46px;height:44px;cursor:pointer;font-size:20px}
-.scale.num button{font-size:15px;font-weight:600}
-.scale button.on{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px}
+.scale button{border:1px solid var(--border);background:var(--surface);border-radius:12px;min-width:48px;height:46px;cursor:pointer;font-size:22px;transition:transform .1s,background .15s,border-color .15s}
+.scale button:hover{transform:translateY(-1px);border-color:var(--accent)}
+.scale.num button{font-size:15px;font-weight:650}
+.scale button.on{border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:var(--accent-ink);box-shadow:0 2px 8px color-mix(in oklab,var(--accent) 35%,transparent)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px}
 
 /* tables */
-.tbl-wrap{overflow-x:auto}
+.tbl-wrap{overflow-x:auto;margin:0 -18px;padding:0 18px}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
-th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+th,td{text-align:right;padding:10px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
-th{font-size:12px;color:var(--text-2);font-weight:600;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0;background:var(--surface)}
-tbody tr{cursor:pointer}
+th{font-size:11.5px;color:var(--muted);font-weight:650;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--surface)}
+tbody tr{cursor:pointer;transition:background .1s}
 tbody tr:hover{background:var(--surface-2)}
 
-.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--surface-2);border-radius:8px;padding:10px 12px;max-height:280px;overflow:auto;white-space:pre-wrap}
-.drop{border:2px dashed var(--border);border-radius:var(--radius);padding:22px;text-align:center;color:var(--text-2)}
-.drop.over{border-color:var(--accent);background:var(--surface-2)}
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--surface-2);border-radius:10px;padding:12px 14px;max-height:280px;overflow:auto;white-space:pre-wrap}
+.drop{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;color:var(--text-2);transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:color-mix(in oklab,var(--accent) 6%,transparent)}
 
-.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
-.seg button{border:0;background:none;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-2);border-left:1px solid var(--border)}
-.seg button:first-child{border-left:0}
-.seg button.on{background:var(--accent);color:var(--accent-ink)}
-.span-lbl{font-size:13px;color:var(--text-2);margin-top:-6px}
-.cloud{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 14px;padding:12px 4px;min-height:120px;line-height:1.15}
-.cloud .w{cursor:default;border-radius:6px;padding:0 3px}
+.seg{display:inline-flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:3px;box-shadow:var(--shadow)}
+.seg button{border:0;background:none;padding:6px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2);border-radius:9px;white-space:nowrap}
+.seg button:hover{background:var(--surface-2)}
+.seg button.on{background:var(--text);color:var(--surface)}
+.span-lbl{font-size:13px;color:var(--text-2);margin:-4px 2px 0}
+.cloud{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 16px;padding:18px 6px;min-height:140px;line-height:1.15}
+.cloud .w{cursor:default;border-radius:8px;padding:0 4px;transition:background .1s}
 .cloud .w:hover{background:var(--surface-2)}
 .cloud-key{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-2);justify-content:center}
 .cloud-key i{display:inline-block;width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--mood-lo),var(--mood-mid),var(--mood-hi))}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chips button{border:1px solid var(--border);background:var(--surface);border-radius:99px;padding:2px 10px;font-size:12.5px;cursor:pointer;color:var(--text-2)}
+.chips button{border:1px solid var(--border);background:var(--surface);border-radius:99px;padding:3px 11px;font-size:12.5px;cursor:pointer;color:var(--text-2);font-weight:550}
 .chips button:hover{border-color:var(--accent);color:var(--text)}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);z-index:20}
-#toast.show{opacity:1}
+.feel-big{font-size:40px;line-height:1}
+
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+#toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
-  .welcome-card{padding:22px}
-  .tile .v{font-size:22px}
+  .welcome-card{padding:24px}
+  .tile .v{font-size:23px}
+  .hello{font-size:22px}
   .status .lbl{display:none}
+  .seg button{padding:6px 8px}
 }
 </style>
 <script src="config.js"></script>
@@ -160,12 +197,13 @@ tbody tr:hover{background:var(--surface-2)}
 <!-- ============ WELCOME ============ -->
 <div id="welcome">
   <div class="welcome-card">
+    <svg viewBox="0 0 32 32" class="big-logo" aria-hidden="true"><defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a78d6"/><stop offset="1" stop-color="#5b54d6"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lg2)"/><path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <h1>Health Sync</h1>
     <p>Workouts, steps, food, weight and feelings in one place, saved to your Google Drive.</p>
     <div class="stack">
-      <div id="w-file" class="notice" hidden>This page was opened from a file on your computer. Google sign-in only works from the app's web address (for example <b>https://yourname.github.io/health-sync/</b>). See SETUP.md.</div>
+      <div id="w-file" class="notice" hidden>This page was opened from a file on your computer. Google sign-in only works from the app's web address (for example <b>https://yourname.github.io/health-sync/</b>). See README.md, Step 7.</div>
       <div id="w-noid" hidden class="stack">
-        <div class="notice">No Google Client ID is set yet. Add it to <b>config.js</b> (SETUP.md, Part 4), or paste it here to use it in this browser only.</div>
+        <div class="notice">No Google Client ID is set yet. Add it to <b>config.js</b> (README.md, Step 6), or paste it here to use it in this browser only.</div>
         <div><label for="w-id">Google Client ID</label><input id="w-id" type="text" placeholder="1234-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></div>
         <button class="btn" id="w-saveid">Save Client ID</button>
       </div>
@@ -181,7 +219,7 @@ tbody tr:hover{background:var(--surface-2)}
 <header>
   <div class="wrap">
     <div class="hdr">
-      <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Health Sync</div>
+      <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a78d6"/><stop offset="1" stop-color="#5b54d6"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lg)"/><path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Health Sync</div>
       <div class="status" title=""><span class="dot" id="st-dot"></span><span class="lbl" id="st-lbl">Ready</span></div>
       <button class="btn small" id="btn-sync" title="Reload data and check the Drive Inbox">Sync</button>
     </div>
@@ -199,7 +237,9 @@ tbody tr:hover{background:var(--surface-2)}
 
 <!-- Dashboard -->
 <section class="tab" id="tab-dash">
-  <div class="row">
+  <div class="hero">
+    <div><div class="hello" id="hello">Hello</div><div class="hello-sub" id="hello-sub"></div></div>
+    <div class="controls">
     <div class="datebar">
       <button class="btn small" id="d-prev" aria-label="Previous day">‹</button>
       <input type="date" id="d-date">
@@ -208,6 +248,7 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="seg" id="d-span" role="group" aria-label="Summary period">
       <button data-n="1">Day</button><button data-n="5">5-day avg</button><button data-n="7">7-day avg</button><button data-n="15">15-day avg</button><button data-n="30">30-day avg</button>
+    </div>
     </div>
   </div>
   <div class="span-lbl" id="d-span-lbl"></div>
@@ -228,12 +269,12 @@ tbody tr:hover{background:var(--surface-2)}
       </select>
     </div>
     <div class="charts">
-      <div><h3>Steps</h3><div class="chart-box"><canvas id="c-steps"></canvas></div></div>
-      <div><h3>Weight</h3><div class="chart-box"><canvas id="c-weight"></canvas></div></div>
-      <div><h3>Calories eaten</h3><div class="chart-box"><canvas id="c-cal"></canvas></div></div>
-      <div><h3>Exercise minutes</h3><div class="chart-box"><canvas id="c-ex"></canvas></div></div>
-      <div><h3>Mood (1–5)</h3><div class="chart-box"><canvas id="c-mood"></canvas></div></div>
-      <div><h3>Sleep (hours)</h3><div class="chart-box"><canvas id="c-sleep"></canvas></div></div>
+      <div><h3 style="--c:var(--c-steps)"><span class="sw"></span>Steps</h3><div class="chart-box"><canvas id="c-steps"></canvas></div></div>
+      <div><h3 style="--c:var(--c-weight)"><span class="sw"></span>Weight</h3><div class="chart-box"><canvas id="c-weight"></canvas></div></div>
+      <div><h3 style="--c:var(--c-cal)"><span class="sw"></span>Calories eaten</h3><div class="chart-box"><canvas id="c-cal"></canvas></div></div>
+      <div><h3 style="--c:var(--c-ex)"><span class="sw"></span>Exercise minutes</h3><div class="chart-box"><canvas id="c-ex"></canvas></div></div>
+      <div><h3 style="--c:var(--c-mood)"><span class="sw"></span>Mood (1–5)</h3><div class="chart-box"><canvas id="c-mood"></canvas></div></div>
+      <div><h3 style="--c:var(--c-sleep)"><span class="sw"></span>Sleep (hours)</h3><div class="chart-box"><canvas id="c-sleep"></canvas></div></div>
     </div>
   </div>
   <div class="card">
@@ -301,6 +342,20 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
   </div>
   <div class="row"><button class="btn primary" id="l-save">Save day</button><span class="muted small" id="l-msg"></span></div>
+  <div class="card">
+    <div class="card-h"><h2>Fix a mistake</h2></div>
+    <p class="small muted" style="margin-top:0">Logged something on the wrong day? Move it to the right day, or delete it.</p>
+    <div class="row" style="margin-bottom:12px">
+      <span class="small" style="font-weight:550">Move what I entered on this day to</span>
+      <input type="date" id="mv-date" style="width:auto">
+      <button class="btn" id="mv-go">Move</button>
+    </div>
+    <p class="small muted" style="margin:-4px 0 12px">Moves your mood, energy, stress, tags, notes, and anything you typed in by hand. Imported Lose It and Garmin data stays on its real date.</p>
+    <div class="row">
+      <button class="btn danger" id="del-feel">Delete feelings for this day</button>
+      <button class="btn danger" id="del-day">Delete everything on this day</button>
+    </div>
+  </div>
 </section>
 
 <!-- History -->
@@ -329,7 +384,7 @@ tbody tr:hover{background:var(--surface-2)}
   <div class="card">
     <div class="card-h"><h2>Import from this computer</h2></div>
     <div class="drop" id="imp-drop">Drag PDF, CSV or ZIP files here, or <label for="imp-file" style="display:inline;color:var(--accent);cursor:pointer;font-size:inherit">choose files</label>
-      <input type="file" id="imp-file" multiple accept=".csv,.zip,.pdf,text/csv,application/zip,application/pdf" hidden></div>
+      <input type="file" id="imp-file" multiple accept=".csv,.zip,.pdf,.json,text/csv,application/zip,application/pdf,application/json" hidden></div>
   </div>
   <div class="card">
     <div class="card-h"><h2>Import results</h2></div>
@@ -659,17 +714,76 @@ async function importBuffer(name, buf) {
   const isZip = /\.zip$/i.test(name) || (bytes[0] === 0x50 && bytes[1] === 0x4b);
   if (isZip) {
     const zip = await JSZip.loadAsync(buf);
-    const entries = Object.values(zip.files).filter(f => !f.dir && /\.(csv|pdf)$/i.test(f.name) && !/__MACOSX/.test(f.name));
-    if (!entries.length) return [`${name}: skipped (no CSV or PDF files inside this ZIP)`];
+    // Garmin's full account export holds thousands of files; only the daily-summary and sleep JSON files are needed.
+    const entries = Object.values(zip.files).filter(f => !f.dir && !/__MACOSX/.test(f.name) && (/\.(csv|pdf)$/i.test(f.name) || (/\.json$/i.test(f.name) && GARMIN_JSON.test(f.name))));
+    if (!entries.length) return [`${name}: skipped (no CSV, PDF or Garmin daily files inside this ZIP)`];
     const out = [];
+    const gj = entries.filter(e => /\.json$/i.test(e.name));
+    if (gj.length) {
+      const tally = { steps: new Set(), sleep: new Set() };
+      for (const e of gj) readGarminJson(await e.async('string'), tally);
+      out.push(garminJsonSummary(name, tally));
+    }
     for (const e of entries) {
       const base = e.name.split('/').pop();
+      if (/\.json$/i.test(base)) continue;
       if (/\.pdf$/i.test(base)) out.push(...await importPdf(`${name} › ${base}`, await e.async('arraybuffer')));
       else out.push(...importCsv(base, await e.async('string'), name));
     }
     return out;
   }
+  if (/\.json$/i.test(name)) {
+    const tally = { steps: new Set(), sleep: new Set() };
+    readGarminJson(new TextDecoder('utf-8').decode(buf), tally);
+    return [garminJsonSummary(name, tally)];
+  }
   return importCsv(name, new TextDecoder('utf-8').decode(buf));
+}
+
+/* ---- Garmin "Export Your Data" (full account export) ---- */
+const GARMIN_JSON = /UDSFile|sleepData/i;
+const gDate = v => { if (v && typeof v === 'object') v = v.date || v.calendarDate; return v ? parseDate(String(v)) : null; };
+function readGarminJson(text, tally) {
+  let j;
+  try { j = JSON.parse(text); } catch { return; }
+  const visit = (o, depth) => {
+    if (!o || typeof o !== 'object' || depth > 6) return;
+    if (Array.isArray(o)) { for (const x of o) visit(x, depth + 1); return; }
+    // Daily summary: steps and resting heart rate
+    if ('totalSteps' in o && o.calendarDate) {
+      const k = gDate(o.calendarDate);
+      if (k && typeof o.totalSteps === 'number') {
+        const d = day(k);
+        if (d.stepsSource !== 'manual') { d.steps = Math.round(o.totalSteps); d.stepsSource = 'garmin'; }
+        if (typeof o.restingHeartRate === 'number') d.restingHR = o.restingHeartRate;
+        touch(k); tally.steps.add(k);
+      }
+      return;
+    }
+    // Sleep: total of deep + light + REM (awake time not counted)
+    if (('deepSleepSeconds' in o || 'lightSleepSeconds' in o) && o.calendarDate) {
+      const k = gDate(o.calendarDate);
+      const secs = (o.deepSleepSeconds || 0) + (o.lightSleepSeconds || 0) + (o.remSleepSeconds || 0);
+      if (k && secs > 0) {
+        const d = day(k);
+        if (d.sleep?.source !== 'manual') {
+          const sc = o.sleepScores?.overallScore ?? o.sleepScores?.overall?.value;
+          d.sleep = { hours: Math.round(secs / 360) / 10, score: typeof sc === 'number' ? sc : null, source: 'garmin' };
+        }
+        touch(k); tally.sleep.add(k);
+      }
+      return;
+    }
+    for (const v of Object.values(o)) if (v && typeof v === 'object') visit(v, depth + 1);
+  };
+  visit(j, 0);
+}
+function garminJsonSummary(name, t) {
+  const all = new Set([...t.steps, ...t.sleep]);
+  if (!all.size) return `${name}: skipped (no Garmin daily steps or sleep found)`;
+  importsDirty = true;
+  data.imports.push({ id: uid(), at: new Date().toISOString(), name, what: 'Garmin days (steps & sleep)', count: all.size, range: rangeText(all) });
+  return `${name}: Garmin export: ${plural(t.steps.size, 'day')} of steps, ${plural(t.sleep.size, 'night')} of sleep (${rangeText(all)})`;
 }
 
 function importCsv(name, text, parent) {
@@ -959,8 +1073,16 @@ function render() {
   renderDash(); renderLog(); renderHist(); renderImports(); renderSettings();
 }
 
-function tile(k, v, unit, sub) {
-  return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${v}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div><div class="s">${sub || '&nbsp;'}</div></div>`;
+const ICONS = {
+  steps: '<path fill="currentColor" stroke="none" d="M8.5 2.5c1.9 0 3.2 2.3 3.2 5s-1.3 4.6-3.2 4.6S5.3 10.2 5.3 7.5 6.6 2.5 8.5 2.5zM6.6 13.4h3.8v2.4a1.9 1.9 0 01-3.8 0zM15.5 6.5c1.9 0 3.2 2.3 3.2 5s-1.3 4.6-3.2 4.6-3.2-1.9-3.2-4.6 1.3-5 3.2-5zM13.6 17.4h3.8v2.2a1.9 1.9 0 01-3.8 0z"/>',
+  cal: '<path d="M7 3v7a2 2 0 002 2v9M5 3v5M9 3v5M17 21V3c-2 1.5-3 4-3 7v4h3"/>',
+  ex: '<path d="M12 3c.5 3 4.5 5.5 4.5 10a4.5 4.5 0 01-9 0c0-2.2 1-3.7 2.2-4.8.2 1.5.9 2.6 2 3.1C11 8.7 11.3 5.6 12 3z"/>',
+  weight: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 10a5 5 0 017 0M12 10l1.4-2"/>',
+  mood: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.2 4.2 0 007 0M9 9.5h.01M15 9.5h.01"/>',
+  sleep: '<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>',
+};
+function tile(kind, k, v, unit, sub) {
+  return `<div class="tile" style="--c:var(--c-${kind})"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind]}</svg></span><span class="k">${esc(k)}</span></div><div class="v">${v}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div><div class="s">${sub || '&nbsp;'}</div></div>`;
 }
 
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
@@ -979,12 +1101,12 @@ function dayTiles() {
   const f = d?.feel;
   $('#d-span-lbl').textContent = fmtDay(dashDate, { weekday: 'long', month: 'long', day: 'numeric' });
   return [
-    tile('Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcName(d.stepsSource)) : 'none yet'),
-    tile('Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
-    tile('Exercise', t.hasEx ? fmtN(t.exMin) : '—', t.hasEx ? 'min' : '', t.hasEx ? `${fmtN(t.burn)} cal burned` : 'no workouts'),
-    tile('Weight', w ? fmtN(w.value, 1) : '—', w ? w.unit : '', wSub),
-    tile('Mood', f?.mood ? MOODS[f.mood - 1] : '—', '', f?.mood ? [f.energy && `energy ${f.energy}/5`, f.stress && `stress ${f.stress}/5`].filter(Boolean).join(' · ') : 'not logged'),
-    tile('Sleep', sleepHours(d) != null ? fmtN(sleepHours(d), 1) : '—', sleepHours(d) != null ? 'h' : '', d?.sleep?.score ? `score ${d.sleep.score}` : ''),
+    tile('steps', 'Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcName(d.stepsSource)) : 'none yet'),
+    tile('cal', 'Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
+    tile('ex', 'Exercise', t.hasEx ? fmtN(t.exMin) : '—', t.hasEx ? 'min' : '', t.hasEx ? `${fmtN(t.burn)} cal burned` : 'no workouts'),
+    tile('weight', 'Weight', w ? fmtN(w.value, 1) : '—', w ? w.unit : '', wSub),
+    tile('mood', 'Mood', f?.mood ? MOODS[f.mood - 1] : '—', '', f?.mood ? [f.energy && `energy ${f.energy}/5`, f.stress && `stress ${f.stress}/5`].filter(Boolean).join(' · ') : 'not logged'),
+    tile('sleep', 'Sleep', sleepHours(d) != null ? fmtN(sleepHours(d), 1) : '—', sleepHours(d) != null ? 'h' : '', d?.sleep?.score ? `score ${d.sleep.score}` : ''),
   ];
 }
 
@@ -1008,16 +1130,23 @@ function avgTiles(n) {
   const am = avg(moods);
   $('#d-span-lbl').textContent = `${n}-day average · ${fmtDay(ks[0], { month: 'short', day: 'numeric' })} – ${fmtDay(end, { month: 'short', day: 'numeric' })} · ${plural(D.length, 'day')} with data`;
   return [
-    tile('Steps', fmtN(avg(steps)), steps.length ? '/day' : '', days(steps.length)),
-    tile('Calories eaten', food.length ? fmtN(avg(food.map(t => t.calIn))) : '—', food.length ? '/day' : '', food.length ? `P ${fmtN(avg(food.map(t => t.protein)))}g · C ${fmtN(avg(food.map(t => t.carbs)))}g · F ${fmtN(avg(food.map(t => t.fat)))}g · ${plural(food.length, 'day')}` : days(0)),
-    tile('Exercise', exDays ? fmtN(exMin / exDays) : '—', exDays ? 'min/day' : '', exDays ? `${plural(nW, 'workout')} · ${fmtN(burn)} cal total` : days(0)),
-    tile('Weight', wts.length ? fmtN(avg(wts), 1) : '—', wts.length ? unit : '', wts.length > 1 ? `${wts[wts.length - 1] - wts[0] > 0 ? '+' : ''}${fmtN(wts[wts.length - 1] - wts[0], 1)} over ${plural(wts.length, 'reading')}` : days(wts.length)),
-    tile('Mood', am ? `${MOODS[Math.round(am) - 1]} ${fmtN(am, 1)}` : '—', '', moods.length ? [energy.length && `energy ${fmtN(avg(energy), 1)}`, stress.length && `stress ${fmtN(avg(stress), 1)}`, plural(moods.length, 'day')].filter(Boolean).join(' · ') : 'not logged'),
-    tile('Sleep', sleep.length ? fmtN(avg(sleep), 1) : '—', sleep.length ? 'h/night' : '', days(sleep.length)),
+    tile('steps', 'Steps', fmtN(avg(steps)), steps.length ? '/day' : '', days(steps.length)),
+    tile('cal', 'Calories eaten', food.length ? fmtN(avg(food.map(t => t.calIn))) : '—', food.length ? '/day' : '', food.length ? `P ${fmtN(avg(food.map(t => t.protein)))}g · C ${fmtN(avg(food.map(t => t.carbs)))}g · F ${fmtN(avg(food.map(t => t.fat)))}g · ${plural(food.length, 'day')}` : days(0)),
+    tile('ex', 'Exercise', exDays ? fmtN(exMin / exDays) : '—', exDays ? 'min/day' : '', exDays ? `${plural(nW, 'workout')} · ${fmtN(burn)} cal total` : days(0)),
+    tile('weight', 'Weight', wts.length ? fmtN(avg(wts), 1) : '—', wts.length ? unit : '', wts.length > 1 ? `${wts[wts.length - 1] - wts[0] > 0 ? '+' : ''}${fmtN(wts[wts.length - 1] - wts[0], 1)} over ${plural(wts.length, 'reading')}` : days(wts.length)),
+    tile('mood', 'Mood', am ? `${MOODS[Math.round(am) - 1]} ${fmtN(am, 1)}` : '—', '', moods.length ? [energy.length && `energy ${fmtN(avg(energy), 1)}`, stress.length && `stress ${fmtN(avg(stress), 1)}`, plural(moods.length, 'day')].filter(Boolean).join(' · ') : 'not logged'),
+    tile('sleep', 'Sleep', sleep.length ? fmtN(avg(sleep), 1) : '—', sleep.length ? 'h/night' : '', days(sleep.length)),
   ];
 }
 
+function renderHello() {
+  const h = new Date().getHours();
+  $('#hello').textContent = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const last = data.updated ? new Date(data.updated) : null;
+  $('#hello-sub').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) + (last ? ` · last saved ${last.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '');
+}
 function renderDash() {
+  renderHello();
   $('#d-date').value = dashDate;
   $$('#d-span button').forEach(b => b.classList.toggle('on', +b.dataset.n === settings.span));
   const d = getDay(dashDate);
@@ -1040,7 +1169,7 @@ function renderDash() {
 
   const f = d?.feel;
   $('#d-feel').innerHTML = hasFeel(f) ? `
-    <div style="font-size:30px">${f.mood ? MOODS[f.mood - 1] : ''}</div>
+    <div class="feel-big">${f.mood ? MOODS[f.mood - 1] : ''}</div>
     <div class="small muted">${[f.energy && `Energy ${f.energy}/5`, f.stress && `Stress ${f.stress}/5`].filter(Boolean).join(' · ')}</div>
     ${f.tags?.length ? `<div style="margin-top:6px">${f.tags.map(t => `<span class="tag" style="margin:0 4px 4px 0">${esc(t)}</span>`).join('')}</div>` : ''}
     ${f.notes ? `<p style="margin:8px 0 0;white-space:pre-wrap">${esc(f.notes)}</p>` : ''}` : '<p class="muted small" style="margin:0">Nothing logged yet.</p>';
@@ -1130,9 +1259,10 @@ function renderCharts() {
   draw('c-sleep', 'bar', labels, D.map(d => sleepHours(d)), v => fmtN(v, 1) + ' h');
 }
 
+const CHART_VAR = { 'c-steps': '--c-steps', 'c-weight': '--c-weight', 'c-cal': '--c-cal', 'c-ex': '--c-ex', 'c-mood': '--c-mood', 'c-sleep': '--c-sleep' };
 function draw(id, type, labels, values, fmt, yOpts = {}) {
   const cs = getComputedStyle(document.documentElement);
-  const color = cs.getPropertyValue('--series').trim(), grid = cs.getPropertyValue('--grid').trim(), muted = cs.getPropertyValue('--muted').trim(), surface = cs.getPropertyValue('--surface').trim();
+  const color = cs.getPropertyValue(CHART_VAR[id] || '--series').trim(), grid = cs.getPropertyValue('--grid').trim(), muted = cs.getPropertyValue('--muted').trim(), surface = cs.getPropertyValue('--surface').trim();
   const empty = values.every(v => v == null);
   const box = document.getElementById(id).parentElement;
   box.querySelector('.empty')?.remove();
@@ -1144,7 +1274,7 @@ function draw(id, type, labels, values, fmt, yOpts = {}) {
     data: { labels, datasets: [{
       data: values, backgroundColor: color, borderColor: color, borderWidth: type === 'line' ? 2 : 0, borderRadius: 4, borderSkipped: 'start',
       pointRadius: values.length > 45 ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: color, pointBorderColor: surface, pointBorderWidth: 2,
-      spanGaps: true, tension: 0.3, maxBarThickness: 22, categoryPercentage: 0.85, barPercentage: 0.9,
+      spanGaps: true, tension: 0.3, cubicInterpolationMode: 'monotone', maxBarThickness: 22, categoryPercentage: 0.85, barPercentage: 0.9,
     }] },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
@@ -1176,6 +1306,7 @@ function markLogDirty() { logDirty = true; $('#l-msg').textContent = 'Unsaved ch
 
 function renderLog() {
   $('#l-date').value = logDate;
+  $('#mv-date').value = addDays(logDate, -1);
   const d = getDay(logDate);
   const f = d?.feel || {};
   feelDraft = { mood: f.mood || null, energy: f.energy || null, stress: f.stress || null };
@@ -1223,6 +1354,49 @@ async function saveLogDay() {
   await runTask(persist);
   logDirty = false; $('#l-msg').textContent = 'Saved';
   renderDash(); renderHist();
+}
+
+
+/* ---- fix a mistake: move or delete ---- */
+async function moveEntries(to) {
+  const from = logDate;
+  if (!to) { toast('Pick the day to move to first.'); return; }
+  if (to === from) { toast('That’s the same day.'); return; }
+  if (logDirty) await saveLogDay();
+  const src = getDay(from);
+  const manualFood = src?.food.filter(f => f.source === 'manual') || [];
+  const manualWk = src?.workouts.filter(w => w.source === 'manual') || [];
+  const mWeight = src?.weightSource === 'manual', mSteps = src?.stepsSource === 'manual', mSleep = src?.sleep?.source === 'manual';
+  if (!src || (!hasFeel(src.feel) && !manualFood.length && !manualWk.length && !mWeight && !mSteps && !mSleep)) { toast('Nothing you entered by hand on this day to move.'); return; }
+  const dst = getDay(to);
+  const toName = fmtDay(to, { weekday: 'short', month: 'short', day: 'numeric' });
+  if (hasFeel(src.feel) && hasFeel(dst?.feel) && !confirm(`${toName} already has feelings logged. Replace them with this day's?`)) return;
+  const d = day(to);
+  if (hasFeel(src.feel)) { d.feel = src.feel; delete src.feel; }
+  d.food.push(...manualFood); src.food = src.food.filter(f => f.source !== 'manual');
+  d.workouts.push(...manualWk); src.workouts = src.workouts.filter(w => w.source !== 'manual');
+  if (mWeight) { d.weight = src.weight; d.weightUnit = src.weightUnit; d.weightSource = 'manual'; delete src.weight; delete src.weightUnit; delete src.weightSource; }
+  if (mSteps) { d.steps = src.steps; d.stepsSource = 'manual'; delete src.steps; delete src.stepsSource; }
+  if (mSleep) { d.sleep = src.sleep; delete src.sleep; }
+  touch(from); touch(to);
+  await runTask(persist);
+  logDate = to; renderLog(); renderDash(); renderHist();
+  toast(`Moved to ${toName}.`);
+}
+async function deleteFeelings() {
+  const d = getDay(logDate);
+  if (!hasFeel(d?.feel)) { toast('No feelings logged on this day.'); return; }
+  if (!confirm(`Delete the mood, energy, stress, tags and notes for ${fmtDay(logDate, { weekday: 'long', month: 'long', day: 'numeric' })}?`)) return;
+  logDirty = false; delete d.feel; touch(logDate);
+  await runTask(persist);
+  renderLog(); renderDash(); renderHist(); toast('Feelings deleted.');
+}
+async function deleteDay() {
+  if (!getDay(logDate)) { toast('There is nothing saved on this day.'); return; }
+  if (!confirm(`Delete EVERYTHING on ${fmtDay(logDate, { weekday: 'long', month: 'long', day: 'numeric' })}: feelings, food, workouts, steps, weight and sleep?\n\nImported data will come back if you import that day's Lose It or Garmin file again.`)) return;
+  logDirty = false; delete data.days[logDate]; touch(logDate);
+  await runTask(persist);
+  renderLog(); renderDash(); renderHist(); toast('Day deleted.');
 }
 
 /* ---- History ---- */
@@ -1419,6 +1593,9 @@ $('#l-today').onclick = () => moveLog(todayKey());
 $('#f-tags').addEventListener('input', renderTagSugg);
 ['#f-tags', '#f-notes', '#f-sleep', '#f-weight', '#f-wunit', '#f-steps'].forEach(s => $(s).addEventListener('input', markLogDirty));
 $('#l-save').onclick = saveLogDay;
+$('#mv-go').onclick = () => moveEntries($('#mv-date').value);
+$('#del-feel').onclick = deleteFeelings;
+$('#del-day').onclick = deleteDay;
 
 $('#w-add').onclick = () => {
   const type = $('#w-type').value.trim(); if (!type) { $('#w-type').focus(); return; }

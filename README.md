@@ -23,14 +23,16 @@ There's nothing to install and nothing to pay for. You open a web link, and that
 9. [Step 7 — Open the app for the first time](#step-7--open-the-app-for-the-first-time)
 10. [Step 8 — Make it easy to open (desktop shortcut or app icon)](#step-8--make-it-easy-to-open)
 11. [Step 9 — Get your data out of Lose It and Garmin](#step-9--get-your-data-out-of-lose-it-and-garmin)
-12. [Using the app every day](#using-the-app-every-day)
-13. [What each screen does](#what-each-screen-does)
-14. [Signing in: what to expect](#signing-in-what-to-expect)
-15. [Updating the app](#updating-the-app)
-16. [Backups](#backups)
-17. [Troubleshooting](#troubleshooting)
-18. [Privacy: who can see what](#privacy-who-can-see-what)
-19. [FAQ](#faq)
+12. [Step 10 (optional) — Send Lose It emails straight to Google Drive](#step-10-optional--send-lose-it-emails-straight-to-google-drive)
+13. [Step 11 (optional) — Bring in your whole Garmin history](#step-11-optional--bring-in-your-whole-garmin-history)
+14. [Using the app every day](#using-the-app-every-day)
+15. [What each screen does](#what-each-screen-does)
+16. [Signing in: what to expect](#signing-in-what-to-expect)
+17. [Updating the app](#updating-the-app)
+18. [Backups](#backups)
+19. [Troubleshooting](#troubleshooting)
+20. [Privacy: who can see what](#privacy-who-can-see-what)
+21. [FAQ](#faq)
 
 ---
 
@@ -53,7 +55,7 @@ You put your Lose It and Garmin files in a Drive folder called **Inbox**. When y
 ## 2. What you need before you start
 
 - [ ] A computer with internet
-- [ ] The two app files, **`index.html`** and **`config.js`**, saved somewhere easy to find, such as your Desktop
+- [ ] The app files, **`index.html`** and **`config.js`**, saved somewhere easy to find, such as your Desktop. There's also **`email-to-drive.gs`**, which is only needed for the optional Step 10.
 - [ ] A **personal** Google account (Gmail). Step 1 covers this.
 - [ ] About 45 minutes
 
@@ -124,7 +126,7 @@ You're now on your repository's page. Its address is `https://github.com/YOUR-US
 ### 3b. Upload the app files
 
 1. Near the top right of the page, click the **Add file** button, then **Upload files**.
-2. Drag in **`index.html`**, **`config.js`** and **`README.md`** (this guide). Or click **choose your files** and pick them.
+2. Drag in **`index.html`**, **`config.js`**, **`email-to-drive.gs`** and **`README.md`** (this guide). Or click **choose your files** and pick them.
    - It's fine to replace the README that GitHub made for you.
 3. Wait until all the files show in the list.
 4. Scroll down and click the green **Commit changes** button.
@@ -343,7 +345,103 @@ You have to do this on the Garmin **website**. The phone app can't export.
 >
 > If you drop one in, the app tells you and leaves it in the Inbox. You can delete it.
 
-**Steps, weight and sleep from Garmin:** in Garmin Connect, go to **Reports** (or **Health Stats**) → **Steps**, **Weight** or **Sleep**. Pick a date range and use **Export** if you see it. If you don't, that's fine: your Lose It Daily Report already includes your Garmin steps and sleep.
+**Steps, sleep and weight from Garmin:** Garmin doesn't offer a single everyday report with all of these. You don't need one:
+
+- **Every day**, your **Lose It Daily Report** already includes the steps and sleep that Garmin sends to Lose It, plus your weight if you log it there.
+- **For workouts**, drop in the **Activities CSV** above every week or two. One file covers as far back as you scroll.
+- **For your whole past history** of steps, sleep and resting heart rate, do Garmin's one-time full export (see [Step 11](#step-11-optional--bring-in-your-whole-garmin-history)).
+
+Garmin's single-measure reports also work, if you want them: in Garmin Connect, go to **Reports** (or **Health Stats**) → **Steps**, **Weight** or **Sleep**, pick a date range, and click **Export**.
+
+### The easiest everyday routine
+
+| How often | What to drop in the Inbox | What it brings in |
+|---|---|---|
+| Every day (automatic with Step 10) | Lose It **Daily Report PDF** | Food, calories, macros, steps, sleep |
+| Every week or two | Garmin **Activities CSV** | Workouts: type, time, distance, calories, heart rate |
+| Once, at the start | Garmin **full export ZIP** (Step 11) | Your entire history of steps, sleep and resting heart rate |
+
+---
+
+## Step 10 (optional) — Send Lose It emails straight to Google Drive
+
+**What this does:** a small script runs in your own Google account. **Every hour**, it looks in your Gmail for new emails from **Lose It** (or **Garmin**) that have a **PDF, CSV or ZIP** attached, and saves those files into **Health Sync → Inbox**. You never have to move a file by hand again.
+
+- It's free, and it runs on Google's computers even when yours is off.
+- Your emails are **not** changed or deleted. Each email gets a Gmail label called **health-sync-saved**, so it's never copied twice.
+
+### 10a. Make sure Lose It emails your personal Gmail
+
+The script can only see the Gmail account it's set up in, so **Lose It's emails must arrive in the same personal Gmail you use for Health Sync**.
+
+- If Lose It emails a **different address** (for example a school or work address), do one of these:
+  - change your email address in Lose It's settings to your personal Gmail, **or**
+  - in that other email account, set up **automatic forwarding** of Lose It emails to your personal Gmail.
+
+### 10b. Create the script
+
+1. Go to **https://script.google.com** and sign in with your **personal Gmail**.
+2. Click **New project** (top left).
+3. Click **Untitled project** at the top and rename it `Health Sync email saver`. Click **Rename**.
+4. You'll see some code that starts with `function myFunction()`. Click in the code, press **Cmd+A** (Mac) or **Ctrl+A** (Windows) to select all of it, and press **Delete**.
+5. Open the file **`email-to-drive.gs`** in any text editor (TextEdit on a Mac, Notepad on Windows), or open it on your GitHub page.
+   - Select all of its text and copy it (**Cmd+C** / **Ctrl+C**).
+6. Go back to the script page and paste (**Cmd+V** / **Ctrl+V**).
+7. Click the **💾 Save** icon, or press **Cmd+S** / **Ctrl+S**.
+
+### 10c. Turn it on
+
+1. At the top of the code, there's a toolbar with a dropdown that shows a function name. Choose **`setup`**.
+2. Click **▶ Run**.
+3. A box says **"Authorization required"**. Click **Review permissions**.
+4. Choose your **personal Gmail**.
+5. Google says **"Google hasn't verified this app."** That's expected, because this is your own script.
+   - Click **Advanced** → **Go to Health Sync email saver (unsafe)**.
+6. Tick **Select all**, or tick each box, so the script can read your Gmail and add files to your Drive. Then click **Continue** (or **Allow**).
+7. At the bottom, the **Execution log** shows something like `Saved 1 attachment(s) from 1 email(s).`
+
+🎉 Done. From now on, every hour, new Lose It report emails land in your Inbox folder automatically.
+
+### 10d. Check it's working
+
+- In **Gmail**, Lose It report emails now show the label **health-sync-saved**.
+- In **Google Drive → Health Sync → Inbox**, you'll see files with the date at the front, like `2026-10-14 0702 Lose It!.pdf`.
+- Open Health Sync, and it imports them.
+
+### 10e. If it saves nothing
+
+1. Open a Lose It report email in Gmail and look at **who it's from**, for example `something@loseit.com`.
+2. Open your script and find the line near the top that starts with `const SEARCH =`.
+3. Make sure the sender's domain is listed inside the brackets. For example, if reports come from `@email.loseit.com`, that already matches `loseit.com`.
+   - If they come from somewhere else, add it with `OR`, like this:
+     ```js
+     const SEARCH = 'from:(loseit.com OR garmin.com OR reports@example.com) has:attachment newer_than:30d -label:health-sync-saved';
+     ```
+4. Save, choose **`saveHealthReports`** in the function dropdown, and click **▶ Run** to try again right away.
+
+**To turn it off:** choose **`stop`** in the function dropdown and click **▶ Run**.
+
+> The script only looks at emails from the **last 30 days**, so the first run won't dig up years of old mail.
+
+---
+
+## Step 11 (optional) — Bring in your whole Garmin history
+
+Garmin has one export that contains **everything**: years of daily steps, sleep and resting heart rate. It's a one-time download, and it's great for filling in your history.
+
+1. Go to **https://www.garmin.com/account/datamanagement/** and sign in with your Garmin account.
+2. Click **Export Your Data**, then **Request Data Export**.
+3. Garmin emails you a **download link**. This can take anywhere from a few hours to a few days.
+4. Click the link in the email and download the **ZIP file**. It can be large (hundreds of MB). **Don't unzip it.**
+5. Open Health Sync → **Import** tab → drag the ZIP onto **Import from this computer**.
+   - For a file this big, this is faster than putting it in the Drive Inbox.
+6. Give it a minute. The results will say something like *"Garmin export: 1,204 days of steps, 1,150 nights of sleep."*
+
+**Good to know:**
+
+- The app only reads the daily-summary and sleep files inside the ZIP. It ignores everything else, such as GPS tracks and device files.
+- For **workouts**, use the **Activities CSV** (Step 9). It's more reliable for workout details.
+- Importing it again later is safe. Days are updated, not doubled.
 
 ---
 
@@ -397,6 +495,18 @@ You have to do this on the Garmin **website**. The phone app can't export.
 ### Log today
 
 Record your feelings, weight, steps, workouts and food by hand for any day. Use the date bar to fill in past days. **Always click Save day.**
+
+**Fix a mistake** (at the bottom of the Log today screen):
+
+- **Logged on the wrong day?**
+  1. Go to the wrong day.
+  2. Pick the right day in **"Move what I entered on this day to"**.
+  3. Click **Move**.
+
+  This moves your mood, energy, stress, tags and notes, plus anything you typed in by hand. Imported Lose It and Garmin data stays on its real date. If the other day already has feelings, the app asks before replacing them.
+- **Delete feelings for this day:** removes just the mood, energy, stress, tags and notes.
+- **Delete everything on this day:** removes all data for that day. Imported data comes back if you import that day's Lose It or Garmin file again.
+- You can also delete single food or workout entries with the **×** next to them.
 
 ### History
 
@@ -475,6 +585,7 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 | **Numbers look doubled** | Lose It sometimes copies Garmin workouts. The app skips Lose It entries with "Garmin" in the name, so this shouldn't happen. If it does, delete the extra entry in **Log today** (the **×** button). |
 | **Changes I uploaded to GitHub don't show** | Wait 2–5 minutes, then press **Cmd+Shift+R** / **Ctrl+Shift+R**. Check the dot on your GitHub page (see [Updating the app](#updating-the-app)). |
 | **I double-clicked `index.html` on my computer and Connect doesn't work** | Google sign-in only works from the web address, so use `https://YOUR-USERNAME.github.io/health-sync/`. (Opening the file directly only allows "this computer only" mode, with no syncing.) |
+| **Lose It emails aren't showing up in the Inbox** | See [Step 10e](#10e-if-it-saves-nothing). Also check that the emails arrive in the **same personal Gmail** the script is set up in. |
 | **The dashboard shows "—" for today** | Normal. Today's data usually arrives tomorrow. Use the **7-day avg** button (or another average), which always ends yesterday. |
 
 ---
