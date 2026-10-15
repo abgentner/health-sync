@@ -515,6 +515,19 @@ Garmin has one export that contains **everything**: years of daily steps, sleep 
 - Open Health Sync. Your workouts appear with a **Strava** tag, and the **Movement** box ticks itself.
 - In the script, **☰ Executions** shows a run every hour. The log says `Strava: saved 1 new activity.` or `Strava: nothing new.`
 
+### 12f. Bring in your whole Strava history (one time)
+
+The hourly check only goes back 30 days the first time. To bring in **everything** you've ever logged on Strava:
+
+1. In the script, choose **`stravaBackfill`** in the function dropdown and click **▶ Run**.
+2. The log says something like `Strava history: saved 842 activities (2019-03-02 to 2026-10-15) in 2 file(s).`
+3. Open Health Sync. It imports the history files from your Inbox. Big histories can take a few seconds.
+
+**Good to know:**
+
+- Run it **once**. Running it again is harmless, because nothing gets doubled, but it isn't needed. The hourly check keeps everything current from then on.
+- Strava only gives **calories** one workout at a time, so past workouts only get calories for rides. For calories on every past workout, also import Garmin's **Activities CSV** (Step 9). Garmin's copy fills in the details, and nothing is doubled.
+
 **To disconnect Strava:** in **Script Properties**, delete `STRAVA_REFRESH`. You can also remove Health Sync under **strava.com → Settings → My Apps**.
 
 ---

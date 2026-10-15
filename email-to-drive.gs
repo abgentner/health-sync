@@ -122,16 +122,51 @@ function syncStrava() {
   const activities = fresh.map(a => {
     let calories = null;
     try { calories = stravaGet_('activities/' + a.id, token).calories; } catch (e) {}   // calories are only in the detailed view
-    return {
-      id: a.id, name: a.name, sport_type: a.sport_type || a.type,
-      start_date_local: a.start_date_local, moving_time: a.moving_time, elapsed_time: a.elapsed_time,
-      distance: a.distance, average_heartrate: a.average_heartrate, max_heartrate: a.max_heartrate, calories,
-    };
+    return slim_(a, calories);
   });
   const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmm');
   inboxFolder_().createFile(`${stamp} strava.json`, JSON.stringify({ source: 'strava', activities }), 'application/json');
   p.setProperty('STRAVA_SEEN', JSON.stringify(seen.concat(fresh.map(a => a.id)).slice(-300)));
   console.log(`Strava: saved ${activities.length} new activit${activities.length === 1 ? 'y' : 'ies'}.`);
+}
+
+/**
+ * One-time: saves your WHOLE Strava history into Health Sync › Inbox (in files of 500 activities).
+ * Run it once after stravaConnect. The hourly check keeps things up to date after that.
+ * Calories: Strava only lists them per activity, so history uses the ride energy figure where there is one;
+ * import Garmin's Activities CSV as well if you want calories for every past workout.
+ */
+function stravaBackfill() {
+  const token = stravaAccess_();
+  if (!token) throw new Error('Connect Strava first: run stravaLink, then stravaConnect (README Step 12d).');
+  const p = props_();
+  let all = [], page = 1, batch;
+  do {
+    batch = stravaGet_(`athlete/activities?per_page=200&page=${page}`, token);
+    all = all.concat(batch);
+    page++;
+  } while (batch.length === 200 && page <= 50);
+  if (!all.length) { console.log('Strava history: no activities found.'); return; }
+  all.sort((a, b) => Date.parse(a.start_date) - Date.parse(b.start_date));
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmm');
+  const folder = inboxFolder_();
+  const files = Math.ceil(all.length / 500);
+  for (let i = 0; i < files; i++) {
+    const chunk = all.slice(i * 500, (i + 1) * 500).map(a => slim_(a, a.kilojoules ? Math.round(a.kilojoules) : null));
+    folder.createFile(`${stamp} strava-history-${i + 1}-of-${files}.json`, JSON.stringify({ source: 'strava', activities: chunk }), 'application/json');
+  }
+  const seen = JSON.parse(p.getProperty('STRAVA_SEEN') || '[]');
+  p.setProperty('STRAVA_SEEN', JSON.stringify([...new Set(seen.concat(all.map(a => a.id)))].slice(-300)));
+  const first = all[0].start_date_local.slice(0, 10), last = all[all.length - 1].start_date_local.slice(0, 10);
+  console.log(`Strava history: saved ${all.length} activities (${first} to ${last}) in ${files} file(s).`);
+}
+
+function slim_(a, calories) {
+  return {
+    id: a.id, name: a.name, sport_type: a.sport_type || a.type,
+    start_date_local: a.start_date_local, moving_time: a.moving_time, elapsed_time: a.elapsed_time,
+    distance: a.distance, average_heartrate: a.average_heartrate, max_heartrate: a.max_heartrate, calories,
+  };
 }
 
 function stravaToken_(params) {
