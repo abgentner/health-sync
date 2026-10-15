@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- Health Sync app · version 1.0 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -512,17 +513,21 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
   </div>
   <div class="card">
+    <div class="card-h"><h2>About</h2></div>
+    <p class="small" style="margin:0 0 16px">App version: <b class="app-ver"></b><br><span class="muted">Compare this with the version at the top of README.md and in the folder name of the files you uploaded.</span></p>
     <div class="card-h"><h2>Theme</h2></div>
     <select id="s-theme" style="width:auto"><option value="">Match my computer</option><option value="light">Light</option><option value="dark">Dark</option></select>
   </div>
 </section>
 
+  <footer class="muted small" style="text-align:center;margin-top:28px">Health Sync <span class="app-ver"></span></footer>
 </main>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 'use strict';
+const APP_VERSION = '1.0';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1958,6 +1963,7 @@ function showWelcomeError(e) {
 }
 
 async function boot() {
+  $$('.app-ver').forEach(el => el.textContent = 'v' + APP_VERSION);
   applyTheme();
   scaleUI($('#f-mood'), 'mood', MOODS);
   scaleUI($('#f-energy'), 'energy', ['1', '2', '3', '4', '5']);

@@ -1,5 +1,6 @@
 /**
  * Health Sync — automatic imports into Google Drive.
+ * Version 1.0
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
@@ -21,6 +22,7 @@
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
+const SCRIPT_VERSION = '1.0';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -41,6 +43,7 @@ function setup() {
 
 /** What the hourly timer runs. */
 function hourly() {
+  console.log('Health Sync script v' + SCRIPT_VERSION);
   try {
     saveHealthReports();
   } finally {
@@ -94,13 +97,47 @@ function stravaLink() {
 function stravaConnect() {
   const p = props_();
   let code = (p.getProperty('STRAVA_CODE') || '').trim();
+  if (/strava\.com\/oauth\/authorize/.test(code)) throw new Error('STRAVA_CODE has the stravaLink address in it. Open that link, click Authorize, and paste the address of the page you land on next (it starts with http://localhost/?state=&code=).');
   const m = code.match(/[?&]code=([^&]+)/);   // the whole address can be pasted
   if (m) code = m[1];
-  if (!code) throw new Error('Add STRAVA_CODE in Script Properties first (README Step 12).');
-  const t = stravaToken_({ grant_type: 'authorization_code', code });
+  if (!code) {
+    if (p.getProperty('STRAVA_REFRESH')) { console.log('Already connected to Strava. Nothing to do: run setup or stravaBackfill.'); return; }
+    throw new Error('Add STRAVA_CODE in Script Properties first (README Step 12).');
+  }
+  let t;
+  try {
+    t = stravaToken_({ grant_type: 'authorization_code', code });
+  } catch (e) {
+    if (!/AuthorizationCode/.test(e.message)) throw e;
+    const already = p.getProperty('STRAVA_REFRESH');
+    p.deleteProperty('STRAVA_CODE');
+    throw new Error(already
+      ? 'That code was old or already used, but you ARE already connected to Strava. STRAVA_CODE has been removed; just run stravaBackfill (or nothing).'
+      : 'Strava says that code is expired or already used. Run stravaLink again, click Authorize, paste the new address into STRAVA_CODE, and run stravaConnect straight away (codes last only a few minutes).');
+  }
   p.deleteProperty('STRAVA_CODE');
   p.deleteProperty('STRAVA_SEEN');
   console.log('Connected to Strava' + (t.athlete && t.athlete.firstname ? ' as ' + t.athlete.firstname : '') + '. Now run setup.');
+}
+
+/** Troubleshooting: checks your Strava settings and says what looks wrong (never shows your secret). */
+function stravaCheck() {
+  console.log('Health Sync script v' + SCRIPT_VERSION);
+  const p = props_();
+  const id = (p.getProperty('STRAVA_CLIENT_ID') || '').trim();
+  const sec = (p.getProperty('STRAVA_CLIENT_SECRET') || '').trim();
+  const raw = (p.getProperty('STRAVA_CODE') || '').trim();
+  const m = raw.match(/[?&]code=([^&]+)/);
+  console.log([
+    'STRAVA_CLIENT_ID: ' + (!id ? 'MISSING' : /^\d+$/.test(id) ? id + ' (looks right; should match the Client ID on strava.com/settings/api)' : 'should be just a number — check it'),
+    'STRAVA_CLIENT_SECRET: ' + (!sec ? 'MISSING' : sec.length + ' characters' + (/^[0-9a-f]{40}$/.test(sec) ? ' (looks right)' : ' (usually 40 letters/numbers — copy it again)')),
+    'STRAVA_CODE: ' + (!raw ? 'not set'
+      : /strava\.com\/oauth\/authorize/.test(raw) ? 'WRONG — this is the stravaLink address. Paste the address of the page you land on AFTER clicking Authorize.'
+      : m ? 'an address with a code in it (' + m[1].length + ' characters) — looks right' + (/activity:read_all/.test(raw) ? '' : ', BUT "View data about your private activities" may not have been ticked')
+      : raw.length === 40 ? 'a 40-character value — fine if it is the code from the address you landed on after Authorize, WRONG if it is the Access Token from Strava\'s settings page (safest: paste the whole address)'
+      : 'a ' + raw.length + '-character value'),
+    'Already connected: ' + (p.getProperty('STRAVA_REFRESH') ? 'YES — you do not need stravaConnect' : 'no'),
+  ].join('\n'));
 }
 
 /** Saves new Strava activities into Health Sync › Inbox. Does nothing if Strava isn't connected. */

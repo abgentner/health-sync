@@ -1,5 +1,7 @@
 # Health Sync
 
+> **Version 1.0** · October 15, 2026 · [Version history](#version-history)
+
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
 - It reads the files you export from **Lose It!** and **Garmin Connect**.
@@ -34,6 +36,7 @@ There's nothing to install and nothing to pay for. You open a web link, and that
 20. [Troubleshooting](#troubleshooting)
 21. [Privacy: who can see what](#privacy-who-can-see-what)
 22. [FAQ](#faq)
+23. [Version history](#version-history)
 
 ---
 
@@ -785,3 +788,41 @@ Yes. **Settings → Download backup** gives you everything in one file, and the 
 
 **Do I ever have to go back to the Google Cloud pages?**
 No. That was one-time setup. The weekly re-approval happens inside the app's own sign-in window.
+
+---
+
+## Version history
+
+Every release has one version number, shared by all its files. To check you're using the same files:
+
+| File | Where to see its version |
+|---|---|
+| **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
+| **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
+| **README** (`README.md`) | At the very top |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.0** |
+
+`config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.0 (October 15, 2026)
+
+First numbered release. It includes:
+
+- **Dashboard:**
+  - summary tiles (a single day, or a 5/7/15/30-day average ending yesterday)
+  - trend charts
+  - mood word cloud
+  - daily anchors (17 of 21 boxes a week)
+- **Plan tab:** a written plan, plus PDFs, pictures and Google Docs from Drive
+- **Daily anchors:** checked automatically from imported data, with a manual override
+- **Log today:** feelings, plus fixing mistakes by moving or deleting a day
+- **Imports:**
+  - Lose It Daily Report PDFs
+  - Garmin Activities CSV, plus steps, weight and sleep CSVs
+  - Garmin full-export ZIP
+  - Strava activities
+- **Script:**
+  - Lose It email attachments saved to the Drive Inbox every hour
+  - Strava sync every hour, plus a one-time history backfill (`stravaBackfill`)
+  - `stravaCheck` for troubleshooting
+
