@@ -13,7 +13,7 @@
   --bg:#f4f5f8; --bg-tint:#e9effb; --surface:#ffffff; --surface-2:#f2f3f6; --border:#e6e7ec;
   --text:#14161c; --text-2:#545862; --muted:#868a94;
   --accent:#2a78d6; --accent-2:#5b54d6; --accent-ink:#ffffff; --series:#2a78d6; --grid:#eceef2;
-  --c-steps:#2a78d6; --c-cal:#eb6834; --c-ex:#1baf7a; --c-weight:#4a3aa7; --c-mood:#e87ba4; --c-sleep:#eda100;
+  --c-steps:#2a78d6; --c-cal:#eb6834; --c-ex:#1baf7a; --c-weight:#4a3aa7; --c-mood:#e87ba4; --c-sleep:#eda100; --c-anchor:#008300;
   --good:#0f7a3a; --bad:#c23a39; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
   --mood-lo:#c8501c; --mood-mid:#8a8984; --mood-hi:#2a78d6;
   --radius:16px; --shadow:0 1px 2px rgba(20,22,28,.04),0 4px 16px rgba(20,22,28,.05);
@@ -24,7 +24,7 @@
     --bg:#0f1013; --bg-tint:#16192a; --surface:#181a1f; --surface-2:#22252b; --border:#2b2e35;
     --text:#f4f5f7; --text-2:#c0c3ca; --muted:#8b8f98;
     --accent:#3987e5; --accent-2:#8079ec; --series:#3987e5; --grid:#26292f;
-    --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500;
+    --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500; --c-anchor:#2f9e44;
     --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
     --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
     --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
@@ -35,7 +35,7 @@
   --bg:#0f1013; --bg-tint:#16192a; --surface:#181a1f; --surface-2:#22252b; --border:#2b2e35;
   --text:#f4f5f7; --text-2:#c0c3ca; --muted:#8b8f98;
   --accent:#3987e5; --accent-2:#8079ec; --series:#3987e5; --grid:#26292f;
-  --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500;
+  --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500; --c-anchor:#2f9e44;
   --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
   --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
@@ -194,6 +194,34 @@ tbody tr:hover{background:var(--surface-2)}
 .doc-list button.on{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 15%,transparent)}
 .doc-frame{width:100%;height:78vh;border:1px solid var(--border);border-radius:12px;background:#fff;margin-top:12px}
 .doc-img{max-width:100%;border-radius:12px;margin-top:12px;display:block}
+.anchors{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px}
+.anchor{display:flex;gap:12px;align-items:flex-start;text-align:left;border:1.5px solid var(--border);background:var(--surface);border-radius:14px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s}
+.anchor:hover{border-color:var(--c-anchor)}
+.anchor .ck{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--border);display:grid;place-items:center;color:#fff;font-size:15px;font-weight:800;margin-top:1px}
+.anchor .an-n{font-weight:650}
+.anchor .an-h{font-size:12.5px;color:var(--muted);margin-top:2px}
+.anchor .an-src{font-size:11.5px;color:var(--text-2);margin-top:5px;font-weight:550}
+.anchor.on .an-src{color:var(--c-anchor)}
+.anchor.on{border-color:var(--c-anchor);background:color-mix(in oklab,var(--c-anchor) 8%,var(--surface))}
+.anchor.on .ck{background:var(--c-anchor);border-color:var(--c-anchor)}
+.an-sum{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:center;padding:4px 0 18px;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.an-big{font-size:30px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.an-big .u{font-size:14px;color:var(--text-2);font-weight:550;margin-left:4px;letter-spacing:0}
+.an-msg{font-size:13.5px;color:var(--text-2);margin-top:2px}
+.an-bar{display:flex;gap:3px;margin-top:10px;max-width:520px}
+.an-bar i{flex:1;height:10px;border-radius:3px;background:var(--surface-2);border:1px solid var(--border)}
+.an-bar i.f{background:var(--c-anchor);border-color:var(--c-anchor)}
+.an-bar i.goal{margin-right:8px}
+.an-bar i.buf{border-style:dashed}
+.an-week{display:grid;grid-template-columns:repeat(7,30px);gap:6px;text-align:center}
+.an-week .dl{font-size:11px;color:var(--muted);font-weight:600}
+.an-week .dl.today{color:var(--text)}
+.an-week .dots{display:flex;flex-direction:column;gap:3px;align-items:center}
+.an-week .dots i{width:16px;height:7px;border-radius:2px;background:var(--surface-2);border:1px solid var(--border)}
+.an-week .dots i.f{background:var(--c-anchor);border-color:var(--c-anchor)}
+@media (max-width:640px){.an-sum{grid-template-columns:1fr}}
+.pdf-pages{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.pdf-page{width:100%;height:auto;border-radius:10px;border:1px solid var(--border);background:#fff;box-shadow:var(--shadow)}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -288,7 +316,9 @@ tbody tr:hover{background:var(--surface-2)}
         <option value="365">Last 12 months</option>
       </select>
     </div>
+    <div class="an-sum" id="an-sum"></div>
     <div class="charts">
+      <div><h3 style="--c:var(--c-anchor)"><span class="sw"></span><span id="an-chart-t">Daily anchors per week</span></h3><div class="chart-box"><canvas id="c-anchor"></canvas></div></div>
       <div><h3 style="--c:var(--c-steps)"><span class="sw"></span>Steps</h3><div class="chart-box"><canvas id="c-steps"></canvas></div></div>
       <div><h3 style="--c:var(--c-weight)"><span class="sw"></span>Weight</h3><div class="chart-box"><canvas id="c-weight"></canvas></div></div>
       <div><h3 style="--c:var(--c-cal)"><span class="sw"></span>Calories eaten</h3><div class="chart-box"><canvas id="c-cal"></canvas></div></div>
@@ -345,6 +375,10 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
   </div>
   <div class="card">
+    <div class="card-h"><h2>Daily anchors</h2><span class="muted small" id="an-log-week"></span></div>
+    <div class="anchors" id="an-boxes"></div>
+  </div>
+  <div class="card">
     <div class="card-h"><h2>Feelings</h2></div>
     <div class="form-grid">
       <div><label>Mood</label><div class="scale" id="f-mood"></div></div>
@@ -396,7 +430,7 @@ tbody tr:hover{background:var(--surface-2)}
       <input type="date" id="mv-date" style="width:auto">
       <button class="btn" id="mv-go">Move</button>
     </div>
-    <p class="small muted" style="margin:-4px 0 12px">Moves your mood, energy, stress, tags, notes, and anything you typed in by hand. Imported Lose It and Garmin data stays on its real date.</p>
+    <p class="small muted" style="margin:-4px 0 12px">Moves your daily anchors, mood, energy, stress, tags, notes, and anything you typed in by hand. Imported Lose It and Garmin data stays on its real date.</p>
     <div class="row">
       <button class="btn danger" id="del-feel">Delete feelings for this day</button>
       <button class="btn danger" id="del-day">Delete everything on this day</button>
@@ -414,7 +448,7 @@ tbody tr:hover{background:var(--surface-2)}
       </select>
     </div>
     <div class="tbl-wrap">
-      <table><thead><tr><th>Date</th><th>Steps</th><th>Cal in</th><th>Protein g</th><th>Exercise min</th><th>Cal burned</th><th>Weight</th><th>Sleep h</th><th>Mood</th></tr></thead><tbody id="h-body"></tbody></table>
+      <table><thead><tr><th>Date</th><th>Steps</th><th>Cal in</th><th>Protein g</th><th>Exercise min</th><th>Cal burned</th><th>Weight</th><th>Sleep h</th><th>Anchors</th><th>Mood</th></tr></thead><tbody id="h-body"></tbody></table>
     </div>
     <p class="muted small" id="h-empty" hidden>No data yet. Go to Import to bring in your Lose It and Garmin files.</p>
   </div>
@@ -444,6 +478,16 @@ tbody tr:hover{background:var(--surface-2)}
 
 <!-- Settings -->
 <section class="tab" id="tab-set" hidden>
+  <div class="card">
+    <div class="card-h"><h2>Daily anchors</h2></div>
+    <p class="small muted" style="margin-top:0">The habit boxes you check each day in <b>Log today</b>. Changes sync to all your computers.</p>
+    <div id="s-anchors" class="form-grid"></div>
+    <div class="row" style="margin-top:14px">
+      <label for="s-an-goal" style="margin:0">Weekly goal</label>
+      <input type="number" id="s-an-goal" min="1" style="width:90px"><span class="muted small" id="s-an-goal-of"></span>
+      <button class="btn primary small" id="s-an-save" style="margin-left:auto">Save anchors</button>
+    </div>
+  </div>
   <div class="card">
     <div class="card-h"><h2>Where your data lives</h2></div>
     <p class="small" style="margin-top:0" id="s-where"></p>
@@ -561,7 +605,7 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
@@ -578,7 +622,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel)) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null)) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -732,7 +776,7 @@ async function persist() {
     const seen = new Set(remote.imports.map(i => i.id));
     for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
     remote.imports = remote.imports.slice(-500);
-    if (planDirty) remote.plan = data.plan;
+    if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; }
     remote.updated = new Date().toISOString();
     await store.save(remote);
     data = remote; dirty.clear(); importsDirty = false; planDirty = false;
@@ -989,10 +1033,31 @@ function impSleep(rows, headers, find) {
 
 /* ---- Lose It "Daily Report" PDF ---- */
 // Rebuild the PDF's table rows: text pieces on the same line, grouped into cells by horizontal gaps.
-async function pdfLines(buf) {
+function openPdf(buf) {
   if (!window.pdfjsLib) throw new Error('the PDF reader did not load — check your internet connection');
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  return pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+}
+// Draw each page onto a canvas, so PDFs show even where the browser won't display them inline.
+async function renderPdfPages(buf, box) {
+  const pdf = await openPdf(buf);
+  const wrap = document.createElement('div');
+  wrap.className = 'pdf-pages';
+  box.prepend(wrap);
+  const width = Math.max(320, wrap.clientWidth || box.clientWidth || 800);
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const scale = width / page.getViewport({ scale: 1 }).width;
+    const vp = page.getViewport({ scale: scale * Math.min(2, window.devicePixelRatio || 1) });
+    const c = document.createElement('canvas');
+    c.className = 'pdf-page'; c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    c.setAttribute('aria-label', `Page ${i} of ${pdf.numPages}`);
+    wrap.appendChild(c);
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+  }
+}
+async function pdfLines(buf) {
+  const pdf = await openPdf(buf);
   const lines = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     const content = await (await pdf.getPage(p)).getTextContent();
@@ -1224,6 +1289,7 @@ function renderDash() {
 
   renderCharts();
   renderCloud();
+  renderAnchorSummary();
 }
 const srcName = s => ({ garmin: 'Garmin', loseit: 'Lose It', manual: 'Manual' }[s] || s || '');
 
@@ -1291,6 +1357,7 @@ function renderCloud() {
 
 function renderCharts() {
   if (!window.Chart) return;
+  drawAnchorChart();
   const n = +$('#d-range').value;
   const keys = []; for (let i = n - 1; i >= 0; i--) keys.push(addDays(dashDate, -i));
   const long = n > 60;
@@ -1307,7 +1374,7 @@ function renderCharts() {
   draw('c-sleep', 'bar', labels, D.map(d => sleepHours(d)), v => fmtN(v, 1) + ' h');
 }
 
-const CHART_VAR = { 'c-steps': '--c-steps', 'c-weight': '--c-weight', 'c-cal': '--c-cal', 'c-ex': '--c-ex', 'c-mood': '--c-mood', 'c-sleep': '--c-sleep' };
+const CHART_VAR = { 'c-anchor': '--c-anchor', 'c-steps': '--c-steps', 'c-weight': '--c-weight', 'c-cal': '--c-cal', 'c-ex': '--c-ex', 'c-mood': '--c-mood', 'c-sleep': '--c-sleep' };
 function draw(id, type, labels, values, fmt, yOpts = {}) {
   const cs = getComputedStyle(document.documentElement);
   const color = cs.getPropertyValue(CHART_VAR[id] || '--series').trim(), grid = cs.getPropertyValue('--grid').trim(), muted = cs.getPropertyValue('--muted').trim(), surface = cs.getPropertyValue('--surface').trim();
@@ -1358,6 +1425,8 @@ function renderLog() {
   const d = getDay(logDate);
   const f = d?.feel || {};
   feelDraft = { mood: f.mood || null, energy: f.energy || null, stress: f.stress || null };
+  anchorDraft = anchorCfg().names.map((_, i) => typeof d?.anchors?.[i] === 'boolean' ? d.anchors[i] : null);
+  renderAnchorBoxes();
   paintScales();
   $('#f-tags').value = (f.tags || []).join(', ');
   renderTagSugg();
@@ -1389,6 +1458,7 @@ async function saveLogDay() {
   const notes = $('#f-notes').value.trim();
   const feel = { mood: feelDraft.mood || null, energy: feelDraft.energy || null, stress: feelDraft.stress || null, tags, notes };
   if (hasFeel(feel)) d.feel = feel; else delete d.feel;
+  if (anchorDraft.some(v => v != null)) d.anchors = anchorDraft.slice(); else delete d.anchors;
   const sl = num($('#f-sleep').value);
   if (sl != null) d.sleep = { ...(d.sleep || {}), hours: sl, source: d.sleep?.hours === sl ? d.sleep.source : 'manual' };
   else if (d.sleep) { delete d.sleep.hours; if (!d.sleep.score) delete d.sleep; }
@@ -1405,6 +1475,172 @@ async function saveLogDay() {
 }
 
 
+
+
+/* ---- Daily anchors (habit boxes) ---- */
+const ANCHOR_DEFAULTS = {
+  names: ['Day Pack', 'Dinner Boundary', 'Movement'],
+  hints: ['Shakes at 7 AM, 11 AM & 3 PM', '8 oz protein · 2 cups veggies · 1 cup starch · one plate', '25–30 min workout, 30-min walk, or the 10-min minimum'],
+  // How each box can be checked automatically from imported data.
+  rules: [
+    { type: 'food', words: 'kate farms, naked whey, shake', min: 3 },
+    { type: 'meal', meal: 'Dinner', max: 750 },
+    { type: 'workout', min: 10 },
+  ],
+  target: 17,
+};
+const anchorCfg = () => {
+  const c = { ...ANCHOR_DEFAULTS, ...(data.anchorCfg || {}) };
+  c.rules = c.names.map((_, i) => c.rules?.[i] || ANCHOR_DEFAULTS.rules[i] || { type: 'none' });
+  return c;
+};
+
+// What the imported data says about box i: { ok, why } — or null when the box is check-by-hand only.
+function autoAnchor(d, i, c = anchorCfg()) {
+  const r = c.rules[i];
+  if (!r || r.type === 'none') return null;
+  if (r.type === 'workout') {
+    const mins = (d?.workouts || []).reduce((s, w) => s + (w.durationMin || 0), 0);
+    if (!d?.workouts?.length) return { ok: false, why: 'no workouts yet' };
+    return { ok: mins >= (r.min || 0), why: `${fmtN(mins)} min of exercise` };
+  }
+  if (r.type === 'food') {
+    if (!d?.food?.length) return { ok: false, why: 'no food logged yet' };
+    const words = String(r.words || '').toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
+    const n = d.food.filter(f => words.some(w => String(f.name).toLowerCase().includes(w))).length;
+    return { ok: n >= (r.min || 1), why: `${n} matching food entr${n === 1 ? 'y' : 'ies'}` };
+  }
+  if (r.type === 'meal') {
+    const meal = String(r.meal || 'Dinner').toLowerCase();
+    const items = (d?.food || []).filter(f => String(f.meal).toLowerCase().replace(/s$/, '') === meal.replace(/s$/, ''));
+    if (!items.length) return { ok: false, why: `no ${r.meal || 'Dinner'} logged yet` };
+    const cal = items.reduce((s, f) => s + (f.calories || 0), 0);
+    return { ok: cal <= (r.max || 0), why: `${r.meal || 'Dinner'} ${fmtN(cal)} cal` };
+  }
+  return null;
+}
+// A box set by hand (true/false) wins; otherwise the imported data decides.
+function anchorState(d, i, manual = d?.anchors?.[i], c) {
+  const auto = autoAnchor(d, i, c);
+  if (manual === true || manual === false) return { on: manual, manual: true, auto };
+  return { on: !!auto?.ok, manual: false, auto };
+}
+const anchorCount = (d, manual) => { const c = anchorCfg(); return c.names.reduce((n, _, i) => n + (anchorState(d, i, manual ? manual[i] : d?.anchors?.[i], c).on ? 1 : 0), 0); };
+const weekStart = k => addDays(k, -((keyToDate(k).getDay() + 6) % 7));   // weeks run Monday–Sunday
+let anchorDraft = [];
+
+function renderAnchorBoxes() {
+  const c = anchorCfg(), d = getDay(logDate);
+  $('#an-boxes').innerHTML = c.names.map((n, i) => {
+    const st = anchorState(d, i, anchorDraft[i], c);
+    const src = st.manual
+      ? `<div class="an-src">Set by hand${st.auto ? ` · <a href="#" data-reset="${i}">use imported data</a>` : ''}</div>`
+      : st.auto ? `<div class="an-src">Auto · ${esc(st.auto.why)}</div>` : '';
+    return `<button type="button" class="anchor${st.on ? ' on' : ''}" data-i="${i}" aria-pressed="${st.on}">
+    <span class="ck">${st.on ? '✓' : ''}</span><span><div class="an-n">${esc(n)}</div>${c.hints[i] ? `<div class="an-h">${esc(c.hints[i])}</div>` : ''}${src}</span></button>`;
+  }).join('');
+  const ws = weekStart(logDate);
+  let got = 0; for (let i = 0; i < 7; i++) { const k = addDays(ws, i); got += k === logDate ? anchorCount(d, anchorDraft) : anchorCount(getDay(k)); }
+  $('#an-log-week').textContent = `This week: ${got} of ${c.names.length * 7} · goal ${c.target}`;
+}
+
+function weekTotal(ws) { let n = 0; for (let i = 0; i < 7; i++) n += anchorCount(getDay(addDays(ws, i))); return n; }
+
+function renderAnchorSummary() {
+  const c = anchorCfg(), per = c.names.length, max = per * 7, goal = Math.min(c.target, max);
+  const ws = weekStart(dashDate), got = weekTotal(ws), today = todayKey();
+  const end = addDays(ws, 6);
+  const daysLeft = today < ws ? 7 : today > end ? 0 : Math.round((keyToDate(end) - keyToDate(today)) / 864e5) + 1;
+  const need = Math.max(0, goal - got);
+  const msg = got >= goal ? `🎉 Goal reached — ${Math.round(got / max * 100)}% this week.`
+    : daysLeft === 0 ? `Finished at ${got} of ${max} (${Math.round(got / max * 100)}%). New week, fresh boxes.`
+    : need > daysLeft * per ? `${need} more to reach ${goal}. Every box still counts — just pick up the next one.`
+    : `${need} more to reach ${goal} · ${plural(daysLeft, 'day')} left${daysLeft < 7 ? ' (including today)' : ''}.`;
+  const cells = Array.from({ length: max }, (_, i) => `<i class="${i < got ? 'f' : ''}${i === goal - 1 ? ' goal' : ''}${i >= goal ? ' buf' : ''}"></i>`).join('');
+  const dl = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const k = addDays(ws, i), n = anchorCount(getDay(k));
+    return `<div title="${esc(fmtDay(k))}: ${n} of ${per}"><div class="dl${k === today ? ' today' : ''}">${dl[i]}</div><div class="dots">${Array.from({ length: per }, (_, j) => `<i class="${j < n ? 'f' : ''}"></i>`).join('')}</div></div>`;
+  }).join('');
+  $('#an-sum').innerHTML = `<div>
+      <div class="small" style="font-weight:600;color:var(--text-2)">Daily anchors · week of ${esc(fmtDay(ws, { month: 'short', day: 'numeric' }))}</div>
+      <div class="an-big">${got}<span class="u">of ${max} boxes · goal ${goal} (${Math.round(goal / max * 100)}%)</span></div>
+      <div class="an-msg">${msg}</div>
+      <div class="an-bar" aria-hidden="true">${cells}</div>
+      ${max > goal ? `<div class="muted small" style="margin-top:6px">The ${max - goal} dashed boxes are your weekly buffer for real life.</div>` : ''}
+    </div>
+    <div class="an-week" aria-label="Boxes checked each day this week">${week}</div>`;
+}
+
+const hexA = (hex, a) => { const m = hex.replace('#', '').match(/.{2}/g); return m ? `rgba(${m.map(x => parseInt(x, 16)).join(',')},${a})` : hex; };
+function drawAnchorChart() {
+  if (!window.Chart) return;
+  const c = anchorCfg(), max = c.names.length * 7, goal = Math.min(c.target, max);
+  const n = Math.max(4, Math.ceil(+$('#d-range').value / 7));
+  const cur = weekStart(dashDate), today = todayKey();
+  const weeks = []; for (let i = n - 1; i >= 0; i--) weeks.push(addDays(cur, -7 * i));
+  const vals = weeks.map(ws => { const t = weekTotal(ws); return t || (ws <= today ? 0 : null); });
+  const partial = weeks.map(ws => addDays(ws, 6) >= today);
+  $('#an-chart-t').textContent = `Daily anchors per week (goal ${goal} of ${max})`;
+  const cs = getComputedStyle(document.documentElement);
+  const color = cs.getPropertyValue('--c-anchor').trim(), grid = cs.getPropertyValue('--grid').trim(), muted = cs.getPropertyValue('--muted').trim(), text = cs.getPropertyValue('--text-2').trim();
+  charts['c-anchor']?.destroy();
+  charts['c-anchor'] = new Chart($('#c-anchor'), {
+    data: {
+      labels: weeks.map(ws => fmtDay(ws, { month: 'short', day: 'numeric' })),
+      datasets: [
+        { type: 'bar', label: 'Boxes', data: vals, backgroundColor: partial.map(p => p ? hexA(color, 0.45) : color), borderRadius: 4, borderSkipped: 'start', maxBarThickness: 34, categoryPercentage: 0.8, barPercentage: 0.9 },
+        { type: 'line', label: 'Goal', data: weeks.map(() => goal), borderColor: text, borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { displayColors: false, filter: i => i.datasetIndex === 0, callbacks: {
+        title: items => 'Week of ' + items[0].label,
+        label: i => i.parsed.y == null ? 'no data' : `${i.parsed.y} of ${max} boxes (${Math.round(i.parsed.y / max * 100)}%)${partial[i.dataIndex] ? ' · so far' : ''}${i.parsed.y >= goal ? ' · goal met' : ''}`,
+      } } },
+      scales: {
+        x: { grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxTicksLimit: 8, maxRotation: 0, autoSkip: true } },
+        y: { beginAtZero: true, max, grid: { color: grid }, border: { display: false }, ticks: { color: muted, stepSize: 7 } },
+      },
+    },
+  });
+}
+
+function renderAnchorSettings() {
+  const c = anchorCfg();
+  const sel = (i, t) => `<select data-an-type="${i}" style="margin-top:6px">${[['none', 'Check by hand only'], ['workout', 'Auto: workout minutes'], ['food', 'Auto: matching foods'], ['meal', 'Auto: a meal\'s calories']].map(([v, l]) => `<option value="${v}"${v === t ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+  $('#s-anchors').innerHTML = c.names.map((n, i) => {
+    const r = c.rules[i];
+    return `<div><label>Box ${i + 1}</label><input type="text" data-an-name="${i}" value="${esc(n)}" placeholder="Name"><input type="text" data-an-hint="${i}" value="${esc(c.hints[i] || '')}" placeholder="Short reminder (optional)" style="margin-top:6px">${sel(i, r.type)}
+      <div class="small muted rule-f" data-rule="${i}" style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span data-show="workout">At least <input type="number" data-an-wmin="${i}" value="${r.type === 'workout' ? r.min : 10}" min="0" style="width:70px"> min of workouts that day</span>
+        <span data-show="food">At least <input type="number" data-an-fmin="${i}" value="${r.type === 'food' ? r.min : 3}" min="1" style="width:60px"> foods containing <input type="text" data-an-words="${i}" value="${esc(r.type === 'food' ? r.words : '')}" placeholder="words, separated by commas"></span>
+        <span data-show="meal"><input type="text" data-an-meal="${i}" value="${esc(r.type === 'meal' ? r.meal : 'Dinner')}" style="width:110px"> at most <input type="number" data-an-max="${i}" value="${r.type === 'meal' ? r.max : 750}" min="0" style="width:80px"> calories</span>
+      </div></div>`;
+  }).join('');
+  const showRule = i => { const t = $(`[data-an-type="${i}"]`).value; $$(`[data-rule="${i}"] [data-show]`).forEach(el => el.hidden = el.dataset.show !== t); };
+  c.names.forEach((_, i) => { showRule(i); $(`[data-an-type="${i}"]`).onchange = () => showRule(i); });
+  $('#s-an-goal').value = c.target;
+  $('#s-an-goal-of').textContent = `out of ${c.names.length * 7} boxes a week`;
+}
+async function saveAnchorSettings() {
+  const names = $$('[data-an-name]').map(el => el.value.trim() || 'Box');
+  const hints = $$('[data-an-hint]').map(el => el.value.trim());
+  const rules = names.map((_, i) => {
+    const t = $(`[data-an-type="${i}"]`).value, v = sel => num($(sel).value);
+    if (t === 'workout') return { type: t, min: v(`[data-an-wmin="${i}"]`) ?? 10 };
+    if (t === 'food') return { type: t, min: v(`[data-an-fmin="${i}"]`) ?? 1, words: $(`[data-an-words="${i}"]`).value };
+    if (t === 'meal') return { type: t, meal: $(`[data-an-meal="${i}"]`).value.trim() || 'Dinner', max: v(`[data-an-max="${i}"]`) ?? 750 };
+    return { type: 'none' };
+  });
+  const target = Math.max(1, Math.min(names.length * 7, Math.round(num($('#s-an-goal').value) || ANCHOR_DEFAULTS.target)));
+  data.anchorCfg = { names, hints, rules, target };
+  planDirty = true;
+  await runTask(persist);
+  if (!planDirty) { toast('Anchors saved.'); render(); }
+}
 
 /* ---- Plan ---- */
 const PLAN_TEMPLATE = `# My plan
@@ -1479,7 +1715,7 @@ async function savePlan() {
 }
 
 let planDocs = null, planUrl = null;
-const DOC_ICON = f => /pdf/.test(f.mimeType) ? '📄' : /image/.test(f.mimeType) ? '🖼️' : /document/.test(f.mimeType) ? '📝' : /spreadsheet/.test(f.mimeType) ? '📊' : '📎';
+const DOC_ICON = f => /pdf/.test(f.mimeType) || /\.pdf$/i.test(f.name) ? '📄' : /image/.test(f.mimeType) ? '🖼️' : /document/.test(f.mimeType) ? '📝' : /spreadsheet/.test(f.mimeType) ? '📊' : '📎';
 async function loadPlanDocs(force) {
   if (store !== Drive || !Drive.ids.plan) return;
   if (planDocs && !force) return;
@@ -1499,18 +1735,22 @@ async function showPlanDoc(f) {
     let url, kind;
     const g = f.mimeType.startsWith('application/vnd.google-apps');
     if (g && /document|spreadsheet|presentation/.test(f.mimeType)) { url = `files/${f.id}/export?mimeType=application%2Fpdf`; kind = 'pdf'; }
-    else if (f.mimeType === 'application/pdf') { url = `files/${f.id}?alt=media`; kind = 'pdf'; }
+    else if (f.mimeType === 'application/pdf' || /\.pdf$/i.test(f.name)) { url = `files/${f.id}?alt=media`; kind = 'pdf'; }
     else if (f.mimeType.startsWith('image/')) { url = `files/${f.id}?alt=media`; kind = 'img'; }
     else if (/^text\/|markdown/.test(f.mimeType) || /\.(md|txt)$/i.test(f.name)) { url = `files/${f.id}?alt=media`; kind = 'text'; }
     else { box.innerHTML = `<p class="small" style="margin:12px 0 0">This kind of file can't be shown here. ${open}<br><span class="muted">Tip: open it in Google Drive and choose <b>File › Save as Google Docs</b>, or save it as a PDF.</span></p>`; return; }
     const r = await Drive.api(url);
     if (kind === 'text') { box.innerHTML = `<div class="prose" style="margin-top:14px">${md(await r.text())}</div><p class="small">${open}</p>`; return; }
+    if (kind === 'pdf') {
+      const buf = await r.arrayBuffer();
+      box.innerHTML = `<p class="small">${open}</p>`;
+      await renderPdfPages(buf, box);
+      return;
+    }
     const blob = await r.blob();
     if (planUrl) URL.revokeObjectURL(planUrl);
-    planUrl = URL.createObjectURL(kind === 'pdf' ? new Blob([blob], { type: 'application/pdf' }) : blob);
-    box.innerHTML = kind === 'pdf'
-      ? `<iframe class="doc-frame" src="${planUrl}" title="${esc(f.name)}"></iframe><p class="small">${open}</p>`
-      : `<img class="doc-img" src="${planUrl}" alt="${esc(f.name)}"><p class="small">${open}</p>`;
+    planUrl = URL.createObjectURL(blob);
+    box.innerHTML = `<img class="doc-img" src="${planUrl}" alt="${esc(f.name)}"><p class="small">${open}</p>`;
   } catch (e) {
     box.innerHTML = `<p class="err" style="margin:12px 0 0">Couldn't load this file: ${esc(e.message)}</p><p class="small">${open}</p>`;
   }
@@ -1526,12 +1766,13 @@ async function moveEntries(to) {
   const manualFood = src?.food.filter(f => f.source === 'manual') || [];
   const manualWk = src?.workouts.filter(w => w.source === 'manual') || [];
   const mWeight = src?.weightSource === 'manual', mSteps = src?.stepsSource === 'manual', mSleep = src?.sleep?.source === 'manual';
-  if (!src || (!hasFeel(src.feel) && !manualFood.length && !manualWk.length && !mWeight && !mSteps && !mSleep)) { toast('Nothing you entered by hand on this day to move.'); return; }
+  if (!src || (!hasFeel(src.feel) && !src.anchors?.some(v => v != null) && !manualFood.length && !manualWk.length && !mWeight && !mSteps && !mSleep)) { toast('Nothing you entered by hand on this day to move.'); return; }
   const dst = getDay(to);
   const toName = fmtDay(to, { weekday: 'short', month: 'short', day: 'numeric' });
   if (hasFeel(src.feel) && hasFeel(dst?.feel) && !confirm(`${toName} already has feelings logged. Replace them with this day's?`)) return;
   const d = day(to);
   if (hasFeel(src.feel)) { d.feel = src.feel; delete src.feel; }
+  if (src.anchors?.some(v => v != null)) { d.anchors = src.anchors; delete src.anchors; }
   d.food.push(...manualFood); src.food = src.food.filter(f => f.source !== 'manual');
   d.workouts.push(...manualWk); src.workouts = src.workouts.filter(w => w.source !== 'manual');
   if (mWeight) { d.weight = src.weight; d.weightUnit = src.weightUnit; d.weightSource = 'manual'; delete src.weight; delete src.weightUnit; delete src.weightSource; }
@@ -1566,7 +1807,7 @@ function renderHist() {
   $('#h-empty').hidden = !!keys.length;
   $('#h-body').innerHTML = keys.map(k => {
     const d = data.days[k], t = totals(d);
-    return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${d.feel?.mood ? MOODS[d.feel.mood - 1] : '—'}</td></tr>`;
+    return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${anchorCount(d) + '/' + anchorCfg().names.length}</td><td>${d.feel?.mood ? MOODS[d.feel.mood - 1] : '—'}</td></tr>`;
   }).join('');
 }
 
@@ -1582,6 +1823,7 @@ function renderSettings() {
     ? `Connected as <b>${esc(Drive.email || LS.get('hs-email', '') || 'your Google account')}</b>. Your data is saved in your Google Drive, in <b>Health Sync › ${DATA_NAME}</b>. Open this app on any computer and connect the same Google account to see the same data.`
     : `You're in <b>this computer only</b> mode: data is saved in this browser and won't sync. Sign out and choose <b>Connect Google Drive</b> to sync. Anything saved here will be copied into Drive.`;
   $('#s-units').value = settings.units;
+  renderAnchorSettings();
   $('#s-theme').value = settings.theme;
 }
 
@@ -1610,12 +1852,12 @@ async function syncNow() {
 }
 
 function exportCsv() {
-  const head = ['date', 'steps', 'calories_in', 'protein_g', 'carbs_g', 'fat_g', 'exercise_min', 'calories_burned', 'weight', 'weight_unit', 'sleep_hours', 'mood', 'energy', 'stress', 'tags', 'notes'];
+  const head = ['date', 'steps', 'calories_in', 'protein_g', 'carbs_g', 'fat_g', 'exercise_min', 'calories_burned', 'weight', 'weight_unit', 'sleep_hours', 'anchors', 'mood', 'energy', 'stress', 'tags', 'notes'];
   const q = v => v == null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
   const lines = [head.join(',')];
   for (const k of Object.keys(data.days).sort()) {
     const d = data.days[k], t = totals(d), f = d.feel || {};
-    lines.push([k, d.steps, t.hasFood ? Math.round(t.calIn) : '', t.hasFood ? Math.round(t.protein) : '', t.hasFood ? Math.round(t.carbs) : '', t.hasFood ? Math.round(t.fat) : '', t.hasEx ? Math.round(t.exMin) : '', t.hasEx ? Math.round(t.burn) : '', d.weight, d.weight != null ? d.weightUnit : '', sleepHours(d), f.mood, f.energy, f.stress, (f.tags || []).join('; '), f.notes].map(q).join(','));
+    lines.push([k, d.steps, t.hasFood ? Math.round(t.calIn) : '', t.hasFood ? Math.round(t.protein) : '', t.hasFood ? Math.round(t.carbs) : '', t.hasFood ? Math.round(t.fat) : '', t.hasEx ? Math.round(t.exMin) : '', t.hasEx ? Math.round(t.burn) : '', d.weight, d.weight != null ? d.weightUnit : '', sleepHours(d), anchorCount(d), f.mood, f.energy, f.stress, (f.tags || []).join('; '), f.notes].map(q).join(','));
   }
   download(`health-sync-daily-${todayKey()}.csv`, lines.join('\n'), 'text/csv');
 }
@@ -1753,6 +1995,18 @@ $('#l-today').onclick = () => moveLog(todayKey());
 $('#f-tags').addEventListener('input', renderTagSugg);
 ['#f-tags', '#f-notes', '#f-sleep', '#f-weight', '#f-wunit', '#f-steps'].forEach(s => $(s).addEventListener('input', markLogDirty));
 $('#l-save').onclick = saveLogDay;
+$('#an-boxes').onclick = e => {
+  const reset = e.target.closest('[data-reset]');
+  if (reset) { e.preventDefault(); e.stopPropagation(); anchorDraft[+reset.dataset.reset] = null; renderAnchorBoxes(); markLogDirty(); return; }
+  const b = e.target.closest('.anchor'); if (!b) return;
+  const i = +b.dataset.i, d = getDay(logDate);
+  const st = anchorState(d, i, anchorDraft[i]);
+  const want = !st.on;
+  // Clicking back to what the data says returns the box to automatic.
+  anchorDraft[i] = want === !!st.auto?.ok ? null : want;
+  renderAnchorBoxes(); markLogDirty();
+};
+$('#s-an-save').onclick = saveAnchorSettings;
 $('#pl-edit').onclick = () => editPlan(true);
 $('#pl-cancel').onclick = () => { if ($('#pl-text').value !== (data.plan?.text || PLAN_TEMPLATE) && !confirm('Discard your changes to the plan?')) return; editPlan(false); };
 $('#pl-save').onclick = savePlan;

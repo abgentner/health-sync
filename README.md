@@ -482,6 +482,11 @@ Garmin has one export that contains **everything**: years of daily steps, sleep 
   - **Exercise** is minutes per day across all days that have any data, so a day without a workout counts as 0.
   - The app remembers which button you picked.
 - **Tabs along the top:** Dashboard · **Plan** · Log today · History · Import · Settings.
+- **Daily anchors** (top of the Trends card): this week's habit boxes, for example **12 of 21 · goal 17**.
+  - A bar of 21 boxes fills in as you go. The dashed boxes after the goal are your **weekly buffer** for real life.
+  - Next to it, a little grid shows how many boxes you got each day (Mon–Sun).
+  - Under it, a message tells you how many more you need and how many days are left.
+  - The **Daily anchors per week** chart shows each week's total against a dashed **goal line**. The current week is shown lighter, because it isn't finished yet.
 - **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep.
 - **Workouts / Food / How you felt:** the details for the selected day.
 - **Trends:** charts for steps, weight, calories, exercise, mood and sleep. Pick the last 7 days, 30 days, 90 days or 12 months. Hover over a bar or point to see its exact number.
@@ -524,13 +529,40 @@ Your plan is saved in your Google Drive data file, alongside everything else, an
 3. In the app, open the **Plan** tab. Your documents are listed as buttons; click one to read it right on the page.
    - **Google Docs** always show their latest version, so you can keep editing the plan in Google Docs and the app stays up to date.
    - Added a file while the app was open? Click **Refresh**.
+   - **PDFs** are drawn right on the page, one page under another. Click **Open in Google Drive** under the document if you need to zoom or download it.
    - **Word files (.docx)** can't be shown directly. Open the file in Google Drive and choose **File → Save as Google Docs**, or save it as a PDF.
 
 > Your plan stays private. It lives in your Google Drive, not on GitHub.
 
+### Daily anchors (habit boxes)
+
+Your plan's **3 daily anchor boxes**, with a weekly goal of **17 out of 21** (about 80%):
+
+| Box | Checks itself automatically when… |
+|---|---|
+| **Day Pack** | Your Lose It log has **at least 3 foods** containing "kate farms", "naked whey" or "shake" |
+| **Dinner Boundary** | Your Lose It **Dinner** adds up to **750 calories or less** |
+| **Movement** | You have **at least 10 minutes** of workouts that day (from Garmin, Lose It or typed in) |
+
+**Overriding a box:**
+
+- Each box in **Log today** says why it's checked or not, for example *"Auto · 32 min of exercise"*.
+- **Click a box to override it.** For example, tick Dinner Boundary if you stuck to the one-plate rule but Lose It didn't log dinner. It then says **"Set by hand"**. Click **Save day**.
+- To go back to automatic, click **use imported data** on that box, or click the box back to whatever the data says.
+- Boxes fill in as your files arrive, so yesterday's boxes may tick themselves the next morning, when the Lose It report comes in.
+
+**Changing the boxes:** in **Settings → Daily anchors**, you can rename each box, change its reminder, change how it's checked, and change the weekly goal. How it's checked can be:
+
+- workout minutes
+- matching food words
+- a meal's calories
+- **Check by hand only**
+
+Click **Save anchors**. The changes sync to all your computers.
+
 ### Log today
 
-Record your feelings, weight, steps, workouts and food by hand for any day. Use the date bar to fill in past days. **Always click Save day.**
+The **Daily anchors** boxes are at the top (see above). Below them, record your feelings, weight, steps, workouts and food by hand for any day. Use the date bar to fill in past days. **Always click Save day.**
 
 **Fix a mistake** (at the bottom of the Log today screen):
 
