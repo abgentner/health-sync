@@ -825,8 +825,11 @@ async function importBuffer(name, buf) {
     return out;
   }
   if (/\.json$/i.test(name)) {
+    const text = new TextDecoder('utf-8').decode(buf);
+    let j = null; try { j = JSON.parse(text); } catch {}
+    if (j && j.source === 'strava') return [impStrava(name, j)];
     const tally = { steps: new Set(), sleep: new Set() };
-    readGarminJson(new TextDecoder('utf-8').decode(buf), tally);
+    readGarminJson(text, tally);
     return [garminJsonSummary(name, tally)];
   }
   return importCsv(name, new TextDecoder('utf-8').decode(buf));
@@ -926,12 +929,46 @@ function impGarminActivities(rows) {
       distance: num(r['distance']), calories: num(r['calories']),
       avgHR: num(r['avg hr']), maxHR: num(r['max hr']), steps: num(r['steps']),
     };
-    const d = day(k);
-    const i = d.workouts.findIndex(x => x.id === w.id);
-    if (i >= 0) d.workouts[i] = w; else d.workouts.push(w);
-    touch(k); dates.add(k); count++;
+    addWorkout(k, w); dates.add(k); count++;
   }
   return { what: 'Garmin activities', count, dates };
+}
+
+// Garmin workouts also reach Strava, so the same workout can arrive twice. Workouts from the
+// two that start within 3 minutes of each other on the same day are kept once (Garmin's copy wins).
+const minsOf = t => { const m = String(t || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+function addWorkout(k, w) {
+  const d = day(k);
+  const i = d.workouts.findIndex(x => x.id === w.id);
+  if (i >= 0) { d.workouts[i] = w; touch(k); return true; }
+  const ws = minsOf(w.start);
+  const twin = ws == null ? -1 : d.workouts.findIndex(x => x.source !== w.source && ['garmin', 'strava'].includes(x.source) && ['garmin', 'strava'].includes(w.source) && minsOf(x.start) != null && Math.abs(minsOf(x.start) - ws) <= 3);
+  if (twin >= 0) {
+    if (w.source !== 'garmin') return false;
+    d.workouts[twin] = w; touch(k); return true;
+  }
+  d.workouts.push(w); touch(k); return true;
+}
+
+function impStrava(name, j) {
+  const dates = new Set(); let added = 0, dup = 0;
+  const dist = m => m == null ? null : +(settings.units === 'metric' ? m / 1000 : m / 1609.344).toFixed(2);
+  for (const a of j.activities || []) {
+    const s = String(a.start_date_local || ''), k = parseDate(s);
+    if (!k) continue;
+    const type = String(a.sport_type || 'Workout').replace(/([a-z])([A-Z])/g, '$1 $2');
+    const w = {
+      id: `strava|${a.id}`, source: 'strava', type, title: a.name || type, start: (s.match(/T(\d{2}:\d{2})/) || [])[1] || '',
+      durationMin: a.moving_time != null ? a.moving_time / 60 : null, distance: a.distance ? dist(a.distance) : null,
+      calories: a.calories ? Math.round(a.calories) : null, avgHR: a.average_heartrate ? Math.round(a.average_heartrate) : null, maxHR: a.max_heartrate ?? null,
+    };
+    if (addWorkout(k, w)) added++; else dup++;
+    dates.add(k);
+  }
+  if (!dates.size) return `${name}: skipped (no Strava activities in this file)`;
+  importsDirty = true;
+  data.imports.push({ id: uid(), at: new Date().toISOString(), name, what: 'Strava activities', count: added, range: rangeText(dates) });
+  return `${name}: ${added} Strava activit${added === 1 ? 'y' : 'ies'}${dup ? `, ${dup} already in from Garmin` : ''} (${rangeText(dates)})`;
 }
 
 function impLoseItFood(rows, find) {
@@ -1291,7 +1328,7 @@ function renderDash() {
   renderCloud();
   renderAnchorSummary();
 }
-const srcName = s => ({ garmin: 'Garmin', loseit: 'Lose It', manual: 'Manual' }[s] || s || '');
+const srcName = s => ({ garmin: 'Garmin', strava: 'Strava', loseit: 'Lose It', manual: 'Manual' }[s] || s || '');
 
 
 // Words from notes only count if they describe a feeling (emotional or physical). Tags always count.

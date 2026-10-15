@@ -25,14 +25,15 @@ There's nothing to install and nothing to pay for. You open a web link, and that
 11. [Step 9 — Get your data out of Lose It and Garmin](#step-9--get-your-data-out-of-lose-it-and-garmin)
 12. [Step 10 (optional) — Send Lose It emails straight to Google Drive](#step-10-optional--send-lose-it-emails-straight-to-google-drive)
 13. [Step 11 (optional) — Bring in your whole Garmin history](#step-11-optional--bring-in-your-whole-garmin-history)
-14. [Using the app every day](#using-the-app-every-day)
-15. [What each screen does](#what-each-screen-does)
-16. [Signing in: what to expect](#signing-in-what-to-expect)
-17. [Updating the app](#updating-the-app)
-18. [Backups](#backups)
-19. [Troubleshooting](#troubleshooting)
-20. [Privacy: who can see what](#privacy-who-can-see-what)
-21. [FAQ](#faq)
+14. [Step 12 (optional) — Get workouts within the hour from Strava](#step-12-optional--get-workouts-within-the-hour-from-strava)
+15. [Using the app every day](#using-the-app-every-day)
+16. [What each screen does](#what-each-screen-does)
+17. [Signing in: what to expect](#signing-in-what-to-expect)
+18. [Updating the app](#updating-the-app)
+19. [Backups](#backups)
+20. [Troubleshooting](#troubleshooting)
+21. [Privacy: who can see what](#privacy-who-can-see-what)
+22. [FAQ](#faq)
 
 ---
 
@@ -359,7 +360,8 @@ Garmin's single-measure reports also work, if you want them: in Garmin Connect, 
 | How often | What to drop in the Inbox | What it brings in |
 |---|---|---|
 | Every day (automatic with Step 10) | Lose It **Daily Report PDF** | Food, calories, macros, steps, sleep |
-| Every week or two | Garmin **Activities CSV** | Workouts: type, time, distance, calories, heart rate |
+| Every hour (automatic with Step 12) | Strava workouts | Workouts: type, time, distance, calories, heart rate |
+| Every week or two (optional with Step 12) | Garmin **Activities CSV** | Workouts, with Garmin's full details |
 | Once, at the start | Garmin **full export ZIP** (Step 11) | Your entire history of steps, sleep and resting heart rate |
 
 ---
@@ -442,6 +444,78 @@ Garmin has one export that contains **everything**: years of daily steps, sleep 
 - The app only reads the daily-summary and sleep files inside the ZIP. It ignores everything else, such as GPS tracks and device files.
 - For **workouts**, use the **Activities CSV** (Step 9). It's more reliable for workout details.
 - Importing it again later is safe. Days are updated, not doubled.
+
+---
+
+## Step 12 (optional) — Get workouts within the hour from Strava
+
+**What this does:** Garmin already sends your workouts to Strava automatically. With this step, the script from Step 10 also asks **Strava** for new workouts **every hour** and saves them to your Inbox. Your workouts then show up in Health Sync, and tick the **Movement** box, within about an hour instead of a day.
+
+- The same workout arriving from both Garmin and Strava is **only counted once**. If you later import Garmin's Activities CSV, Garmin's copy replaces Strava's.
+- You need **Step 10 done first**, and Garmin → Strava syncing turned on.
+
+### 12a. Register Health Sync with Strava (5 min)
+
+1. Go to **https://www.strava.com/settings/api** and sign in to Strava.
+2. Fill in the form:
+   - **Application Name:** `Health Sync`
+   - **Category:** `Data Importer`
+   - **Club:** leave empty
+   - **Website:** your app address, `https://YOUR-USERNAME.github.io/health-sync/`
+   - **Application Description:** `Personal health dashboard` (anything is fine)
+   - **Authorization Callback Domain:** type exactly `localhost`
+3. Tick the box to agree to Strava's API agreement, then click **Create**.
+4. If Strava asks for an **app icon**, upload any small picture. It's only shown to you.
+5. You'll now see **Client ID** (a number) and **Client Secret** (click **Show**). Keep this page open.
+
+> 🔒 The **Client Secret** is like a password. Only paste it into your script's private settings (next step). Never put it in GitHub or anywhere else.
+
+### 12b. Paste the new script
+
+1. Open your project at **https://script.google.com** (**Health Sync email saver**).
+2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
+3. Paste in the new **`email-to-drive.gs`** (the version with "Strava" in it). Click **💾 Save**.
+
+### 12c. Add your Strava keys (privately)
+
+1. In the script's left sidebar, click **⚙️ Project Settings**.
+2. Scroll down to **Script Properties** and click **Add script property**. Add two properties:
+
+   | Property | Value |
+   |---|---|
+   | `STRAVA_CLIENT_ID` | the **Client ID** number from Strava |
+   | `STRAVA_CLIENT_SECRET` | the **Client Secret** from Strava |
+
+3. Click **Save script properties**.
+
+> Script Properties are private to you, unlike the code itself.
+
+### 12d. Connect your Strava account
+
+1. Click **< > Editor** in the left sidebar to get back to the code.
+2. In the function dropdown at the top, choose **`stravaLink`** and click **▶ Run**.
+   - If Google asks for permission again, allow it the same way as in Step 10c. It now also needs permission to "connect to an external service", which is Strava.
+3. The **Execution log** at the bottom prints a long link starting with `https://www.strava.com/oauth/authorize…`. Select the whole link, copy it, paste it into a new browser tab, and press Enter.
+4. Strava asks you to authorize **Health Sync**. Make sure **"View data about your private activities"** is ticked, then click **Authorize**.
+5. Your browser goes to a page that **doesn't load** ("This site can't be reached" / "localhost refused to connect"). **That's expected.**
+   - **Copy the whole web address** from the address bar. It looks like `http://localhost/?state=&code=abc123…&scope=read,activity:read_all`.
+6. Back in the script, open **⚙️ Project Settings → Script Properties → Edit script properties → Add script property**:
+   - **Property:** `STRAVA_CODE`
+   - **Value:** paste the address you copied
+   - Click **Save script properties**.
+7. Go back to **< > Editor**, choose **`stravaConnect`** and click **▶ Run** **within about 5 minutes**. The code from Strava doesn't last long.
+   - The log says **"Connected to Strava as *your name*. Now run setup."**
+   - Error instead? Repeat from step 2 of this section to get a fresh code.
+8. Choose **`setup`** and click **▶ Run**. This switches the hourly timer to the new version.
+   - The first run brings in your last **30 days** of Strava workouts.
+
+### 12e. Check it's working
+
+- In **Google Drive → Health Sync → Inbox**, you'll see a file like `2026-10-15 1300 strava.json`. A new one appears only when there are new workouts.
+- Open Health Sync. Your workouts appear with a **Strava** tag, and the **Movement** box ticks itself.
+- In the script, **☰ Executions** shows a run every hour. The log says `Strava: saved 1 new activity.` or `Strava: nothing new.`
+
+**To disconnect Strava:** in **Script Properties**, delete `STRAVA_REFRESH`. You can also remove Health Sync under **strava.com → Settings → My Apps**.
 
 ---
 
@@ -653,6 +727,9 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 | **Numbers look doubled** | Lose It sometimes copies Garmin workouts. The app skips Lose It entries with "Garmin" in the name, so this shouldn't happen. If it does, delete the extra entry in **Log today** (the **×** button). |
 | **Changes I uploaded to GitHub don't show** | Wait 2–5 minutes, then press **Cmd+Shift+R** / **Ctrl+Shift+R**. Check the dot on your GitHub page (see [Updating the app](#updating-the-app)). |
 | **I double-clicked `index.html` on my computer and Connect doesn't work** | Google sign-in only works from the web address, so use `https://YOUR-USERNAME.github.io/health-sync/`. (Opening the file directly only allows "this computer only" mode, with no syncing.) |
+| **"Strava sign-in failed (400)" when running stravaConnect** | The code expired or was already used. Run **stravaLink** again, authorize again, paste the new address into `STRAVA_CODE`, and run **stravaConnect** right away. |
+| **"Strava sign-in failed (401)"** | The Client ID or Client Secret in Script Properties is wrong. Copy them again from strava.com/settings/api. Watch out for extra spaces. |
+| **Strava workouts don't appear** | Check that the workout is on Strava (Garmin → Strava sync). Check the script's **Executions** for errors. New workouts arrive within about an hour. |
 | **Lose It emails aren't showing up in the Inbox** | See [Step 10e](#10e-if-it-saves-nothing). Also check that the emails arrive in the **same personal Gmail** the script is set up in. |
 | **The dashboard shows "—" for today** | Normal. Today's data usually arrives tomorrow. Use the **7-day avg** button (or another average), which always ends yesterday. |
 
