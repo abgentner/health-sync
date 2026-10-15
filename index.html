@@ -175,6 +175,25 @@ tbody tr:hover{background:var(--surface-2)}
 .chips button:hover{border-color:var(--accent);color:var(--text)}
 .feel-big{font-size:40px;line-height:1}
 
+.prose{font-size:15.5px;line-height:1.65;max-width:760px}
+.prose h2{font-size:22px;font-weight:750;margin:6px 0 10px;letter-spacing:-.02em}
+.prose h3{font-size:17px;font-weight:700;color:var(--text);margin:22px 0 8px;display:block}
+.prose h4{font-size:15px;font-weight:700;margin:18px 0 6px;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em}
+.prose p{margin:0 0 12px}
+.prose ul,.prose ol{margin:0 0 12px;padding-left:22px}
+.prose li{margin:3px 0}
+.prose ul.checks{list-style:none;padding-left:2px}
+.prose ul.checks .cb{display:inline-grid;place-items:center;width:18px;height:18px;border:1.5px solid var(--border);border-radius:5px;margin-right:9px;vertical-align:-3px;font-size:12px;color:var(--accent-ink)}
+.prose ul.checks li.done .cb{background:var(--c-ex);border-color:var(--c-ex)}
+.prose ul.checks li.done{color:var(--muted)}
+.prose hr{border:0;border-top:1px solid var(--border);margin:20px 0}
+.prose b{font-weight:650}
+.doc-list{display:flex;flex-wrap:wrap;gap:8px}
+.doc-list button{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:7px 12px;cursor:pointer;font-weight:550;font-size:13.5px}
+.doc-list button:hover{background:var(--surface-2)}
+.doc-list button.on{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 15%,transparent)}
+.doc-frame{width:100%;height:78vh;border:1px solid var(--border);border-radius:12px;background:#fff;margin-top:12px}
+.doc-img{max-width:100%;border-radius:12px;margin-top:12px;display:block}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -225,6 +244,7 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
     <nav id="tabs">
       <button data-tab="dash" class="on">Dashboard</button>
+      <button data-tab="plan">Plan</button>
       <button data-tab="log">Log today</button>
       <button data-tab="hist">History</button>
       <button data-tab="imp">Import</button>
@@ -285,6 +305,32 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="cloud" id="cloud"></div>
     <div class="cloud-key" id="cloud-key"><span>Bigger = more often</span><span>·</span><span>Lower mood</span><i></i><span>Higher mood</span></div>
+  </div>
+</section>
+
+<!-- Plan -->
+<section class="tab" id="tab-plan" hidden>
+  <div class="card">
+    <div class="card-h">
+      <h2>My plan</h2><span class="muted small" id="pl-upd"></span>
+      <button class="btn small" id="pl-edit" style="margin-left:auto">Edit</button>
+    </div>
+    <div id="pl-view" class="prose"></div>
+    <div id="pl-editor" hidden>
+      <textarea id="pl-text" spellcheck="true" style="min-height:440px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;line-height:1.6"></textarea>
+      <p class="small muted" style="margin:8px 0 12px">Formatting: <b># Heading</b> · <b>## Smaller heading</b> · <b>- bullet</b> · <b>1. numbered</b> · <b>- [ ] checkbox</b> / <b>- [x] done</b> · <b>**bold**</b> · <b>*italic*</b> · <b>---</b> divider</p>
+      <div class="row"><button class="btn primary" id="pl-save">Save plan</button><button class="btn" id="pl-cancel">Cancel</button></div>
+    </div>
+  </div>
+  <div class="card" id="pl-docs-card">
+    <div class="card-h">
+      <h2>Plan documents</h2>
+      <a class="btn small" id="pl-open" target="_blank" rel="noopener" style="margin-left:auto">Open Plan folder in Drive ↗</a>
+      <button class="btn small" id="pl-refresh">Refresh</button>
+    </div>
+    <p class="small muted" style="margin-top:0" id="pl-docs-help">Put PDFs, pictures or Google Docs in <b>Health Sync › Plan</b> in Google Drive and they'll show up here.</p>
+    <div class="doc-list" id="pl-docs"></div>
+    <div id="pl-doc"></div>
   </div>
 </section>
 
@@ -515,11 +561,12 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
 let importsDirty = false;
+let planDirty = false;
 let settings = Object.assign({ units: 'imperial', theme: '', span: 7, cloudNotes: true }, LS.get('hs-settings', {}));
 const saveSettings = () => LS.set('hs-settings', settings);
 
@@ -636,7 +683,7 @@ const Drive = {
       if (this.email) LS.set('hs-email', this.email);
     } catch {}
     this.ids.root = await this.folder('Health Sync', 'root');
-    [this.ids.inbox, this.ids.processed] = await Promise.all([this.folder('Inbox', this.ids.root), this.folder('Processed', this.ids.root)]);
+    [this.ids.inbox, this.ids.processed, this.ids.plan] = await Promise.all([this.folder('Inbox', this.ids.root), this.folder('Processed', this.ids.root), this.folder('Plan', this.ids.root)]);
     const f = await this.list(`name='${DATA_NAME}' and '${this.ids.root}' in parents and trashed=false`);
     this.ids.data = f[0]?.id || null;
   },
@@ -676,7 +723,7 @@ let store = null;
 let busy = false;
 
 async function persist() {
-  if (!dirty.size && !importsDirty) return;
+  if (!dirty.size && !importsDirty && !planDirty) return;
   setStatus('Saving…', 'busy');
   try {
     // Re-read the latest copy first so edits made on another computer aren't overwritten.
@@ -685,9 +732,10 @@ async function persist() {
     const seen = new Set(remote.imports.map(i => i.id));
     for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
     remote.imports = remote.imports.slice(-500);
+    if (planDirty) remote.plan = data.plan;
     remote.updated = new Date().toISOString();
     await store.save(remote);
-    data = remote; dirty.clear(); importsDirty = false;
+    data = remote; dirty.clear(); importsDirty = false; planDirty = false;
     setStatus('Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
   } catch (e) {
     setStatus('Not saved', 'err');
@@ -1070,7 +1118,7 @@ let dashDate = todayKey(), logDate = todayKey();
 const charts = {};
 
 function render() {
-  renderDash(); renderLog(); renderHist(); renderImports(); renderSettings();
+  renderDash(); renderLog(); renderHist(); renderImports(); renderSettings(); if (!planEditing) renderPlan();
 }
 
 const ICONS = {
@@ -1357,6 +1405,117 @@ async function saveLogDay() {
 }
 
 
+
+/* ---- Plan ---- */
+const PLAN_TEMPLATE = `# My plan
+
+## Weekly workouts
+- **Mon:** 
+- **Tue:** 
+- **Wed:** 
+- **Thu:** 
+- **Fri:** 
+- **Sat:** 
+- **Sun:** rest
+
+## Nutrition
+- Calories: 
+- Protein: 
+- 
+
+## Sleep & recovery
+- 
+
+## Habits
+- [ ] 
+- [ ] 
+
+## Goals
+- [ ] 
+`;
+let planEditing = false;
+
+function md(src) {
+  const inline = t => esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1<i>$2</i>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  let html = '', list = null, para = [];
+  const flushP = () => { if (para.length) { html += `<p>${para.map(inline).join('<br>')}</p>`; para = []; } };
+  const closeL = () => { if (list) { html += `</${list === 'ol' ? 'ol' : 'ul'}>`; list = null; } };
+  const openL = kind => { if (list !== kind) { closeL(); html += kind === 'ol' ? '<ol>' : kind === 'checks' ? '<ul class="checks">' : '<ul>'; list = kind; } };
+  for (const raw of src.replace(/\r/g, '').split('\n')) {
+    const l = raw.trimEnd(); let m;
+    if (!l.trim()) { flushP(); closeL(); continue; }
+    if ((m = l.match(/^(#{1,3})\s+(.*)/))) { flushP(); closeL(); const n = m[1].length + 1; html += `<h${n}>${inline(m[2])}</h${n}>`; continue; }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { flushP(); closeL(); html += '<hr>'; continue; }
+    if ((m = l.match(/^\s*[-*]\s+\[( |x|X)\]\s*(.*)/))) { flushP(); openL('checks'); const done = m[1].trim(); html += `<li class="${done ? 'done' : ''}"><span class="cb">${done ? '✓' : ''}</span>${inline(m[2])}</li>`; continue; }
+    if ((m = l.match(/^\s*[-*•]\s+(.*)/))) { flushP(); openL('ul'); html += `<li>${inline(m[1])}</li>`; continue; }
+    if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { flushP(); openL('ol'); html += `<li>${inline(m[1])}</li>`; continue; }
+    closeL(); para.push(l);
+  }
+  flushP(); closeL();
+  return html;
+}
+
+function renderPlan() {
+  const p = data.plan;
+  $('#pl-upd').textContent = p?.updated ? 'updated ' + new Date(p.updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  $('#pl-view').innerHTML = p?.text?.trim() ? md(p.text) : '<p class="muted">No plan yet. Click <b>Edit</b> to write your workout and lifestyle plan, or put a PDF or Google Doc in the <b>Plan</b> folder in Google Drive.</p>';
+  $('#pl-docs-card').hidden = store !== Drive;
+  if (Drive.ids.plan) $('#pl-open').href = 'https://drive.google.com/drive/folders/' + Drive.ids.plan;
+}
+function editPlan(on) {
+  planEditing = on;
+  $('#pl-editor').hidden = !on; $('#pl-view').hidden = on; $('#pl-edit').hidden = on;
+  if (on) { $('#pl-text').value = data.plan?.text || PLAN_TEMPLATE; $('#pl-text').focus(); }
+  else renderPlan();
+}
+async function savePlan() {
+  data.plan = { text: $('#pl-text').value, updated: new Date().toISOString() };
+  planDirty = true;
+  await runTask(persist);
+  if (!planDirty) { editPlan(false); toast('Plan saved.'); }
+}
+
+let planDocs = null, planUrl = null;
+const DOC_ICON = f => /pdf/.test(f.mimeType) ? '📄' : /image/.test(f.mimeType) ? '🖼️' : /document/.test(f.mimeType) ? '📝' : /spreadsheet/.test(f.mimeType) ? '📊' : '📎';
+async function loadPlanDocs(force) {
+  if (store !== Drive || !Drive.ids.plan) return;
+  if (planDocs && !force) return;
+  planDocs = (await Drive.list(`'${Drive.ids.plan}' in parents and trashed=false and mimeType!='${FOLDER_MIME}'`)).sort((a, b) => a.name.localeCompare(b.name));
+  $('#pl-docs').innerHTML = planDocs.map(f => `<button type="button" data-id="${esc(f.id)}">${DOC_ICON(f)} ${esc(f.name)}</button>`).join('');
+  if (!planDocs.length) { $('#pl-doc').innerHTML = ''; return; }
+  const last = LS.get('hs-plan-doc', '');
+  showPlanDoc(planDocs.find(f => f.id === last) || planDocs[0]);
+}
+async function showPlanDoc(f) {
+  LS.set('hs-plan-doc', f.id);
+  $$('#pl-docs button').forEach(b => b.classList.toggle('on', b.dataset.id === f.id));
+  const box = $('#pl-doc');
+  const open = `<a class="small" href="https://drive.google.com/open?id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">Open in Google Drive ↗</a>`;
+  box.innerHTML = `<p class="muted small" style="margin:12px 0 0">Loading ${esc(f.name)}…</p>`;
+  try {
+    let url, kind;
+    const g = f.mimeType.startsWith('application/vnd.google-apps');
+    if (g && /document|spreadsheet|presentation/.test(f.mimeType)) { url = `files/${f.id}/export?mimeType=application%2Fpdf`; kind = 'pdf'; }
+    else if (f.mimeType === 'application/pdf') { url = `files/${f.id}?alt=media`; kind = 'pdf'; }
+    else if (f.mimeType.startsWith('image/')) { url = `files/${f.id}?alt=media`; kind = 'img'; }
+    else if (/^text\/|markdown/.test(f.mimeType) || /\.(md|txt)$/i.test(f.name)) { url = `files/${f.id}?alt=media`; kind = 'text'; }
+    else { box.innerHTML = `<p class="small" style="margin:12px 0 0">This kind of file can't be shown here. ${open}<br><span class="muted">Tip: open it in Google Drive and choose <b>File › Save as Google Docs</b>, or save it as a PDF.</span></p>`; return; }
+    const r = await Drive.api(url);
+    if (kind === 'text') { box.innerHTML = `<div class="prose" style="margin-top:14px">${md(await r.text())}</div><p class="small">${open}</p>`; return; }
+    const blob = await r.blob();
+    if (planUrl) URL.revokeObjectURL(planUrl);
+    planUrl = URL.createObjectURL(kind === 'pdf' ? new Blob([blob], { type: 'application/pdf' }) : blob);
+    box.innerHTML = kind === 'pdf'
+      ? `<iframe class="doc-frame" src="${planUrl}" title="${esc(f.name)}"></iframe><p class="small">${open}</p>`
+      : `<img class="doc-img" src="${planUrl}" alt="${esc(f.name)}"><p class="small">${open}</p>`;
+  } catch (e) {
+    box.innerHTML = `<p class="err" style="margin:12px 0 0">Couldn't load this file: ${esc(e.message)}</p><p class="small">${open}</p>`;
+  }
+}
+
 /* ---- fix a mistake: move or delete ---- */
 async function moveEntries(to) {
   const from = logDate;
@@ -1558,6 +1717,7 @@ $('#tabs').onclick = e => {
   $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
   $$('section.tab').forEach(s => s.hidden = s.id !== 'tab-' + b.dataset.tab);
   if (b.dataset.tab === 'dash') renderCharts();
+  if (b.dataset.tab === 'plan') loadPlanDocs(false).catch(e => toast(e.message, 6000));
 };
 function goTab(t) { $(`#tabs button[data-tab="${t}"]`).click(); }
 
@@ -1593,6 +1753,11 @@ $('#l-today').onclick = () => moveLog(todayKey());
 $('#f-tags').addEventListener('input', renderTagSugg);
 ['#f-tags', '#f-notes', '#f-sleep', '#f-weight', '#f-wunit', '#f-steps'].forEach(s => $(s).addEventListener('input', markLogDirty));
 $('#l-save').onclick = saveLogDay;
+$('#pl-edit').onclick = () => editPlan(true);
+$('#pl-cancel').onclick = () => { if ($('#pl-text').value !== (data.plan?.text || PLAN_TEMPLATE) && !confirm('Discard your changes to the plan?')) return; editPlan(false); };
+$('#pl-save').onclick = savePlan;
+$('#pl-refresh').onclick = () => loadPlanDocs(true).catch(e => toast(e.message, 6000));
+$('#pl-docs').onclick = e => { const b = e.target.closest('button'); if (!b) return; const f = planDocs?.find(x => x.id === b.dataset.id); if (f) showPlanDoc(f); };
 $('#mv-go').onclick = () => moveEntries($('#mv-date').value);
 $('#del-feel').onclick = deleteFeelings;
 $('#del-day').onclick = deleteDay;
@@ -1641,7 +1806,7 @@ $('#s-disconnect').onclick = () => {
   LS.del('hs-token'); LS.del('hs-email'); LS.del('hs-mode');
   location.reload();
 };
-window.addEventListener('beforeunload', e => { if (dirty.size || importsDirty || logDirty) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (dirty.size || importsDirty || logDirty || planEditing) { e.preventDefault(); e.returnValue = ''; } });
 
 boot();
 </script>

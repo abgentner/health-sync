@@ -262,6 +262,7 @@ You're now on your repository's page. Its address is `https://github.com/YOUR-US
 Health Sync/
   Inbox/             ← you put new Lose It and Garmin files here
   Processed/         ← the app moves files here after reading them
+  Plan/              ← optional: PDFs, pictures or Google Docs of your plan
   health-data.json   ← all your data (appears after the first save; don't edit it)
 ```
 
@@ -365,7 +366,7 @@ Garmin's single-measure reports also work, if you want them: in Garmin Connect, 
 
 ## Step 10 (optional) — Send Lose It emails straight to Google Drive
 
-**What this does:** a small script runs in your own Google account. **Every hour**, it looks in your Gmail for new emails from **Lose It** (or **Garmin**) that have a **PDF, CSV or ZIP** attached, and saves those files into **Health Sync → Inbox**. You never have to move a file by hand again.
+**What this does:** a small script runs in your own Google account. **Every hour**, it looks in your Gmail for new emails from **Lose It** (`donotreply@loseit.com`) or **Garmin** that have a **PDF, CSV or ZIP** attached, and saves those files into **Health Sync → Inbox**. You never have to move a file by hand again.
 
 - It's free, and it runs on Google's computers even when yours is off.
 - Your emails are **not** changed or deleted. Each email gets a Gmail label called **health-sync-saved**, so it's never copied twice.
@@ -410,13 +411,12 @@ The script can only see the Gmail account it's set up in, so **Lose It's emails 
 
 ### 10e. If it saves nothing
 
-1. Open a Lose It report email in Gmail and look at **who it's from**, for example `something@loseit.com`.
-2. Open your script and find the line near the top that starts with `const SEARCH =`.
-3. Make sure the sender's domain is listed inside the brackets. For example, if reports come from `@email.loseit.com`, that already matches `loseit.com`.
-   - If they come from somewhere else, add it with `OR`, like this:
-     ```js
-     const SEARCH = 'from:(loseit.com OR garmin.com OR reports@example.com) has:attachment newer_than:30d -label:health-sync-saved';
-     ```
+1. Open a Lose It report email in Gmail and check **who it's from**. It should be `donotreply@loseit.com`.
+2. Check that the email **has the PDF attached**. The script only saves attachments, not links.
+3. If the sender is different, open your script and find the line near the top that starts with `const SEARCH =`. Add the new sender inside the brackets with `OR`, like this:
+   ```js
+   const SEARCH = 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com) has:attachment newer_than:30d -label:health-sync-saved';
+   ```
 4. Save, choose **`saveHealthReports`** in the function dropdown, and click **▶ Run** to try again right away.
 
 **To turn it off:** choose **`stop`** in the function dropdown and click **▶ Run**.
@@ -481,6 +481,7 @@ Garmin has one export that contains **everything**: years of daily steps, sleep 
   - Days with no data for a measure are **skipped**, so they don't pull the average down. Each tile says how many days it's based on.
   - **Exercise** is minutes per day across all days that have any data, so a day without a workout counts as 0.
   - The app remembers which button you picked.
+- **Tabs along the top:** Dashboard · **Plan** · Log today · History · Import · Settings.
 - **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep.
 - **Workouts / Food / How you felt:** the details for the selected day.
 - **Trends:** charts for steps, weight, calories, exercise, mood and sleep. Pick the last 7 days, 30 days, 90 days or 12 months. Hover over a bar or point to see its exact number.
@@ -491,6 +492,41 @@ Garmin has one export that contains **everything**: years of daily steps, sleep 
   - Negatives are left out, so "*not* tired" doesn't add "tired".
   - Untick **Include feelings from notes** to use only your tags.
   - Hover over a word for the details.
+
+### Plan
+
+A place to keep your **workout and lifestyle plan**, readable from any computer or phone. There are two ways to use it, and you can use both.
+
+**1. Write your plan in the app**
+
+1. Click **Edit**. The first time, a starter outline appears (weekly workouts, nutrition, sleep, habits, goals). Fill it in or replace it.
+2. Use these simple codes to format it:
+
+   | Type this | To get |
+   |---|---|
+   | `# Fall plan` | A big title |
+   | `## Weekly workouts` | A section heading |
+   | `- Walk 45 min` | A bullet point |
+   | `1. Warm up` | A numbered step |
+   | `- [ ] Lights out by 10:30` | An empty checkbox |
+   | `- [x] Drink water` | A ticked checkbox |
+   | `**bold**` / `*italic*` | **bold** / *italic* |
+   | `---` | A divider line |
+
+3. Click **Save plan**.
+
+Your plan is saved in your Google Drive data file, alongside everything else, and it shows up on every computer.
+
+**2. Show plan documents you already have**
+
+1. In Google Drive, open **Health Sync → Plan**. The app creates this folder for you.
+2. Drop in **PDFs**, **pictures** (such as a photo of a printed plan) or **Google Docs**.
+3. In the app, open the **Plan** tab. Your documents are listed as buttons; click one to read it right on the page.
+   - **Google Docs** always show their latest version, so you can keep editing the plan in Google Docs and the app stays up to date.
+   - Added a file while the app was open? Click **Refresh**.
+   - **Word files (.docx)** can't be shown directly. Open the file in Google Drive and choose **File → Save as Google Docs**, or save it as a PDF.
+
+> Your plan stays private. It lives in your Google Drive, not on GitHub.
 
 ### Log today
 
