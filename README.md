@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.9** · October 16, 2026 · [Version history](#version-history)
+> **Version 1.10** · October 16, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -576,8 +576,14 @@ Once set up, this runs on its own in the background. You never export anything b
 
 #### 13-1a. Destination: Google Drive
 
-- **Automation type:** **Google Drive**. Sign in with your **personal Gmail**, choose the folder **Health Sync → Inbox**, apply the settings above, and turn it **on**.
-- Run it once (**Sync now** / **Manual sync**), then check the Inbox for a new `.json` file.
+- **Automation type:** **Google Drive**. Sign in with your **personal Gmail**, apply the settings above, and turn it **on**.
+- Health Auto Export saves into **its own folder** in your Drive, usually called **Health Auto Export**. Google only lets it write to folders it created, so you can't pick the Inbox. **That's fine:** Health Sync automatically checks that folder too, imports new or updated files, and leaves them in place.
+- Run it once (**Manual Sync** / **Sync Now**) with the app open for about 30 seconds, then check that folder in Drive for a new file.
+- **Nothing appearing?**
+  - Set the date range to **Last 7 Days**, not "since last sync", for the first run.
+  - Make sure at least one metric is ticked.
+  - Turn on **iPhone Settings → General → Background App Refresh → Health Auto Export**.
+  - Low Power Mode pauses background syncs.
 
 #### 13-1b. Destination: your Google script (REST API)
 
@@ -1047,9 +1053,16 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.9** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.10** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.10 (October 16, 2026)
+
+- **Watches Health Auto Export's own Drive folder.** Health Auto Export's Google Drive automation can only save into a folder it created, usually **Health Auto Export**. Health Sync now checks that folder each time it syncs, and imports new or updated files from it.
+  - Those files are left in place, because Health Auto Export keeps updating them.
+  - The app remembers which version of each file it has already imported, on every computer.
+- Script: only the version number changed. Pasting it is optional (if you do, update the deployment as in Step 13-1b).
 
 ### v1.9 (October 16, 2026)
 

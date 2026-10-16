@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 1.9 -->
+<!-- Health Sync app · version 1.10 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -547,7 +547,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <section class="tab" id="tab-imp" hidden>
   <div class="card" id="imp-drive">
     <div class="card-h"><h2>Google Drive Inbox</h2></div>
-    <p class="small" style="margin-top:0">Drop your Lose It and Garmin export files (Lose It Daily Report PDFs, CSV or ZIP) into <b>Health Sync › Inbox</b> in Google Drive. The app imports them every time it opens, then moves them to <b>Processed</b>.</p>
+    <p class="small" style="margin-top:0">Drop your Lose It and Garmin export files (Lose It Daily Report PDFs, CSV or ZIP) into <b>Health Sync › Inbox</b> in Google Drive. The app imports them every time it opens, then moves them to <b>Processed</b>. It also picks up new files from the <b>Health Auto Export</b> folder automatically (and leaves those where they are).</p>
     <div class="row"><button class="btn primary" id="imp-check">Check Inbox now</button><a id="imp-open" target="_blank" rel="noopener" class="btn">Open folder in Drive ↗</a></div>
   </div>
   <div class="card">
@@ -616,7 +616,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '1.9';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '1.10';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -699,7 +699,7 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
@@ -852,6 +852,19 @@ const Drive = {
     this.ids.data = (await r.json()).id;
   },
   inbox() { return this.list(`'${this.ids.inbox}' in parents and trashed=false and mimeType!='${FOLDER_MIME}'`); },
+  // Health Auto Export can only write into a folder it created itself, so watch that folder as well.
+  async watchedFiles() {
+    const roots = await this.list(`name contains 'Auto Export' and mimeType='${FOLDER_MIME}' and trashed=false`);
+    const out = [];
+    for (const r of roots) {
+      const items = await this.list(`'${r.id}' in parents and trashed=false`);
+      for (const it of items) {
+        if (it.mimeType === FOLDER_MIME) out.push(...(await this.list(`'${it.id}' in parents and trashed=false and mimeType!='${FOLDER_MIME}'`)).map(f => ({ ...f, folder: r.name + ' › ' + it.name })));
+        else out.push({ ...it, folder: r.name });
+      }
+    }
+    return out.filter(f => /\.(json|csv|zip|txt)$/i.test(f.name) || /json|csv|zip|text/.test(f.mimeType));
+  },
   async fetchFile(f) {
     if (f.mimeType === 'application/vnd.google-apps.spreadsheet') {
       const r = await this.api(`files/${f.id}/export?mimeType=text%2Fcsv`);
@@ -880,6 +893,7 @@ async function persist() {
     for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
     remote.imports = remote.imports.slice(-500);
     if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; }
+    remote.watched = { ...(remote.watched || {}), ...(data.watched || {}) };
     remote.updated = new Date().toISOString();
     await store.save(remote);
     data = remote; dirty.clear(); importsDirty = false; planDirty = false;
@@ -1499,16 +1513,22 @@ const withTimeout = (p, ms, why) => Promise.race([p, new Promise((_, rej) => set
 
 async function checkInbox(quiet = false) {
   if (store !== Drive) return;
-  const files = await Drive.inbox();
-  if (!files.length) { if (!quiet) logImport('Inbox is empty — nothing new to import.'); return 0; }
+  const inboxFiles = await Drive.inbox();
+  let watched = [];
+  try { watched = (await Drive.watchedFiles()).filter(f => data.watched?.[f.id] !== f.modifiedTime); } catch (e) { logImport(`Health Auto Export folder: could not check it — ${e.message}`); }
+  const files = [...inboxFiles, ...watched];
+  if (!files.length) { if (!quiet) logImport('Inbox (and Health Auto Export folder) — nothing new to import.'); return 0; }
   let done = 0, skipped = 0;
   const imported = [];
   for (const [i, f] of files.entries()) {
+    const isWatched = watched.includes(f);
     setStatus(`Importing ${files.length > 1 ? `${i + 1} of ${files.length}: ` : ''}${f.name}…`, 'busy');
     try {
       const { name, buf } = await withTimeout(Drive.fetchFile(f), 60000, 'downloading it from Drive took too long');
       const lines = await withTimeout(importBuffer(name, buf), 90000, 'reading it took too long');
-      lines.forEach(logImport);
+      lines.forEach(l => logImport(isWatched ? `${f.folder} › ${l}` : l));
+      // Files in Health Auto Export's folder stay where they are (it keeps updating them); remember this version.
+      if (isWatched) { data.watched[f.id] = f.modifiedTime; importsDirty = true; if (!lines.every(l => / skipped \(/.test(l))) done++; continue; }
       // Leave unreadable files in the Inbox so they can be checked.
       if (lines.every(l => / skipped \(/.test(l))) { skipped++; continue; }
       imported.push(f); done++;
