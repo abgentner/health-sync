@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 1.6 -->
+<!-- Health Sync app · version 1.9 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -616,7 +616,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '1.6';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '1.9';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -716,7 +716,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null)) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !(d.health && Object.keys(d.health).length)) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -735,6 +735,8 @@ function totals(d) {
   }
   // Lose It's PDF report only gives nutrients for the whole day.
   if (!t.hasNutr && d.nutrition) { for (const n of NUTRIENTS) t[n.key] = d.nutrition[n.key] || 0; t.hasNutr = true; }
+  // No food list at all? Fall back to the day totals Lose It wrote into Apple Health.
+  if (!t.hasFood && d.healthFood?.calories) { t.calIn = d.healthFood.calories; t.hasFood = true; t.fromHealth = true; for (const n of NUTRIENTS) t[n.key] = d.healthFood[n.key] || 0; t.hasNutr = true; }
   for (const w of d.workouts || []) { t.burn += w.calories || 0; t.exMin += w.durationMin || 0; t.hasEx = true; }
   return t;
 }
@@ -908,7 +910,7 @@ async function importBuffer(name, buf) {
   if (isZip) {
     const zip = await JSZip.loadAsync(buf);
     // Garmin's full account export holds thousands of files; only the daily-summary and sleep JSON files are needed.
-    const entries = Object.values(zip.files).filter(f => !f.dir && !/__MACOSX/.test(f.name) && (/\.(csv|pdf)$/i.test(f.name) || (/\.json$/i.test(f.name) && GARMIN_JSON.test(f.name))));
+    const entries = Object.values(zip.files).filter(f => !f.dir && !/__MACOSX/.test(f.name) && !HAE_SIDE_FILE.test(f.name.split('/').pop()) && (/\.(csv|pdf)$/i.test(f.name) || (/\.json$/i.test(f.name) && GARMIN_JSON.test(f.name))));
     if (!entries.length) return [`${name}: skipped (no CSV, PDF or Garmin daily files inside this ZIP)`];
     const out = [];
     const gj = entries.filter(e => /\.json$/i.test(e.name));
@@ -929,6 +931,7 @@ async function importBuffer(name, buf) {
     const text = new TextDecoder('utf-8').decode(buf);
     let j = null; try { j = JSON.parse(text); } catch {}
     if (j && j.source === 'strava') return [impStrava(name, j)];
+    if (j && (j.data?.metrics || j.metrics)) return [impHaeJson(name, j)];
     const tally = { steps: new Set(), sleep: new Set() };
     readGarminJson(text, tally);
     return [garminJsonSummary(name, tally)];
@@ -1004,6 +1007,107 @@ function impAppleHealth(name, text) {
   return `${name}: Apple Health — ${plural(dates.size, 'day')} (${got.join(', ')}) · ${rangeText(dates)}`;
 }
 
+
+/* ---- Health Auto Export (iPhone app) — JSON or CSV, ideally with "Aggregate: Day" ---- */
+// Dates look like "2026-10-15 00:00:00 -0700"; the date part is already your local day.
+const haeDay = s => { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? validKey(+m[1], +m[2], +m[3]) : parseDate(s); };
+// "2026-10-15 01:10:00 -0700" → a real time (written out in a form every browser, including iPhone Safari, understands)
+const haeTime = s => { const m = String(s || '').match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)\s*(?:([+-]\d{2}):?(\d{2}))?/); return m ? healthDate(`${m[1]}T${m[2]}${m[3] ? m[3] + ':' + m[4] : ''}`) : healthDate(s); };
+// Side files in a Health Auto Export ZIP: per-workout minute-by-minute data, the workout list (Strava/Garmin cover
+// workouts), and Apple's symptom/ECG/medication logs.
+const HAE_SIDE_FILE = /-\d{8}_\d{6}\.csv$|^(Workouts|Symptoms|ECG|HeartRateNotifications|StateOfMind|CycleTracking|Medications)-.*\.csv$/i;
+const HAE_METRICS = {
+  step_count: 'steps', sleep_analysis: 'sleep', weight_body_mass: 'weight', body_mass: 'weight',
+  resting_heart_rate: 'restingHR', heart_rate_variability: 'hrv', heart_rate_variability_sdnn: 'hrv', active_energy: 'activeCal', active_energy_burned: 'activeCal',
+  flights_climbed: 'flights', dietary_water: 'water', water: 'water', vo2_max: 'vo2max', body_fat_percentage: 'bodyFat', mindful_minutes: 'mindful',
+};
+const SUM_KEYS = new Set(['steps', 'activeCal', 'flights', 'water', 'mindful']);
+// Convert to the units the app shows: calories, fl oz, %, minutes.
+function haeConvert(key, v, unit) {
+  const u = String(unit || '').toLowerCase();
+  if (key === 'activeCal' && /kj/.test(u)) return v / 4.184;
+  if (key === 'water' && /(^|[^a-z])ml|millilit/.test(u)) return v / 29.5735;
+  if (key === 'water' && /^l$|litre|liter/.test(u)) return v * 33.814;
+  if (key === 'bodyFat' && v <= 1) return v * 100;
+  if (key === 'mindful' && /hr|hour/.test(u)) return v * 60;
+  return v;
+}
+function impHaeJson(name, j) {
+  const days = {};
+  const add = (k, key, v) => { if (!k || v == null || isNaN(v)) return; const e = (days[k] ||= {})[key] ||= []; e.push(v); };
+  for (const m of j.data?.metrics || j.metrics || []) {
+    const key = HAE_METRICS[String(m.name || '').toLowerCase()];
+    if (!key) continue;
+    for (const r of m.data || []) {
+      if (key === 'sleep') {
+        // Aggregated: totalSleep / asleep / core+deep+rem in hours. Raw: one stage per sample.
+        let hrs = r.totalSleep ?? r.asleep ?? null;
+        if (!hrs && (r.core != null || r.deep != null || r.rem != null)) hrs = (r.core || 0) + (r.deep || 0) + (r.rem || 0);
+        if (hrs == null && r.startDate && r.endDate && !/awake|in ?bed/i.test(r.value || '')) {
+          const a = haeTime(r.startDate), b = haeTime(r.endDate);
+          if (a && b && b > a) { add(haeDay(r.endDate), 'sleepRaw', (b - a) / 36e5); continue; }
+        }
+        if (/min/i.test(m.units || '') && hrs) hrs /= 60;
+        if (hrs) add(haeDay(r.sleepEnd || r.date), 'sleep', hrs);
+        continue;
+      }
+      const v = num(r.qty ?? r.Avg ?? r.avg ?? r.value);
+      if (v == null) continue;
+      add(haeDay(r.date || r.startDate), key, key === 'weight' ? v : haeConvert(key, v, m.units));
+      if (key === 'weight') (days[haeDay(r.date || r.startDate)] ||= {}).weightUnit = /kg/i.test(m.units || '') ? 'kg' : 'lb';
+    }
+  }
+  return applyHae(name, days);
+}
+const HAE_COLS = [
+  [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^(weight|body mass)/, 'weight'],
+  [/^resting heart rate/, 'restingHR'], [/^heart rate variability/, 'hrv'], [/^active energy/, 'activeCal'], [/^flights climbed/, 'flights'],
+  [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'],
+  [/^dietary energy/, 'n:calories'], [/^protein/, 'n:protein'], [/^carbohydrates/, 'n:carbs'], [/^total fat/, 'n:fat'], [/^saturated fat/, 'n:satFat'],
+  [/^fiber/, 'n:fiber'], [/^sugar/, 'n:sugar'], [/^sodium/, 'n:sodium'], [/^cholesterol/, 'n:cholesterol'],
+];
+function impHaeCsv(label, headers, body) {
+  const dc = headers.find(h => /^date/.test(h)) || headers[0];
+  const cols = headers.map(h => { const hit = HAE_COLS.find(([re]) => re.test(h)); return hit ? [h, hit[1], (h.match(/\(([^)]+)\)\s*$/) || [])[1] || ''] : null; }).filter(Boolean);
+  if (!cols.length) return null;
+  const days = {};
+  for (const r of body) {
+    const k = haeDay(r[dc]);
+    if (!k) continue;
+    for (const [h, key, unit] of cols) {
+      const v = num(r[h]);
+      if (v == null || r[h] === '') continue;
+      const e = (days[k] ||= {});
+      (e[key] ||= []).push(key === 'weight' || key.startsWith('n:') ? v : key === 'sleep' && /min/i.test(unit) ? v / 60 : haeConvert(key, v, unit));
+      if (key === 'weight') e.weightUnit = /kg/i.test(unit) ? 'kg' : 'lb';
+    }
+  }
+  return applyHae(label, days);
+}
+function applyHae(name, days) {
+  const dates = new Set(), got = new Set();
+  for (const [k, e] of Object.entries(days)) {
+    const d = day(k);
+    const val = key => e[key] ? (SUM_KEYS.has(key) ? e[key].reduce((a, b) => a + b, 0) : avg(e[key])) : null;
+    if (e.steps && d.stepsSource !== 'manual') { d.steps = Math.round(val('steps')); d.stepsSource = 'health'; got.add('steps'); }
+    const sl = e.sleep ? Math.max(...e.sleep) : e.sleepRaw ? e.sleepRaw.reduce((a, b) => a + b, 0) : null;
+    if (sl && d.sleep?.source !== 'manual') { d.sleep = { hours: Math.round(sl * 10) / 10, score: d.sleep?.score ?? null, source: 'health' }; got.add('sleep'); }
+    if (e.weight && d.weightSource !== 'manual') { d.weight = Math.round(e.weight[e.weight.length - 1] * 10) / 10; d.weightUnit = e.weightUnit || 'lb'; d.weightSource = 'health'; got.add('weight'); }
+    for (const key of Object.keys(HEALTH_METRICS)) if (e[key]) { (d.health ||= {})[key] = Math.round(val(key) * 10) / 10; got.add(HEALTH_METRICS[key].name.toLowerCase()); }
+    // Nutrition that Lose It wrote into Apple Health: a backup for days with no Lose It report (never mixed with food entries).
+    if (e['n:calories']?.[0] > 0) {
+      const n = { source: 'health', calories: Math.round(e['n:calories'][0]) };
+      for (const x of NUTRIENTS) if (e['n:' + x.key]) n[x.key] = Math.round(e['n:' + x.key][0] * 10) / 10;
+      d.healthFood = n; got.add('nutrition');
+    }
+    touch(k); dates.add(k);
+  }
+  if (!dates.size) return `${name}: skipped (no Health Auto Export data recognised — send this file to get it supported)`;
+  importsDirty = true;
+  data.imports.push({ id: uid(), at: new Date().toISOString(), name, what: 'days from Apple Health', count: dates.size, range: rangeText(dates) });
+  return `${name}: Apple Health (Health Auto Export) — ${plural(dates.size, 'day')} (${[...got].join(', ')}) · ${rangeText(dates)}`;
+}
+
 /* ---- Garmin "Export Your Data" (full account export) ---- */
 const GARMIN_JSON = /UDSFile|sleepData/i;
 const gDate = v => { if (v && typeof v === 'object') v = v.date || v.calendarDate; return v ? parseDate(String(v)) : null; };
@@ -1070,6 +1174,13 @@ function importCsv(name, text, parent) {
   const fn = name.toLowerCase();
 
   let res;
+  // Health Auto Export (iPhone app) CSV: "Date/Time, Step Count (count), Resting Heart Rate (count/min), …"
+  if (HAE_SIDE_FILE.test(name)) return [`${label}: skipped (Health Auto Export detail file — not needed; the daily summary file has everything)`];
+  // (Food logs like Lose It's have a "name" column and nutrition columns too, so only body measures count here.)
+  if (!has('name') && (headers.some(h => /^date\/time$/.test(h)) || headers.filter(h => HAE_COLS.some(([re, k]) => !k.startsWith('n:') && re.test(h))).length >= 2)) {
+    const r = impHaeCsv(label, headers, body);
+    if (r) return [r];
+  }
   if (has('activity type') && !has('date')) return [`${label}: skipped (this is Garmin's monthly Activities report — counts only. Use the activity list at connect.garmin.com/modern/activities › Export CSV instead)`];
   if (has('activity type')) res = impGarminActivities(body);
   else if ((has('meal') || (has('type') && find(/^protein|^fat/))) && find(/^calories/) && find(/^name/)) res = impLoseItFood(body, find);
@@ -1518,7 +1629,12 @@ function renderDash() {
       meals[m].map(x => `<div class="li"><span class="n">${esc(x.name)}${x.qty ? ` <span class="muted small">${fmtN(x.qty, 2)} ${esc(x.units)}</span>` : ''}</span><span class="x">${fmtN(x.calories)}</span></div>`).join('')).join('');
     const t = totals(d);
     if (t.hasNutr) $('#d-food').innerHTML += `<div class="sub-h" style="margin-top:16px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`;
-  } else $('#d-food').innerHTML = '<p class="muted small" style="margin:0">No food on this day.</p>';
+  } else {
+    const t = totals(d);
+    $('#d-food').innerHTML = t.fromHealth
+      ? `<p class="muted small" style="margin:0 0 4px">No Lose It report for this day yet — these are the day's totals from Apple Health.</p><div class="sub-h" style="margin-top:12px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`
+      : '<p class="muted small" style="margin:0">No food on this day.</p>';
+  }
 
   const f = d?.feel;
   $('#d-feel').innerHTML = hasFeel(f) ? `

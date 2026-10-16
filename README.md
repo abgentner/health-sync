@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.6** · October 16, 2026 · [Version history](#version-history)
+> **Version 1.9** · October 16, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -547,7 +547,72 @@ The hourly check only goes back 30 days the first time. To bring in **everything
 
 ## Step 13 (optional) — Steps, sleep, heart rate and more from Apple Health (iPhone)
 
-**What this does:** Garmin Connect copies your steps, sleep, heart rate and more into **Apple Health** on your iPhone. A free iPhone **Shortcut** (Apple's built-in automation app) copies the last 3 days of that data into your Drive **Inbox**, and Health Sync imports it.
+**What this does:** Garmin Connect copies your steps, sleep, heart rate and more into **Apple Health** on your iPhone. Something on the iPhone then copies that data into your Drive **Inbox**, and Health Sync imports it. There are two ways to do the copying:
+
+- **Option 1 — Health Auto Export app** *(recommended)*. A paid app that does it all in the background and uses Apple Health's own daily totals, so nothing is double-counted. It connects to Google Drive by itself. Set up in **13-1** below, then do **13a**.
+- **Option 2 — a free iPhone Shortcut** you build yourself (**13a–13f**). It needs the Google Drive location working in the iPhone **Files** app, which doesn't work on every phone.
+
+### 13-1. Option 1: Health Auto Export (fully automatic)
+
+Once set up, this runs on its own in the background. You never export anything by hand.
+
+1. Install **Health Auto Export – JSON+CSV** from the App Store and open it. When asked for Health access, tap **Turn On All** → **Allow**.
+2. Buy the **Premium** upgrade. Automations need it.
+3. Do **13a** below, so Garmin's data reaches Apple Health.
+4. Choose where Health Auto Export sends the data:
+   - **Try Google Drive first (13-1a).** It's the simplest, but it may hit the same Files-app glitch.
+   - **If that doesn't connect, use your Google script (13-1b).** It doesn't involve the Files app at all.
+
+**The automation settings are the same for both.** Go to **Automations** → **+** (New Automation). Names may differ slightly between versions.
+
+| Setting | Choose |
+|---|---|
+| Data type | **Health Metrics** |
+| Metrics | **Step Count, Sleep Analysis, Resting Heart Rate, Active Energy, Flights Climbed, Dietary Energy, Protein, Carbohydrates, Total Fat**, plus **Weight & Body Mass, Heart Rate Variability, Water, VO2 Max, Body Fat Percentage, Mindful Minutes** if you like |
+| Export format | **JSON** |
+| Aggregation / Time grouping | **Day**. This matters: it gives daily totals with nothing double-counted. |
+| Date range | **Last 7 Days** (or "since last sync"). Days are replaced, never doubled. |
+| Sync cadence | **Every hour** (or every few hours) |
+
+#### 13-1a. Destination: Google Drive
+
+- **Automation type:** **Google Drive**. Sign in with your **personal Gmail**, choose the folder **Health Sync → Inbox**, apply the settings above, and turn it **on**.
+- Run it once (**Sync now** / **Manual sync**), then check the Inbox for a new `.json` file.
+
+#### 13-1b. Destination: your Google script (REST API)
+
+**First, let the script receive data (one time, about 5 minutes, on your computer):**
+
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v1.9 or later) and click **💾 Save**.
+2. Click **Deploy** (blue, top right) → **New deployment**.
+3. Click the **⚙ gear** next to "Select type" → **Web app**.
+4. Fill in:
+   - **Description:** `Health Sync receiver`
+   - **Execute as:** **Me**
+   - **Who has access:** **Anyone**. This lets your phone send data without signing in. The private key in the next step keeps everyone else out.
+5. Click **Deploy**. If Google asks for permission, allow it the same way as in Step 10c.
+6. Back in the editor, choose **`healthAddress`** in the function dropdown and click **▶ Run**.
+   - The log prints your address. It looks like `https://script.google.com/macros/s/…/exec?key=…`.
+   - **Copy the whole line.** If your Mac and iPhone use the same Apple ID, you can copy it on the Mac and paste it on the iPhone. Otherwise, email it to yourself.
+7. **Optional check:** paste the address into a browser. It should say **"Health Sync is listening"**.
+
+**Then, in Health Auto Export:**
+
+1. **Automations → +** → Automation type **REST API**.
+2. **URL:** paste the whole address from step 6, including `?key=…`.
+3. **Method:** **POST**, if asked. Leave headers empty.
+4. Apply the settings in the table above, and turn it **on**.
+5. Tap **Sync now** / **Manual sync** once. Within a few seconds, a file like `2026-10-16 101500 apple-health.json` appears in your Drive **Inbox**. Open Health Sync and it imports it.
+
+> **Keep the key private.** Anyone with the full address could send data into your Inbox, though they still couldn't read anything. To change the key: in **Project Settings → Script Properties**, delete `HEALTH_KEY`, run **healthAddress** again, and paste the new address into Health Auto Export.
+
+> **When you paste a newer version of the script later:** go to **Deploy → Manage deployments** → **✏️ edit** → **Version: New version** → **Deploy**. This keeps the same address and switches it to the new code.
+
+> **Free, manual alternative:** without Premium, you can export by hand (**Export → CSV**, then put the ZIP in your Drive **Inbox**). The app reads the daily summary file inside it.
+
+### Option 2: a free Shortcut
+
+A free iPhone **Shortcut** (Apple's built-in automation app) copies the last 3 days of Apple Health data into your Drive **Inbox**, and Health Sync imports it.
 
 **When it runs:** iPhones don't let shortcuts read Health data while the phone is **locked**, so the shortcut runs **when you close Lose It or Garmin Connect**. Your phone is unlocked then, and you use those apps every day. Each run covers the last 3 days, so a missed run fills in next time.
 
@@ -982,9 +1047,28 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.6** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.9** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.9 (October 16, 2026)
+
+- **Script can now receive Apple Health data directly** (`doPost`). Deploy it as a web app (README **Step 13-1b**), and Health Auto Export's **REST API** automation sends your data straight to it. The script saves it in your Drive Inbox, so the iPhone Files app isn't needed. A private key protects it, and the new `healthAddress` function prints the address to use.
+- **Script: paste the new copy, then deploy it (Step 13-1b).** The app only changed its version number.
+
+### v1.8 (October 16, 2026)
+
+- Tested against a real **Health Auto Export ZIP** (manual CSV export). The app reads the daily summary file inside, and skips the per-workout detail files and empty extras (symptoms, ECG and so on). Workouts are skipped too, because Strava and Garmin already bring them in.
+- **Nutrition backup from Apple Health.** Lose It writes your daily nutrition into Apple Health. On a day with **no Lose It report**, the app now shows those day totals (calories and all nutrients), labelled "from Apple Health". A Lose It report for that day always takes priority, and the two are never added together.
+- **Fixed:** a Lose It CSV could be mistaken for a Health Auto Export file.
+- Script: only the version number changed. Pasting the new copy is optional.
+
+### v1.7 (October 16, 2026)
+
+- **Health Auto Export support.** The app now reads the JSON and CSV files from the *Health Auto Export* iPhone app. It brings in steps, sleep, weight, resting heart rate, HRV, active calories, flights, water, VO₂ max, body fat and mindful minutes.
+  - Units are converted automatically: kJ to calories, mL/L to fl oz, fractions to %.
+  - Setup is in README **Step 13-1**. It's the recommended option when the iPhone Files app won't connect to Google Drive.
+- Script: only the version number changed. Pasting the new copy is optional.
 
 ### v1.6 (October 16, 2026)
 

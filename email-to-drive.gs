@@ -1,12 +1,15 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 1.6
+ * Version 1.9
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
  *     PDF, CSV or ZIP attached, and saves the attachments, and
  *  2. if you've connected Strava, saves any new Strava activities,
- * into Google Drive › Health Sync › Inbox. The Health Sync app imports them the
+ * into Google Drive › Health Sync › Inbox.
+ *
+ * It can also RECEIVE Apple Health data sent from your iPhone (Health Auto Export's
+ * REST API automation, or a Shortcut) once deployed as a web app — see doPost below. The Health Sync app imports them the
  * next time you open it.
  *
  * Each email is labelled "health-sync-saved" in Gmail once its attachments
@@ -22,7 +25,7 @@
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '1.6';   // printed at the start of every run
+const SCRIPT_VERSION = '1.9';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -232,6 +235,40 @@ function stravaGet_(path, token) {
   const res = UrlFetchApp.fetch('https://www.strava.com/api/v3/' + path, { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
   if (res.getResponseCode() !== 200) throw new Error('Strava ' + path + ' failed (' + res.getResponseCode() + '): ' + res.getContentText().slice(0, 200));
   return JSON.parse(res.getContentText());
+}
+
+/* ================== Receiving Apple Health data ================== */
+// Deploy this project as a Web app (README Step 13-1b). Your iPhone then sends data to
+//   <web app address>?key=<your key>
+// and each delivery is saved into Health Sync › Inbox for the app to import.
+
+/** Run once: creates your private key and prints the exact address to give Health Auto Export. */
+function healthAddress() {
+  const p = props_();
+  let key = p.getProperty('HEALTH_KEY');
+  if (!key) { key = Utilities.getUuid().replace(/-/g, ''); p.setProperty('HEALTH_KEY', key); }
+  let url = '';
+  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
+  console.log(url
+    ? 'Health Sync script v' + SCRIPT_VERSION + '\nGive Health Auto Export this address (copy all of it):\n\n' + url + '?key=' + key
+    : 'Your key is: ' + key + '\nDeploy the script as a Web app first (README Step 13-1b), then run healthAddress again to get the full address.');
+}
+
+function doPost(e) {
+  const reply = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+  const key = props_().getProperty('HEALTH_KEY');
+  if (!key || !e || !e.parameter || e.parameter.key !== key) return reply({ ok: false, error: 'wrong or missing key' });
+  const body = e.postData && e.postData.contents;
+  if (!body) return reply({ ok: false, error: 'no data received' });
+  const isJson = /^\s*[{[]/.test(body);
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmmss');
+  inboxFolder_().createFile(`${stamp} apple-health.${isJson ? 'json' : 'txt'}`, body, isJson ? 'application/json' : 'text/plain');
+  return reply({ ok: true, saved: body.length });
+}
+
+/** Lets you check the address in a browser: it should say Health Sync is listening. */
+function doGet() {
+  return ContentService.createTextOutput('Health Sync is listening (script v' + SCRIPT_VERSION + '). Send data with POST.');
 }
 
 /* ============================ Helpers ============================ */
