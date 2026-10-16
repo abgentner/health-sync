@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.3** · October 16, 2026 · [Version history](#version-history)
+> **Version 1.4** · October 16, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -745,7 +745,9 @@ If you get a new version of `index.html` (or any other file):
 2. Click **Add file → Upload files**.
 3. Drag in the new file. It **replaces** the old one with the same name.
 4. Click **Commit changes**.
-5. Wait **2–5 minutes**. Then open the app and press **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows) to load the new version.
+5. Wait **2–5 minutes**, then open the app.
+   - From v1.4 on, a bar at the top says **"Version 1.x is available"**. Tap **Update now**.
+   - On a computer, **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows) also works.
 
 **Updating never touches your data.** Your data lives in Google Drive, not on GitHub.
 
@@ -816,6 +818,17 @@ Very little: roughly 1 MB per year of daily use.
 **Can I use it on my phone?**
 Yes. Open the same web address in your phone's browser and sign in. To make it feel like an app, use your browser's **Share → Add to Home Screen**.
 
+**My iPhone home-screen app is stuck on an old version.**
+iPhones keep their own saved copy of home-screen apps. From v1.4 on, the app checks for updates and shows an **Update now** bar. If it's stuck on a version older than 1.4, refresh it once by hand:
+
+1. Open **Safari** (not the home-screen icon) and go to `https://YOUR-USERNAME.github.io/health-sync/?v=new`.
+2. Check the bottom of the page shows the newest version. If it doesn't, wait a few minutes and reload.
+3. On your home screen, press and hold the Health Sync icon → **Remove Bookmark** (or **Delete**).
+4. Back in Safari: **Share** (□↑) → **Add to Home Screen** → **Add**.
+5. Open the new icon and click **Connect Google Drive** again. The home-screen app keeps its own sign-in, separate from Safari.
+
+Still old? Go to **Settings → Apps → Safari → Advanced → Website Data** (on older iOS: **Settings → Safari → Advanced → Website Data**), search for **github.io**, swipe left and choose **Delete**. Then repeat steps 1–5.
+
 **Can I use it on more than one computer?**
 Yes, that's the point. Open the same address, connect the same Google account, and you'll see the same data.
 
@@ -839,9 +852,14 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.3** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.4** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.4 (October 16, 2026)
+
+- **Automatic update check.** Each time you open the app, or switch back to it, it checks for a newer version. If there is one, a bar appears at the top: **"Version 1.x is available — Update now"**. Tap **Update now** to load it. This matters most on iPhone, where home-screen apps keep an old copy.
+- Script: only the version number changed. Pasting the new copy is optional.
 
 ### v1.3 (October 16, 2026)
 
