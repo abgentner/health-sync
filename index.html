@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 1.11 -->
+<!-- Health Sync app · version 1.12 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -616,7 +616,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '1.11';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '1.12';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -699,7 +699,7 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
@@ -856,13 +856,13 @@ const Drive = {
   async watchedFiles() {
     const roots = await this.list(`name contains 'Auto Export' and mimeType='${FOLDER_MIME}' and trashed=false`);
     const out = [];
-    for (const r of roots) {
-      const items = await this.list(`'${r.id}' in parents and trashed=false`);
-      for (const it of items) {
-        if (it.mimeType === FOLDER_MIME) out.push(...(await this.list(`'${it.id}' in parents and trashed=false and mimeType!='${FOLDER_MIME}'`)).map(f => ({ ...f, folder: r.name + ' › ' + it.name })));
-        else out.push({ ...it, folder: r.name });
+    const walk = async (id, path, depth) => {
+      for (const it of await this.list(`'${id}' in parents and trashed=false`)) {
+        if (it.mimeType === FOLDER_MIME) { if (depth < 3) await walk(it.id, path + ' › ' + it.name, depth + 1); }
+        else out.push({ ...it, folder: path });
       }
-    }
+    };
+    for (const r of roots) await walk(r.id, r.name, 1);
     return out.filter(f => /\.(json|csv|zip|txt)$/i.test(f.name) || /json|csv|zip|text/.test(f.mimeType));
   },
   async fetchFile(f) {
@@ -894,6 +894,7 @@ async function persist() {
     remote.imports = remote.imports.slice(-500);
     if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; }
     remote.watched = { ...(remote.watched || {}), ...(data.watched || {}) };
+    remote.watchedParser = Math.max(remote.watchedParser || 1, data.watchedParser || 1);
     remote.updated = new Date().toISOString();
     await store.save(remote);
     data = remote; dirty.clear(); importsDirty = false; planDirty = false;
@@ -1053,12 +1054,23 @@ function haeConvert(key, v, unit) {
   return v;
 }
 function impHaeJson(name, j) {
-  const days = {}, notDaily = new Set();
+  const days = {}, notDaily = new Set(), repaired = new Set();
   const add = (k, key, v) => { if (!k || v == null || isNaN(v)) return; const e = (days[k] ||= {})[key] ||= []; e.push(v); };
   for (const m of j.data?.metrics || j.metrics || []) {
     const key = HAE_METRICS[String(m.name || '').toLowerCase()];
     if (!key) continue;
-    if (DEDUPE_KEYS.has(key) && (m.data || []).some(r => !/ 00:00(:00)?( |$)/.test(String(r.date || '')))) { notDaily.add(HEALTH_METRICS[key]?.name.toLowerCase() || key); continue; }
+    if (DEDUPE_KEYS.has(key) && (m.data || []).some(r => !/ 00:00(:00)?( |$)/.test(String(r.date || '')))) {
+      notDaily.add(HEALTH_METRICS[key]?.name.toLowerCase() || key);
+      // Earlier versions saved these inflated sums. If a day still holds exactly that number, clear it.
+      const sums = {};
+      for (const r of m.data || []) { const k = haeDay(r.date); const v = num(r.qty); if (k && v != null) sums[k] = (sums[k] || 0) + haeConvert(key, v, m.units); }
+      for (const [k, v] of Object.entries(sums)) {
+        const d = getDay(k); if (!d) continue;
+        if (key === 'steps' && d.stepsSource === 'health' && d.steps === Math.round(v)) { delete d.steps; delete d.stepsSource; touch(k); repaired.add(k); }
+        if (key !== 'steps' && d.health?.[key] != null && Math.abs(d.health[key] - Math.round(v * 10) / 10) < 0.11) { delete d.health[key]; touch(k); repaired.add(k); }
+      }
+      continue;
+    }
     for (const r of m.data || []) {
       if (key === 'sleep') {
         // Aggregated: totalSleep / asleep / core+deep+rem in hours. Raw: one stage per sample.
@@ -1079,7 +1091,7 @@ function impHaeJson(name, j) {
     }
   }
   const res = applyHae(name, days, notDaily);
-  return res;
+  return repaired.size ? `${res} · removed double-counted values saved earlier on ${rangeText(repaired)}` : res;
 }
 const HAE_COLS = [
   [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^(weight|body mass)/, 'weight'],
@@ -1519,13 +1531,20 @@ async function importPdf(name, buf) {
   return [`${name}: ${keys.length} day${keys.length > 1 ? 's' : ''}, ${foods} food entries (${rangeText(dates)})`];
 }
 
+const WATCH_PARSER = 2;   // bump when Health Auto Export parsing changes, so existing files are re-read once
 const withTimeout = (p, ms, why) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(why)), ms))]);
 
 async function checkInbox(quiet = false) {
   if (store !== Drive) return;
   const inboxFiles = await Drive.inbox();
   let watched = [];
-  try { watched = (await Drive.watchedFiles()).filter(f => data.watched?.[f.id] !== f.modifiedTime); } catch (e) { logImport(`Health Auto Export folder: could not check it — ${e.message}`); }
+  // When the importer for these files improves, look at every file once more (WATCH_PARSER goes up).
+  const recheck = (data.watchedParser || 1) < WATCH_PARSER;
+  try {
+    // Oldest first, so the newest copy of each day wins.
+    watched = (await Drive.watchedFiles()).filter(f => recheck || data.watched?.[f.id] !== f.modifiedTime).sort((a, b) => String(a.modifiedTime).localeCompare(String(b.modifiedTime)));
+    if (recheck) { data.watchedParser = WATCH_PARSER; importsDirty = true; }
+  } catch (e) { logImport(`Health Auto Export folder: could not check it — ${e.message}`); }
   const files = [...inboxFiles, ...watched];
   if (!files.length) { if (!quiet) logImport('Inbox (and Health Auto Export folder) — nothing new to import.'); return 0; }
   let done = 0, skipped = 0;

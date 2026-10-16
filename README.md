@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.11** · October 16, 2026 · [Version history](#version-history)
+> **Version 1.12** · October 16, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -1053,9 +1053,16 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.11** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.12** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.12 (October 16, 2026)
+
+- **Self-repair for double-counted values.** If a day still holds the inflated steps, active calories or flights saved by v1.10 or earlier from a minute/hourly file, Health Sync removes them. The day then shows "—" until a daily-total file brings the right number.
+- After this update, every file in the Health Auto Export folder is **checked once more** with the improved importer, oldest first, so the newest copy of each day wins.
+- Health Auto Export files are now found up to **3 folders deep** (it can create year or month subfolders).
+- Script: only the version number changed. Pasting it is optional.
 
 ### v1.11 (October 16, 2026)
 
