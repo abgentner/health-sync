@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.1** · October 15, 2026 · [Version history](#version-history)
+> **Version 1.3** · October 16, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -317,9 +317,17 @@ Brave's **Shields** can block the Google sign-in window. If clicking **Connect G
 
 **Every file goes in the same place: Google Drive → Health Sync → Inbox.** The app works out what kind of file each one is.
 
-### Lose It → the Daily Report PDF
+### Lose It → the daily report (CSV spreadsheet or PDF)
 
-The app reads Lose It's **Daily Report** PDF. It picks up:
+Lose It's emailed **daily report** comes as a spreadsheet (`.csv`), and the app reads it automatically once Step 10 is set up. It picks up:
+
+- every food, which meal it was in, and the amount
+- calories and **all nutrients**: protein, carbs, fat, saturated fat, fiber, sugars, sodium and cholesterol
+- exercise you logged directly in Lose It (Garmin and Apple Health copies are skipped, because they come from Garmin/Strava)
+
+A newer report for the same day replaces that day's Lose It food, so re-sending a report is safe.
+
+The app also reads Lose It's **Daily Report PDF**, the kind you can print or share from Lose It. It picks up:
 
 - every food you logged, and which meal it was in
 - the day's calories, protein, carbs and fat
@@ -660,7 +668,7 @@ Your plan's **3 daily anchor boxes**, with a weekly goal of **17 out of 21** (ab
 
 | Box | Checks itself automatically when… |
 |---|---|
-| **Day Pack** | Your Lose It log has **at least 3 foods** containing "kate farms", "naked whey" or "shake" |
+| **Day Pack** | Your **daytime calories** (breakfast + lunch + snacks, everything except dinner) are **1,200 or less** |
 | **Dinner Boundary** | Your Lose It **Dinner** adds up to **750 calories or less** |
 | **Movement** | You have **at least 10 minutes** of workouts that day (from Garmin, Lose It or typed in) |
 
@@ -673,6 +681,7 @@ Your plan's **3 daily anchor boxes**, with a weekly goal of **17 out of 21** (ab
 
 **Changing the boxes:** in **Settings → Daily anchors**, you can rename each box, change its reminder, change how it's checked, and change the weekly goal. How it's checked can be:
 
+- a **calorie budget**, either daytime (everything but dinner) or the whole day
 - workout minutes
 - matching food words
 - a meal's calories
@@ -830,9 +839,30 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.1** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.3** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.3 (October 16, 2026)
+
+- **Day Pack now means "stayed within my daytime calorie budget"** instead of "had 3 shakes". It counts breakfast, lunch and snacks (everything except dinner) against a budget of **1,200 calories** to start.
+  - The box shows the numbers, for example *"Auto · Daytime 1,215 of 1,200 cal"*.
+  - Change the budget in **Settings → Daily anchors**. There's also a **Whole day** option.
+- New rule type for any box: **Auto: calorie budget**.
+- Script: only the version number changed. Pasting the new copy is optional.
+
+### v1.2 (October 16, 2026)
+
+- **Lose It daily CSV report** (the spreadsheet Lose It emails each day) now imports. It brings in every food, its meal, and all nutrients: protein, carbs, fat, saturated fat, fiber, sugars, sodium and cholesterol.
+  - Exercise rows in that file that are copies of Garmin or Apple Health workouts are skipped, so nothing is counted twice.
+  - Exercise you log directly in Lose It is still imported.
+- **Nutrients everywhere:**
+  - the Dashboard's Food card shows the day's nutrient totals
+  - the Calories detail page shows average daily nutrients, plus fiber, sugars and sodium columns
+  - the daily summary CSV download includes every nutrient
+- **Fixed:** the status could stay stuck on "Importing 1 file…" when a file couldn't be read. Now it says which file it's working on, and if one can't be read it says "1 file not imported — see Import tab".
+- **Fixed:** a file can no longer freeze the app. Each file has a time limit, and the PDF reader can't get stuck on long text.
+- Script: only the version number changed. Pasting the new copy is optional.
 
 ### v1.1 (October 15, 2026)
 
