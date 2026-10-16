@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.4** · October 16, 2026 · [Version history](#version-history)
+> **Version 1.6** · October 16, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -28,15 +28,16 @@ There's nothing to install and nothing to pay for. You open a web link, and that
 12. [Step 10 (optional) — Send Lose It emails straight to Google Drive](#step-10-optional--send-lose-it-emails-straight-to-google-drive)
 13. [Step 11 (optional) — Bring in your whole Garmin history](#step-11-optional--bring-in-your-whole-garmin-history)
 14. [Step 12 (optional) — Get workouts within the hour from Strava](#step-12-optional--get-workouts-within-the-hour-from-strava)
-15. [Using the app every day](#using-the-app-every-day)
-16. [What each screen does](#what-each-screen-does)
-17. [Signing in: what to expect](#signing-in-what-to-expect)
-18. [Updating the app](#updating-the-app)
-19. [Backups](#backups)
-20. [Troubleshooting](#troubleshooting)
-21. [Privacy: who can see what](#privacy-who-can-see-what)
-22. [FAQ](#faq)
-23. [Version history](#version-history)
+15. [Step 13 (optional) — Steps, sleep, heart rate and more from Apple Health (iPhone)](#step-13-optional--steps-sleep-heart-rate-and-more-from-apple-health-iphone)
+16. [Using the app every day](#using-the-app-every-day)
+17. [What each screen does](#what-each-screen-does)
+18. [Signing in: what to expect](#signing-in-what-to-expect)
+19. [Updating the app](#updating-the-app)
+20. [Backups](#backups)
+21. [Troubleshooting](#troubleshooting)
+22. [Privacy: who can see what](#privacy-who-can-see-what)
+23. [FAQ](#faq)
+24. [Version history](#version-history)
 
 ---
 
@@ -370,7 +371,8 @@ Garmin's single-measure reports also work, if you want them: in Garmin Connect, 
 
 | How often | What to drop in the Inbox | What it brings in |
 |---|---|---|
-| Every day (automatic with Step 10) | Lose It **Daily Report PDF** | Food, calories, macros, steps, sleep |
+| Every day (automatic with Step 10) | Lose It **daily report** (CSV) | Food, calories, all nutrients |
+| Whenever you close Lose It or Garmin Connect (automatic with Step 13) | Apple Health file from the iPhone shortcut | Steps, sleep, weight, resting heart rate, HRV, active calories and more |
 | Every hour (automatic with Step 12) | Strava workouts | Workouts: type, time, distance, calories, heart rate |
 | Every week or two (optional with Step 12) | Garmin **Activities CSV** | Workouts, with Garmin's full details |
 | Once, at the start | Garmin **full export ZIP** (Step 11) | Your entire history of steps, sleep and resting heart rate |
@@ -543,6 +545,131 @@ The hourly check only goes back 30 days the first time. To bring in **everything
 
 ---
 
+## Step 13 (optional) — Steps, sleep, heart rate and more from Apple Health (iPhone)
+
+**What this does:** Garmin Connect copies your steps, sleep, heart rate and more into **Apple Health** on your iPhone. A free iPhone **Shortcut** (Apple's built-in automation app) copies the last 3 days of that data into your Drive **Inbox**, and Health Sync imports it.
+
+**When it runs:** iPhones don't let shortcuts read Health data while the phone is **locked**, so the shortcut runs **when you close Lose It or Garmin Connect**. Your phone is unlocked then, and you use those apps every day. Each run covers the last 3 days, so a missed run fills in next time.
+
+**What it can bring in:**
+- **Recommended:** steps, sleep, weight, resting heart rate, heart rate variability (HRV), active calories
+- **Also supported:** flights climbed, water, VO₂ max, body fat %, mindful minutes
+
+Each one is the same small block in the shortcut (13d). Add the ones you want.
+
+### 13a. Let Garmin Connect write to Apple Health
+
+1. Open the **Garmin Connect** app → tap **More** (☰, bottom right) → **Settings** → **Connected Apps** → **Apple Health**.
+2. Turn on sharing, and allow everything you want: steps, sleep, weight, heart rate and so on.
+3. Check on the iPhone side: **Settings → Apps → Health → Data Access & Devices → Garmin Connect** → **Turn On All**. (On older iOS: **Settings → Health → Data Access & Devices**.)
+
+### 13b. Make Google Drive available to your iPhone's Files
+
+1. Install the **Google Drive** app from the App Store and sign in with your **personal Gmail**.
+2. Open Apple's **Files** app → tap **Browse** → tap **⋯** (top right) → **Edit** → turn on **Drive** → **Done**.
+
+### 13c. Create the shortcut
+
+1. Open the **Shortcuts** app → **Shortcuts** tab → tap **+** (top right).
+2. Tap the name at the top → **Rename** → type `Health Sync`.
+
+**How to add variables:** in a Text action, tap where you want a value to go. A bar of suggestions (like **Repeat Item**) appears above the keyboard. Tap one to insert it as a coloured bubble. **Tap the bubble** to pick which part to use (Start Date, Value…) and how dates are formatted.
+
+### 13d. Add one block for each type of data
+
+Every block is the same 3 actions. **Steps** is spelled out in full first; the others just change a few things.
+
+**Block 1 — Steps**
+
+1. Tap **Search for apps and actions**, type `Find Health Samples`, and tap it.
+2. In the action:
+   - Tap **Type** → choose **Steps**.
+   - Tap **Add Filter**. Set it to **Start Date** · **is in the last** · `3` · **days**.
+   - Tap **Add Filter** again. Set it to **Source** · **is** · **Garmin Connect**. This stops your iPhone's own step count being added on top of Garmin's.
+   - If there's a **Group By** option, set it to **Day**. If you don't see it, that's fine.
+3. Search `Repeat with Each` and add it. It automatically repeats over the **Health Samples**.
+4. Inside the repeat (between **Repeat with each** and **End Repeat**), add a **Text** action and type exactly:
+   - `steps;`
+   - then insert **Repeat Item**. Tap the bubble → **Start Date**. Tap it again → **Date Format: ISO 8601**, with **Include Time** turned **on**.
+   - then type `;`
+   - then insert **Repeat Item** again. Tap the bubble → **Value**.
+
+   It should read: `steps;` **[Start Date]** `;` **[Value]**
+
+**Block 2 — Sleep** (add it under the first **End Repeat**)
+
+- **Find Health Samples**: Type **Sleep** (may be called *Sleep Analysis*), Start Date **is in the last 3 days**, Source **is Garmin Connect**.
+- **Repeat with Each**, then a **Text** inside it:
+  `sleep;` **[Start Date, ISO 8601]** `;` **[End Date, ISO 8601]** `;` **[Value]**
+
+  For **End Date**: insert Repeat Item, tap the bubble, choose **End Date**, and set ISO 8601 the same way.
+
+**Block 3 — Weight**
+
+- **Find Health Samples**: Type **Weight**, Start Date **is in the last 3 days**. No source filter, so it picks up any scale or app.
+- **Repeat with Each** → **Text**: `weight;` **[Start Date, ISO 8601]** `;` **[Value]** `;` **[Unit]**
+
+**Blocks 4+ — the others you want.** Each one is a Find Health Samples (that Type, Start Date in the last 3 days, Source Garmin Connect), then Repeat with Each, then Text, starting with the word shown:
+
+| Type in Find Health Samples | Text starts with | Text after it |
+|---|---|---|
+| **Resting Heart Rate** | `restinghr;` | **[Start Date, ISO 8601]** `;` **[Value]** |
+| **Heart Rate Variability** | `hrv;` | same |
+| **Active Energy** | `activecal;` | same |
+| **Flights Climbed** | `flights;` | same |
+| **Water** | `water;` | same |
+| **VO2 Max** (Cardio Fitness) | `vo2max;` | same |
+| **Body Fat Percentage** | `bodyfat;` | same |
+| **Mindful Minutes** | `mindful;` | **[Start Date, ISO]** `;` **[End Date, ISO]** |
+
+### 13e. Put it all in one file and save it to Drive
+
+At the very bottom of the shortcut, **after all the End Repeats**:
+
+1. Add a **Text** action. Type `health-sync;apple-health;1` and press **return**. Then, for each block, insert that block's **Repeat Results**, each on its own line:
+   - Tap **Select Variable**, or the variable button above the keyboard, and pick each **Repeat Results** in turn.
+   - Steps' results come first, then sleep, and so on. The order doesn't actually matter.
+   ```
+   health-sync;apple-health;1
+   [Repeat Results]
+   [Repeat Results]
+   [Repeat Results]
+   ```
+2. Add **Set Name**. Set the name of **Text** to `apple-health.txt`.
+3. Add **Save File**:
+   - Tap the folder name → **Drive** → **My Drive** → **Health Sync** → **Inbox** → **Open** (or **Done**).
+   - Turn **Ask Where to Save** **off**.
+   - Leave **Overwrite If File Exists** **off**. Each run gets its own file, and Health Sync tidies them up.
+4. Tap **▶** (bottom right) to run it once.
+   - When the iPhone asks for Health access, tap **Allow** or **Turn On All**.
+   - Allow access to Drive if asked.
+5. Check **Google Drive → Health Sync → Inbox**. An `apple-health.txt` file should be there.
+6. Open Health Sync. The results should say something like *"Apple Health — 3 days (steps, sleep, weight, resting heart rate…)"*.
+
+### 13f. Make it run automatically
+
+1. In **Shortcuts**, tap the **Automation** tab → **+** (or **New Automation**).
+2. Choose **App** → tap **Choose** → select **Lose It!** and **Garmin Connect** → **Done**.
+3. Tick **Is Closed**. Untick **Is Opened**.
+4. Choose **Run Immediately**, and turn **Notify When Run** off.
+5. Tap **Next** → choose **Health Sync** → **Done**.
+
+Now every time you leave Lose It or Garmin Connect, your latest Apple Health data heads to your Drive.
+
+**You can also run it by hand:** tap **Health Sync** in the Shortcuts app, or add it to your home screen (press and hold the shortcut → **Share** → **Add to Home Screen**).
+
+### If something's off
+
+| Problem | Fix |
+|---|---|
+| **Steps look doubled** | Add the **Source is Garmin Connect** filter to the Steps block (13d). |
+| **"skipped (… no readable data)"** in the Import tab | One of the Text actions isn't quite right. Open `apple-health.txt` in Drive and check lines look like `steps;2026-10-16T00:00:00-07:00;8123`. Dates must be **ISO 8601**. |
+| **The shortcut fails when run automatically** | Usually it ran while the phone was locked. Using **Is Closed** for an app you just used avoids this. |
+| **Save File can't see Drive** | Do 13b again (Google Drive app installed and turned on in Files). |
+| **Sleep looks too long** | Make sure the Sleep block has **Source is Garmin Connect**, so the iPhone's own sleep tracking isn't added on top. |
+
+---
+
 ## Using the app every day
 
 1. **Drop new files in the Inbox** whenever you like, from your phone or any computer.
@@ -601,7 +728,10 @@ The hourly check only goes back 30 days the first time. To bring in **everything
 
 Click any chart or summary tile on the Dashboard (or the daily anchors box, or the mood words) to open a full page for that metric. **Details ›** appears when you hover over a chart.
 
-- **Date range:** last 30 days, 90 days, 6 months, 12 months, or all time (top right). The period ends on the date selected on the Dashboard.
+- **Date range** (top right): last 30 days, 90 days, 6 months, 12 months, all time, or **Custom range…**. The preset ranges end on the date selected on the Dashboard.
+  - **Custom range…** shows **From** and **To** date boxes. Pick any two dates, and the whole page updates.
+  - It also has quick buttons for **This month**, **Last month**, **This year** and **Last year**.
+  - The custom range stays the same as you move between metrics, so you can compare steps, sleep and mood for the same weeks.
 - **Key stats:**
   - average (and median)
   - best and lowest day
@@ -622,7 +752,7 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
   | Sleep | How many nights fell into each range (under 6 h … 8 h+), average sleep score |
   | Daily anchors | How often each box was checked, how many full weeks met the goal, and your current streak 🔥 |
 
-- **Daily log table:** every day in the period, newest first. Click a row to open that day on the Dashboard.
+- **Daily log table:** every day in the period, newest first. **Click any column header to sort by it** (▼ highest/newest first). Click it again to reverse (▲). Blank days always go to the bottom. Click a row to open that day on the Dashboard.
 
 **Getting back to the Dashboard:** click **← Dashboard** (top left), press **Esc**, or use your browser's or mouse's **Back** button.
 
@@ -707,7 +837,7 @@ The **Daily anchors** boxes are at the top (see above). Below them, record your 
 
 ### History
 
-A table with one row per day. Click a row to open that day on the Dashboard.
+A table with one row per day. **Click any column header to sort** (click again to reverse). Click a row to open that day on the Dashboard.
 
 ### Import
 
@@ -852,9 +982,26 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.4** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.6** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.6 (October 16, 2026)
+
+- **Apple Health import (iPhone).** A free iPhone Shortcut (README **Step 13**) copies your Apple Health data into the Drive Inbox whenever you close Lose It or Garmin Connect. Health Sync imports:
+  - steps, sleep (awake time not counted) and weight
+  - resting heart rate, heart rate variability, active calories, flights climbed, water, VO₂ max, body fat % and mindful minutes
+- **New Body & recovery card** on the Dashboard. It appears once any of those extra measures has data, uses the same day or average setting as the tiles, and each item opens its own detail page.
+- Steps and sleep from Apple Health take priority over the copies in a Lose It PDF.
+- Script: only the version number changed. Pasting the new copy is optional.
+
+### v1.5 (October 16, 2026)
+
+- **Sortable tables.** Click any column header in a detail page's **Daily log** or the **History** tab to sort by it, and click again to reverse.
+- **Custom date ranges on detail pages.** Choose **Custom range…** in the date dropdown and pick any **From** and **To** dates, or tap **This month**, **Last month**, **This year** or **Last year**.
+  - Every stat, chart and table follows the range.
+  - "vs previous period" compares with the same number of days just before it.
+- Script: only the version number changed. Pasting the new copy is optional.
 
 ### v1.4 (October 16, 2026)
 

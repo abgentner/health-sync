@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 1.4 -->
+<!-- Health Sync app · version 1.6 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -14,7 +14,7 @@
   --bg:#f4f5f8; --bg-tint:#e9effb; --surface:#ffffff; --surface-2:#f2f3f6; --border:#e6e7ec;
   --text:#14161c; --text-2:#545862; --muted:#868a94;
   --accent:#2a78d6; --accent-2:#5b54d6; --accent-ink:#ffffff; --series:#2a78d6; --grid:#eceef2;
-  --c-steps:#2a78d6; --c-cal:#eb6834; --c-ex:#1baf7a; --c-weight:#4a3aa7; --c-mood:#e87ba4; --c-sleep:#eda100; --c-anchor:#008300;
+  --c-steps:#2a78d6; --c-cal:#eb6834; --c-ex:#1baf7a; --c-weight:#4a3aa7; --c-mood:#e87ba4; --c-sleep:#eda100; --c-anchor:#008300; --c-hr:#e34948; --c-hrv:#1baf7a;
   --good:#0f7a3a; --bad:#c23a39; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
   --mood-lo:#c8501c; --mood-mid:#8a8984; --mood-hi:#2a78d6;
   --radius:16px; --shadow:0 1px 2px rgba(20,22,28,.04),0 4px 16px rgba(20,22,28,.05);
@@ -25,7 +25,7 @@
     --bg:#0f1013; --bg-tint:#16192a; --surface:#181a1f; --surface-2:#22252b; --border:#2b2e35;
     --text:#f4f5f7; --text-2:#c0c3ca; --muted:#8b8f98;
     --accent:#3987e5; --accent-2:#8079ec; --series:#3987e5; --grid:#26292f;
-    --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500; --c-anchor:#2f9e44;
+    --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500; --c-anchor:#2f9e44; --c-hr:#e66767; --c-hrv:#199e70;
     --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
     --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
     --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
@@ -36,7 +36,7 @@
   --bg:#0f1013; --bg-tint:#16192a; --surface:#181a1f; --surface-2:#22252b; --border:#2b2e35;
   --text:#f4f5f7; --text-2:#c0c3ca; --muted:#8b8f98;
   --accent:#3987e5; --accent-2:#8079ec; --series:#3987e5; --grid:#26292f;
-  --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500; --c-anchor:#2f9e44;
+  --c-steps:#3987e5; --c-cal:#d95926; --c-ex:#199e70; --c-weight:#9085e9; --c-mood:#d55181; --c-sleep:#c98500; --c-anchor:#2f9e44; --c-hr:#e66767; --c-hrv:#199e70;
   --good:#4cc27a; --bad:#e66767; --warn-bg:#3a2e10; --warn-ink:#f3d58b;
   --mood-lo:#f08a5d; --mood-mid:#9a998f; --mood-hi:#5a9eef;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
@@ -259,6 +259,22 @@ tbody tr:hover{background:var(--surface-2)}
 #update-bar{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:12px;background:var(--text);color:var(--surface);padding:9px 10px 9px 16px;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.25);font-size:14px;font-weight:550;max-width:calc(100% - 24px)}
 #update-bar .btn{background:var(--accent);border-color:var(--accent);color:#fff}
 #update-bar .del{color:inherit;opacity:.7}
+.m-custom{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 14px;box-shadow:var(--shadow)}
+.m-custom label{display:flex;align-items:center;gap:8px;margin:0;font-size:13px}
+.m-custom input{width:auto;padding:6px 8px}
+th.sortable{cursor:pointer;user-select:none;-webkit-user-select:none}
+th.sortable:hover{color:var(--text)}
+th.sortable::after{content:"↕";margin-left:5px;opacity:.3;font-size:11px}
+th.sortable[data-dir="asc"]::after{content:"▲";opacity:1;color:var(--accent)}
+th.sortable[data-dir="desc"]::after{content:"▼";opacity:1;color:var(--accent)}
+th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
+.hk{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.hk-i{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--surface);transition:background .15s,transform .12s}
+.hk-i:hover{background:var(--surface-2);transform:translateY(-1px)}
+.hk-i .k{font-size:12px;color:var(--text-2);font-weight:600;display:flex;align-items:center;gap:6px}
+.hk-i .k i{width:8px;height:8px;border-radius:2px;background:var(--c)}
+.hk-i .v{font-size:20px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.hk-i .v small{font-size:12px;color:var(--text-2);font-weight:550;margin-left:3px}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -338,6 +354,10 @@ tbody tr:hover{background:var(--surface-2)}
   </div>
   <div class="span-lbl" id="d-span-lbl"></div>
   <div class="tiles" id="d-tiles"></div>
+  <div class="card" id="hk-card" hidden>
+    <div class="card-h"><h2>Body &amp; recovery</h2><span class="muted small" id="hk-sub"></span></div>
+    <div class="hk" id="hk"></div>
+  </div>
   <div class="cols">
     <div class="card"><div class="card-h"><h2>Workouts</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-workouts"></div></div>
     <div class="card"><div class="card-h"><h2>Food</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-food"></div></div>
@@ -381,8 +401,15 @@ tbody tr:hover{background:var(--surface-2)}
     <button class="btn" id="m-back" title="Back to the dashboard (Esc)">← Dashboard</button>
     <div class="hello" id="m-title"></div>
     <select id="m-range" aria-label="Date range">
-      <option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="180">Last 6 months</option><option value="365">Last 12 months</option><option value="0">All time</option>
+      <option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="180">Last 6 months</option><option value="365">Last 12 months</option><option value="0">All time</option><option value="custom">Custom range…</option>
     </select>
+  </div>
+  <div class="m-custom" id="m-custom" hidden>
+    <label>From <input type="date" id="m-from"></label>
+    <label>To <input type="date" id="m-to"></label>
+    <div class="chips" id="m-quick" style="margin:0">
+      <button type="button" data-q="tm">This month</button><button type="button" data-q="lm">Last month</button><button type="button" data-q="ty">This year</button><button type="button" data-q="ly">Last year</button>
+    </div>
   </div>
   <div class="span-lbl" id="m-sub"></div>
   <div class="tiles m-stats" id="m-stats"></div>
@@ -589,7 +616,7 @@ tbody tr:hover{background:var(--surface-2)}
 
 <script>
 'use strict';
-const APP_VERSION = '1.4';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '1.6';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -906,7 +933,75 @@ async function importBuffer(name, buf) {
     readGarminJson(text, tally);
     return [garminJsonSummary(name, tally)];
   }
-  return importCsv(name, new TextDecoder('utf-8').decode(buf));
+  const text = new TextDecoder('utf-8').decode(buf);
+  if (/^\s*health-sync;apple-health/i.test(text.replace(/^\uFEFF/, ''))) return [impAppleHealth(name, text)];
+  return importCsv(name, text);
+}
+
+
+/* ---- Apple Health (text file saved by the iPhone "Health Sync" shortcut) ----
+   One sample per line, separated by semicolons:
+     steps;<date>;<value>          sleep;<start>;<end>;<stage>        weight;<date>;<value>;<unit>
+     restinghr / hrv / activecal / flights / water / vo2max / bodyfat;<date>;<value>
+     mindful;<start>;<end>
+   The shortcut covers the last few days each time, so each day it contains is replaced. */
+const HEALTH_EXTRA = {
+  restinghr: { key: 'restingHR', agg: 'avg' }, hrv: { key: 'hrv', agg: 'avg' }, activecal: { key: 'activeCal', agg: 'sum' },
+  flights: { key: 'flights', agg: 'sum' }, water: { key: 'water', agg: 'sum' }, vo2max: { key: 'vo2max', agg: 'avg' }, bodyfat: { key: 'bodyFat', agg: 'avg' },
+};
+function healthDate(s) {
+  s = String(s || '').trim();
+  if (!s) return null;
+  let d = new Date(s);
+  if (isNaN(d)) d = new Date(s.replace(/\s+at\s+/i, ' '));
+  return isNaN(d) ? null : d;
+}
+function impAppleHealth(name, text) {
+  const steps = {}, asleep = {}, inBed = {}, weight = {}, mindful = {}, extra = {};
+  let lines = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    const p = raw.split(';').map(x => x.trim());
+    const kind = (p[0] || '').toLowerCase().replace(/[\s_-]/g, '');
+    if (!kind || kind === 'healthsync') continue;
+    if (kind === 'sleep' || kind === 'mindful') {
+      const a = healthDate(p[1]), b = healthDate(p[2]);
+      if (!a || !b || b <= a) continue;
+      const mins = (b - a) / 60000;
+      if (kind === 'mindful') { const k = dateKey(a); mindful[k] = (mindful[k] || 0) + mins; lines++; continue; }
+      const k = dateKey(b), stage = (p[3] || '').toLowerCase();   // sleep counts for the day you wake up
+      if (/awake/.test(stage)) continue;
+      if (/in ?bed/.test(stage)) inBed[k] = (inBed[k] || 0) + mins; else asleep[k] = (asleep[k] || 0) + mins;
+      lines++; continue;
+    }
+    const when = healthDate(p[1]), v = num(p[2]);
+    if (!when || v == null) continue;
+    const k = dateKey(when);
+    if (kind === 'steps') { steps[k] = (steps[k] || 0) + v; lines++; }
+    else if (kind === 'weight') { if (v > 0) weight[k] = { v, unit: /kg/i.test(p[3] || '') ? 'kg' : 'lb' }; lines++; }
+    else if (HEALTH_EXTRA[kind]) { ((extra[kind] ||= {})[k] ||= []).push(kind === 'bodyfat' && v <= 1 ? v * 100 : v); lines++; }
+  }
+  const dates = new Set();
+  for (const [k, v] of Object.entries(steps)) { const d = day(k); if (d.stepsSource !== 'manual') { d.steps = Math.round(v); d.stepsSource = 'health'; } touch(k); dates.add(k); }
+  for (const k of new Set([...Object.keys(asleep), ...Object.keys(inBed)])) {
+    const mins = asleep[k] || inBed[k];
+    const d = day(k);
+    if (d.sleep?.source !== 'manual') d.sleep = { hours: Math.round(mins / 6) / 10, score: d.sleep?.score ?? null, source: 'health' };
+    touch(k); dates.add(k);
+  }
+  for (const [k, w] of Object.entries(weight)) { const d = day(k); if (d.weightSource !== 'manual') { d.weight = w.v; d.weightUnit = w.unit; d.weightSource = 'health'; } touch(k); dates.add(k); }
+  for (const [k, m] of Object.entries(mindful)) { const d = day(k); (d.health ||= {}).mindful = Math.round(m); touch(k); dates.add(k); }
+  for (const [kind, byDay] of Object.entries(extra)) {
+    const { key, agg } = HEALTH_EXTRA[kind];
+    for (const [k, vals] of Object.entries(byDay)) {
+      const v = agg === 'sum' ? vals.reduce((a, b) => a + b, 0) : avg(vals);
+      const d = day(k); (d.health ||= {})[key] = Math.round(v * 10) / 10; touch(k); dates.add(k);
+    }
+  }
+  if (!dates.size) return `${name}: skipped (the Apple Health file had no readable data${lines ? '' : ' — check the shortcut\'s Text step'})`;
+  importsDirty = true;
+  const got = [Object.keys(steps).length && 'steps', Object.keys(asleep).length + Object.keys(inBed).length && 'sleep', Object.keys(weight).length && 'weight', ...Object.keys(extra).map(x => HEALTH_METRICS[HEALTH_EXTRA[x].key].name.toLowerCase()), Object.keys(mindful).length && 'mindful minutes'].filter(Boolean);
+  data.imports.push({ id: uid(), at: new Date().toISOString(), name, what: 'days from Apple Health', count: dates.size, range: rangeText(dates) });
+  return `${name}: Apple Health — ${plural(dates.size, 'day')} (${got.join(', ')}) · ${rangeText(dates)}`;
 }
 
 /* ---- Garmin "Export Your Data" (full account export) ---- */
@@ -1278,8 +1373,8 @@ async function importPdf(name, buf) {
     d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(D.ex.map((e, i) => ({ id: `loseit|${key}|x${i}`, source: 'loseit', type: e.name, title: e.name, durationMin: e.mins, calories: e.cal })));
     if (Object.keys(D.nut).length) d.nutrition = { ...D.nut, source: 'loseit' }; else delete d.nutrition;
     // Garmin files and hand-entered values win over the copies Lose It shows.
-    if (D.weight && d.weightSource !== 'manual' && d.weightSource !== 'garmin') { d.weight = D.weight; d.weightUnit = D.unit; d.weightSource = 'loseit'; }
-    if (D.extra.steps != null && d.stepsSource !== 'manual' && d.stepsSource !== 'garmin') { d.steps = Math.round(D.extra.steps); d.stepsSource = 'loseit'; }
+    if (D.weight && d.weightSource !== 'manual' && d.weightSource !== 'garmin' && d.weightSource !== 'health') { d.weight = D.weight; d.weightUnit = D.unit; d.weightSource = 'loseit'; }
+    if (D.extra.steps != null && d.stepsSource !== 'manual' && d.stepsSource !== 'garmin' && d.stepsSource !== 'health') { d.steps = Math.round(D.extra.steps); d.stepsSource = 'loseit'; }
     if (D.extra.sleep != null && (!d.sleep || d.sleep.source === 'loseit')) d.sleep = { hours: Math.round(D.extra.sleep / 6) / 10, score: null, source: 'loseit' };
     touch(key); foods += D.food.length;
   }
@@ -1435,8 +1530,21 @@ function renderDash() {
   renderCharts();
   renderCloud();
   renderAnchorSummary();
+  renderHealthCard();
 }
-const srcName = s => ({ garmin: 'Garmin', strava: 'Strava', loseit: 'Lose It', manual: 'Manual' }[s] || s || '');
+function renderHealthCard() {
+  const n = settings.span, end = n > 1 ? addDays(dashDate, -1) : dashDate, ks = windowKeys(end, n);
+  const recent = windowKeys(dashDate, 60);
+  const items = Object.entries(HEALTH_METRICS).filter(([key]) => recent.some(k => healthValue(getDay(k), key) != null)).map(([key, M]) => {
+    const vals = ks.map(k => healthValue(getDay(k), key)).filter(v => v != null);
+    const v = avg(vals);
+    return `<div class="hk-i" data-metric="${key}" role="button" tabindex="0" style="--c:var(${M.c})"><div class="k"><i></i>${esc(M.name)}</div><div class="v">${v == null ? '—' : fmtN(v, M.dp)}${v != null && M.unit ? `<small>${esc(M.unit)}${M.sum && n > 1 ? '/day' : ''}</small>` : ''}</div></div>`;
+  });
+  $('#hk-card').hidden = !items.length;
+  $('#hk').innerHTML = items.join('');
+  $('#hk-sub').textContent = n > 1 ? `${n}-day average · from Apple Health` : `${fmtDay(dashDate, { month: 'short', day: 'numeric' })} · from Apple Health`;
+}
+const srcName = s => ({ garmin: 'Garmin', strava: 'Strava', loseit: 'Lose It', health: 'Apple Health', manual: 'Manual' }[s] || s || '');
 
 
 // Words from notes only count if they describe a feeling (emotional or physical). Tags always count.
@@ -1956,6 +2064,44 @@ async function deleteDay() {
   renderLog(); renderDash(); renderHist(); toast('Day deleted.');
 }
 
+/* ---- sortable tables (Daily log on detail pages, History) ---- */
+const TABLES = { m: { head: '#m-thead', body: '#m-tbody' }, h: { head: '#tab-hist thead', body: '#h-body' } };
+const sortState = {};
+function cellValue(tr, col) {
+  if (col === 0) return tr.dataset.k;                       // dates sort by their real date
+  const td = tr.children[col];
+  if (!td) return null;
+  const raw = (td.dataset.sort ?? td.textContent).trim();
+  if (!raw || raw === '—' || raw === '·') return td.textContent.trim() === '·' ? 0 : null;
+  if (raw === '✓') return 1;
+  const n = parseFloat(raw.replace(/,/g, ''));
+  return /^[-+]?\d[\d,]*(\.\d+)?/.test(raw) && !isNaN(n) ? n : raw.toLowerCase();
+}
+function sortTable(id) {
+  const t = TABLES[id], st = sortState[id];
+  $$(t.head + ' th').forEach((th, i) => { th.classList.add('sortable'); th.dataset.dir = st && st.col === i ? (st.dir > 0 ? 'asc' : 'desc') : ''; });
+  if (!st) return;
+  const body = $(t.body), rows = [...body.querySelectorAll('tr[data-k]')];
+  rows.sort((a, b) => {
+    const x = cellValue(a, st.col), y = cellValue(b, st.col);
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;                                 // blanks always last
+    if (y == null) return -1;
+    const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y));
+    return st.dir * c || (a.dataset.k < b.dataset.k ? 1 : -1);
+  });
+  rows.forEach(r => body.appendChild(r));
+}
+for (const [id, t] of Object.entries(TABLES)) {
+  $(t.head).addEventListener('click', e => {
+    const th = e.target.closest('th'); if (!th) return;
+    const col = [...th.parentNode.children].indexOf(th), st = sortState[id];
+    // First click: newest / highest first. Click again to reverse.
+    sortState[id] = { col, dir: st && st.col === col ? -st.dir : (col === 0 || !isNaN(parseFloat(String(cellValue($(t.body).querySelector('tr[data-k]') || document.createElement('tr'), col) ?? 0))) ? -1 : 1) };
+    sortTable(id);
+  });
+}
+
 /* ---- History ---- */
 function renderHist() {
   const n = +$('#h-range').value;
@@ -1964,8 +2110,9 @@ function renderHist() {
   $('#h-empty').hidden = !!keys.length;
   $('#h-body').innerHTML = keys.map(k => {
     const d = data.days[k], t = totals(d);
-    return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${anchorCount(d) + '/' + anchorCfg().names.length}</td><td>${d.feel?.mood ? MOODS[d.feel.mood - 1] : '—'}</td></tr>`;
+    return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${anchorCount(d) + '/' + anchorCfg().names.length}</td><td data-sort="${d.feel?.mood ?? ''}">${d.feel?.mood ? MOODS[d.feel.mood - 1] : '—'}</td></tr>`;
   }).join('');
+  sortTable('h');
 }
 
 /* ---- Import & Settings ---- */
@@ -1999,6 +2146,18 @@ const METRICS = {
   sleep:  { name: 'Sleep', c: '--c-sleep', unit: 'h', dp: 1, kind: 'bar' },
   anchor: { name: 'Daily anchors', c: '--c-anchor', unit: 'boxes', dp: 1, kind: 'bar' },
 };
+const HEALTH_METRICS = {
+  restingHR: { name: 'Resting heart rate', c: '--c-hr', unit: 'bpm', dp: 0, kind: 'line', lowerIsBetter: true },
+  hrv:       { name: 'Heart rate variability', c: '--c-hrv', unit: 'ms', dp: 0, kind: 'line' },
+  activeCal: { name: 'Active calories', c: '--c-cal', unit: 'cal', dp: 0, kind: 'bar', sum: true },
+  flights:   { name: 'Flights climbed', c: '--c-anchor', unit: 'flights', dp: 0, kind: 'bar', sum: true },
+  water:     { name: 'Water', c: '--c-steps', unit: 'fl oz', dp: 0, kind: 'bar', sum: true },
+  vo2max:    { name: 'VO₂ max', c: '--c-hr', unit: '', dp: 1, kind: 'line' },
+  bodyFat:   { name: 'Body fat', c: '--c-weight', unit: '%', dp: 1, kind: 'line', lowerIsBetter: true },
+  mindful:   { name: 'Mindful minutes', c: '--c-mood', unit: 'min', dp: 0, kind: 'bar', sum: true },
+};
+Object.assign(METRICS, HEALTH_METRICS);
+const healthValue = (d, key) => d?.health?.[key] ?? (key === 'restingHR' ? d?.restingHR ?? null : null);
 let metricKey = null;
 
 function weightUnit() { const w = latestWeight(todayKey()); return w ? w.unit : 'lb'; }
@@ -2013,6 +2172,7 @@ function metricValue(key, k, wUnit) {
     case 'mood': return d.feel?.mood ?? null;
     case 'sleep': return sleepHours(d);
     case 'anchor': return anchorCount(d);
+    default: return HEALTH_METRICS[key] ? healthValue(d, key) : null;
   }
   return null;
 }
@@ -2056,16 +2216,28 @@ function renderMetric() {
   if (!key) return;
   const wUnit = weightUnit();
   const unit = key === 'weight' ? wUnit : M.unit;
-  const end = dashDate;
-  let n = +$('#m-range').value;
+  let end = dashDate, n;
   const allKeys = Object.keys(data.days).sort();
-  if (!n) n = allKeys.length ? Math.max(7, Math.round((keyToDate(end) - keyToDate(allKeys[0])) / 864e5) + 1) : 30;
+  const custom = $('#m-range').value === 'custom';
+  $('#m-custom').hidden = !custom;
+  if (custom) {
+    let a = $('#m-from').value, b = $('#m-to').value;
+    if (!a || !b) { b = dashDate; a = addDays(b, -29); }
+    if (a > b) [a, b] = [b, a];
+    $('#m-from').value = a; $('#m-to').value = b;
+    end = b;
+    n = Math.round((keyToDate(b) - keyToDate(a)) / 864e5) + 1;
+  } else {
+    n = +$('#m-range').value;
+    if (!n) n = allKeys.length ? Math.max(7, Math.round((keyToDate(end) - keyToDate(allKeys[0])) / 864e5) + 1) : 30;
+  }
   const keys = windowKeys(end, n);
   const vals = keys.map(k => metricValue(key, k, wUnit));
   const have = vals.filter(v => v != null);
   const prevVals = windowKeys(addDays(keys[0], -1), n).map(k => metricValue(key, k, wUnit)).filter(v => v != null);
 
   $('#m-title').innerHTML = `<span class="sw" style="--c:var(${M.c})"></span>${esc(M.name)}`;
+  $('#m-sub').dataset.from = keys[0]; $('#m-sub').dataset.to = end;
   $('#m-sub').textContent = `${fmtDay(keys[0], { month: 'short', day: 'numeric', year: 'numeric' })} – ${fmtDay(end, { month: 'short', day: 'numeric', year: 'numeric' })} · ${plural(have.length, 'day')} with data`;
 
   // ---- stat tiles
@@ -2084,7 +2256,7 @@ function renderMetric() {
     M.sum ? st('Total', fmtN(have.reduce((x, y) => x + y, 0)), unit, `over ${plural(have.length, 'day')}`)
       : key === 'weight' ? st('Change', have.length > 1 ? `${have[have.length - 1] - have[0] > 0 ? '+' : ''}${fmtN(have[have.length - 1] - have[0], 1)}` : '—', have.length > 1 ? unit : '', 'first to last reading')
       : st('Days logged', String(have.length), `of ${n}`, `${Math.round(have.length / n * 100)}% of days`),
-    st('vs previous period', change == null ? '—' : `${change > 0 ? '+' : ''}${fmtN(change, 0)}%`, '', pa == null ? 'no earlier data' : `was ${f(pa)} ${unit}`),
+    st('vs previous period', change == null ? '—' : `${change > 0 ? '+' : ''}${fmtN(change, 0)}%`, '', pa == null ? 'no earlier data' : `was ${f(pa)} ${unit} the ${plural(n, 'day')} before`),
     st('Trend', slope == null ? '—' : `${slope > 0 ? '+' : ''}${fmtN(slope, M.dp || (Math.abs(slope) < 10 ? 1 : 0))}`, slope == null ? '' : unit + ' / week', slope == null ? 'needs more data' : Math.abs(slope) < 1e-9 ? 'flat' : slope > 0 ? 'going up' : 'going down'),
   ];
   $('#m-stats').innerHTML = tiles.join('');
@@ -2142,6 +2314,7 @@ function renderMetric() {
   $('#m-tbody').innerHTML = keys.map((k, i) => ({ k, i })).filter(r => vals[r.i] != null).reverse().map(({ k, i }) =>
     `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${f(vals[i])}</td><td>${f(roll[i])}</td>${cols.map(c => `<td>${c[1](getDay(k)) ?? '—'}</td>`).join('')}</tr>`).join('')
     || `<tr><td colspan="${3 + cols.length}" class="muted">No data in this period.</td></tr>`;
+  sortTable('m');
 }
 
 function metricColumns(key) {
@@ -2229,6 +2402,10 @@ function metricExtra(key, keys, vals, color, unit) {
     let streak = 0; for (const ws of [...weeks].reverse()) { if (weekTotal(ws) >= c.target) streak++; else break; }
     return ['Box by box', `${hbars(per.map(([nm, v]) => [nm, v, `${Math.round(v / keys.length * 100)}%`]), color, v => plural(v, 'day'))}
       <p class="small muted" style="margin:14px 0 0">Goal of ${c.target} met in <b>${met} of ${plural(weeks.length, 'full week')}</b>${streak ? ` · current streak: ${plural(streak, 'week')} 🔥` : ''}</p>`];
+  }
+  if (HEALTH_METRICS[key]) {
+    const srcs = new Set(D.map(d => d.health?.[key] != null ? 'Apple Health' : key === 'restingHR' && d.restingHR != null ? 'Garmin export' : null).filter(Boolean));
+    return ['Where this comes from', `<p class="small" style="margin:0">${srcs.size ? [...srcs].join(' and ') : 'No data yet'}. Apple Health gets it from Garmin Connect (or another app that writes to Health); the <b>Health Sync</b> shortcut on your iPhone copies it to your Drive Inbox each time it runs.</p>${have.length ? `<p class="small muted" style="margin:10px 0 0">Range in this period: ${fmtN(Math.min(...have), HEALTH_METRICS[key].dp)} – ${fmtN(Math.max(...have), HEALTH_METRICS[key].dp)} ${esc(unit)}</p>` : ''}`];
   }
   return ['Breakdown', none];
 }
@@ -2376,7 +2553,20 @@ $('#tab-dash').addEventListener('click', e => {
 });
 $('#tab-dash').addEventListener('keydown', e => { const el = e.target.closest('[data-metric]'); if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openMetric(el.dataset.metric); } });
 $('#m-back').onclick = backToDash;
-$('#m-range').onchange = () => { $('#m-range').dataset.set = '1'; renderMetric(); };
+$('#m-range').onchange = () => {
+  $('#m-range').dataset.set = '1';
+  // Starting a custom range: begin with whatever period was just on screen.
+  if ($('#m-range').value === 'custom' && !$('#m-from').value) { const kk = $('#m-sub').dataset.from; if (kk) { $('#m-from').value = kk; $('#m-to').value = $('#m-sub').dataset.to; } }
+  renderMetric();
+};
+['#m-from', '#m-to'].forEach(sel => $(sel).addEventListener('change', () => { if ($(sel).value) renderMetric(); }));
+$('#m-quick').onclick = e => {
+  const b = e.target.closest('[data-q]'); if (!b) return;
+  const t = keyToDate(todayKey()), y = t.getFullYear(), m = t.getMonth();
+  const r = { tm: [new Date(y, m, 1), t], lm: [new Date(y, m - 1, 1), new Date(y, m, 0)], ty: [new Date(y, 0, 1), t], ly: [new Date(y - 1, 0, 1), new Date(y - 1, 11, 31)] }[b.dataset.q];
+  $('#m-from').value = dateKey(r[0]); $('#m-to').value = dateKey(r[1]);
+  renderMetric();
+};
 $('#m-tbody').onclick = e => { const tr = e.target.closest('tr[data-k]'); if (!tr) return; dashDate = tr.dataset.k; backToDash(); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && metricKey && !e.target.closest?.('input, textarea, select')) backToDash(); });
 window.addEventListener('popstate', () => {
