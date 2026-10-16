@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.10** · October 16, 2026 · [Version history](#version-history)
+> **Version 1.11** · October 16, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -570,7 +570,7 @@ Once set up, this runs on its own in the background. You never export anything b
 | Data type | **Health Metrics** |
 | Metrics | **Step Count, Sleep Analysis, Resting Heart Rate, Active Energy, Flights Climbed, Dietary Energy, Protein, Carbohydrates, Total Fat**, plus **Weight & Body Mass, Heart Rate Variability, Water, VO2 Max, Body Fat Percentage, Mindful Minutes** if you like |
 | Export format | **JSON** |
-| Aggregation / Time grouping | **Day**. This matters: it gives daily totals with nothing double-counted. |
+| Aggregation / Time grouping | **Day**. This one really matters. With **Minutes** or **Hours**, Health Auto Export lumps your iPhone's and Garmin's steps into the same buckets and adds them together (e.g. 14,922 instead of 11,442). Health Sync ignores steps, active calories and flights from those files and says so in the Import tab. |
 | Date range | **Last 7 Days** (or "since last sync"). Days are replaced, never doubled. |
 | Sync cadence | **Every hour** (or every few hours) |
 
@@ -1053,9 +1053,17 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.10** |
+| **Your copies** | The Desktop folder name, like **Health Sync v1.11** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v1.11 (October 16, 2026)
+
+- **Fixed inflated steps from Health Auto Export.** Hourly or minute exports combine iPhone and Garmin samples and add them together (Oct 15 showed 14,922 instead of Apple's 11,442).
+  - Health Sync now ignores **steps, active calories and flights** from those files, and the Import tab explains why. Set the automation's **Aggregation to Day** to get them.
+  - Sleep, resting heart rate and other daily values from those files are still used.
+- **Nutrition from Health Auto Export JSON.** Lose It's per-meal entries in Apple Health are added up per day. This is used as the backup for days with no Lose It report.
+- Script: only the version number changed. Pasting it is optional.
 
 ### v1.10 (October 16, 2026)
 

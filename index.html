@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 1.10 -->
+<!-- Health Sync app · version 1.11 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -616,7 +616,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '1.10';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '1.11';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1034,7 +1034,13 @@ const HAE_METRICS = {
   step_count: 'steps', sleep_analysis: 'sleep', weight_body_mass: 'weight', body_mass: 'weight',
   resting_heart_rate: 'restingHR', heart_rate_variability: 'hrv', heart_rate_variability_sdnn: 'hrv', active_energy: 'activeCal', active_energy_burned: 'activeCal',
   flights_climbed: 'flights', dietary_water: 'water', water: 'water', vo2_max: 'vo2max', body_fat_percentage: 'bodyFat', mindful_minutes: 'mindful',
+  // Nutrition that Lose It writes into Apple Health (one entry per meal, added up per day)
+  dietary_energy: 'n:calories', protein: 'n:protein', carbohydrates: 'n:carbs', total_fat: 'n:fat', saturated_fat: 'n:satFat',
+  fiber: 'n:fiber', dietary_sugar: 'n:sugar', sodium: 'n:sodium', cholesterol: 'n:cholesterol',
 };
+// Steps, active calories and flights come from both the iPhone and Garmin. Only Apple's daily totals remove that
+// overlap; Health Auto Export's hourly/minute buckets add the two together, so those are not used.
+const DEDUPE_KEYS = new Set(['steps', 'activeCal', 'flights']);
 const SUM_KEYS = new Set(['steps', 'activeCal', 'flights', 'water', 'mindful']);
 // Convert to the units the app shows: calories, fl oz, %, minutes.
 function haeConvert(key, v, unit) {
@@ -1047,11 +1053,12 @@ function haeConvert(key, v, unit) {
   return v;
 }
 function impHaeJson(name, j) {
-  const days = {};
+  const days = {}, notDaily = new Set();
   const add = (k, key, v) => { if (!k || v == null || isNaN(v)) return; const e = (days[k] ||= {})[key] ||= []; e.push(v); };
   for (const m of j.data?.metrics || j.metrics || []) {
     const key = HAE_METRICS[String(m.name || '').toLowerCase()];
     if (!key) continue;
+    if (DEDUPE_KEYS.has(key) && (m.data || []).some(r => !/ 00:00(:00)?( |$)/.test(String(r.date || '')))) { notDaily.add(HEALTH_METRICS[key]?.name.toLowerCase() || key); continue; }
     for (const r of m.data || []) {
       if (key === 'sleep') {
         // Aggregated: totalSleep / asleep / core+deep+rem in hours. Raw: one stage per sample.
@@ -1067,11 +1074,12 @@ function impHaeJson(name, j) {
       }
       const v = num(r.qty ?? r.Avg ?? r.avg ?? r.value);
       if (v == null) continue;
-      add(haeDay(r.date || r.startDate), key, key === 'weight' ? v : haeConvert(key, v, m.units));
+      add(haeDay(r.date || r.startDate), key, key === 'weight' || key.startsWith('n:') ? v : haeConvert(key, v, m.units));
       if (key === 'weight') (days[haeDay(r.date || r.startDate)] ||= {}).weightUnit = /kg/i.test(m.units || '') ? 'kg' : 'lb';
     }
   }
-  return applyHae(name, days);
+  const res = applyHae(name, days, notDaily);
+  return res;
 }
 const HAE_COLS = [
   [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^(weight|body mass)/, 'weight'],
@@ -1098,7 +1106,7 @@ function impHaeCsv(label, headers, body) {
   }
   return applyHae(label, days);
 }
-function applyHae(name, days) {
+function applyHae(name, days, notDaily = new Set()) {
   const dates = new Set(), got = new Set();
   for (const [k, e] of Object.entries(days)) {
     const d = day(k);
@@ -1109,17 +1117,19 @@ function applyHae(name, days) {
     if (e.weight && d.weightSource !== 'manual') { d.weight = Math.round(e.weight[e.weight.length - 1] * 10) / 10; d.weightUnit = e.weightUnit || 'lb'; d.weightSource = 'health'; got.add('weight'); }
     for (const key of Object.keys(HEALTH_METRICS)) if (e[key]) { (d.health ||= {})[key] = Math.round(val(key) * 10) / 10; got.add(HEALTH_METRICS[key].name.toLowerCase()); }
     // Nutrition that Lose It wrote into Apple Health: a backup for days with no Lose It report (never mixed with food entries).
-    if (e['n:calories']?.[0] > 0) {
-      const n = { source: 'health', calories: Math.round(e['n:calories'][0]) };
-      for (const x of NUTRIENTS) if (e['n:' + x.key]) n[x.key] = Math.round(e['n:' + x.key][0] * 10) / 10;
+    const sumOf = a => a.reduce((x, y) => x + y, 0);
+    if (e['n:calories'] && sumOf(e['n:calories']) > 0) {
+      const n = { source: 'health', calories: Math.round(sumOf(e['n:calories'])) };
+      for (const x of NUTRIENTS) if (e['n:' + x.key]) n[x.key] = Math.round(sumOf(e['n:' + x.key]) * 10) / 10;
       d.healthFood = n; got.add('nutrition');
     }
     touch(k); dates.add(k);
   }
-  if (!dates.size) return `${name}: skipped (no Health Auto Export data recognised — send this file to get it supported)`;
+  const warn = notDaily.size ? ` — ⚠ ignored ${[...notDaily].join(', ')}: this file has hourly/minute data, which double-counts iPhone + Garmin. In Health Auto Export, set the automation's Aggregation to "Day".` : '';
+  if (!dates.size) return `${name}: skipped (no usable Health Auto Export data${warn || ' recognised'})`;
   importsDirty = true;
   data.imports.push({ id: uid(), at: new Date().toISOString(), name, what: 'days from Apple Health', count: dates.size, range: rangeText(dates) });
-  return `${name}: Apple Health (Health Auto Export) — ${plural(dates.size, 'day')} (${[...got].join(', ')}) · ${rangeText(dates)}`;
+  return `${name}: Apple Health (Health Auto Export) — ${plural(dates.size, 'day')} (${[...got].join(', ')}) · ${rangeText(dates)}${warn}`;
 }
 
 /* ---- Garmin "Export Your Data" (full account export) ---- */
