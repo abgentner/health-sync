@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.7 -->
+<!-- Health Sync app · version 2.8 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -340,6 +340,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .sw2{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px}
 .wt-set summary{cursor:pointer;list-style:none} .wt-set summary::-webkit-details-marker{display:none}
 .wt-set{grid-column:1/-1}
+.partial-note{margin:0 0 6px;padding:6px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);font-size:12.5px}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -747,7 +748,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.7';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.8';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1463,6 +1464,15 @@ function loseItFinal(d, k) {
   if (g) return Date.parse(g) >= dayEndsAt(k);
   return !!d?.food?.some(f => f.source === 'loseit');   // days imported before v2.7
 }
+// Food for a day is partial until its final Lose It report arrives (today always is).
+function foodPartial(d, k) {
+  if (!d || !k) return false;
+  const t = totals(d);
+  if (!t.hasFood) return false;
+  if (k >= todayKey()) return true;
+  if (t.fromHealth) return k >= addDays(todayKey(), -1);
+  return (d.food || []).some(f => f.source === 'loseit') && !loseItFinal(d, k);
+}
 function impLoseItFood(rows, find, name) {
   const c = { date: find(/^date/), name: find(/^name/), meal: find(/^meal/) || find(/^type$/), qty: find(/^quantity/), units: find(/^units?$/), cal: find(/^calories/),
     del: find(/^deleted/), fat: find(/^fat/), satFat: find(/^saturated fat/), protein: find(/^protein/), carbs: find(/^carbohydrates|^carbs/),
@@ -1792,7 +1802,7 @@ function dayTiles() {
   $('#d-span-lbl').textContent = fmtDay(dashDate, { weekday: 'long', month: 'long', day: 'numeric' });
   return [
     tile('steps', 'Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcName(d.stepsSource)) : 'none yet'),
-    tile('cal', 'Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
+    tile('cal', 'Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `${foodPartial(d, dashDate) ? '<b>so far</b> · ' : ''}P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
     tile('ex', 'Exercise', t.hasEx ? fmtN(t.exMin) : '—', t.hasEx ? 'min' : '', t.hasEx ? `${fmtN(t.burn)} cal burned` : 'no workouts'),
     (() => { const S = weightSeries(), t = trendOn(S, dashDate), r = trendRate(S, 30, dashDate);
       return t == null ? tile('weight', 'Weight', '—', '', '') : tile('weight', 'Weight · trend', fmtN(t, 1), S.unit, `${w ? `latest ${fmtN(w.value, 1)}` : ''}${r != null ? ` · ${r > 0 ? '+' : r < 0 ? '−' : ''}${fmtN(Math.abs(r), 1)}/wk` : ''}`); })(),
@@ -1855,14 +1865,15 @@ function renderDash() {
     fd.forEach(x => (meals[x.meal || 'Other'] ||= []).push(x));
     const order = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
     const names = Object.keys(meals).sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9));
-    $('#d-food').innerHTML = names.map(m => `<div class="li"><span class="n"><b>${esc(m)}</b></span><span class="x"><b>${fmtN(meals[m].reduce((s, x) => s + (x.calories || 0), 0))} cal</b></span></div>` +
+    const partialNote = foodPartial(d, dashDate) ? `<p class="partial-note">So far${dashDate >= todayKey() ? ' today' : ''} · Lose It's full report for this day arrives ${dashDate >= todayKey() ? 'tomorrow morning' : 'soon'}.</p>` : '';
+    $('#d-food').innerHTML = partialNote + names.map(m => `<div class="li"><span class="n"><b>${esc(m)}</b></span><span class="x"><b>${fmtN(meals[m].reduce((s, x) => s + (x.calories || 0), 0))} cal</b></span></div>` +
       meals[m].map(x => `<div class="li"><span class="n">${esc(x.name)}${x.qty ? ` <span class="muted small">${fmtN(x.qty, 2)} ${esc(x.units)}</span>` : ''}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${fmtN(x.calories)}</span></div>`).join('')).join('');
     const t = totals(d);
     if (t.hasNutr) $('#d-food').innerHTML += `<div class="sub-h" style="margin-top:16px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`;
   } else {
     const t = totals(d);
     $('#d-food').innerHTML = t.fromHealth
-      ? `<p class="muted small" style="margin:0 0 4px">No Lose It report for this day yet — these are the day's totals from Apple Health.</p><div class="sub-h" style="margin-top:12px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`
+      ? `<p class="muted small" style="margin:0 0 4px">No Lose It report for this day yet — these are the day's totals${foodPartial(d, dashDate) ? ' so far' : ''} from Apple Health.</p><div class="sub-h" style="margin-top:12px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`
       : '<p class="muted small" style="margin:0">No food on this day.</p>';
   }
 
@@ -2538,7 +2549,7 @@ function dayDigest(k) {
   const r = n => n == null ? null : Math.round(n * 10) / 10;
   return {
     date: k, weekday: keyToDate(k).toLocaleDateString('en-US', { weekday: 'short' }),
-    food_logged: t.hasFood ? (t.fromHealth ? 'totals only (from Apple Health)' : 'full Lose It log') : 'no',
+    food_logged: t.hasFood ? (foodPartial(d, k) ? 'partial so far (the final report has not arrived)' : t.fromHealth ? 'totals only (from Apple Health)' : 'full Lose It log') : 'no',
     calories: t.hasFood ? Math.round(t.calIn) : null,
     nutrients: t.hasNutr ? Object.fromEntries(NUTRIENTS.map(n => [`${n.key}_${n.u}`, r(t[n.key])])) : null,
     calories_by_meal: Object.keys(meals).length ? meals : null,
@@ -3303,7 +3314,7 @@ function renderMetric() {
 
 function metricColumns(key) {
   switch (key) {
-    case 'cal': return [['Source', d => { const t = totals(d); return t.fromHealth ? 'Apple Health totals' : esc([...new Set((d.food || []).map(f => srcName(f.source)))].join(', ')) || '—'; }], ['Protein g', d => fmtN(totals(d).protein)], ['Carbs g', d => fmtN(totals(d).carbs)], ['Fat g', d => fmtN(totals(d).fat)], ['Fiber g', d => fmtN(totals(d).fiber)], ['Sugars g', d => fmtN(totals(d).sugar)], ['Sodium mg', d => fmtN(totals(d).sodium)]];
+    case 'cal': return [['Source', d => { const t = totals(d), p = foodPartial(d, d._k) ? ' (partial)' : ''; return (t.fromHealth ? 'Apple Health totals' : esc([...new Set((d.food || []).map(f => srcName(f.source)))].join(', ')) || '—') + p; }], ['Protein g', d => fmtN(totals(d).protein)], ['Carbs g', d => fmtN(totals(d).carbs)], ['Fat g', d => fmtN(totals(d).fat)], ['Fiber g', d => fmtN(totals(d).fiber)], ['Sugars g', d => fmtN(totals(d).sugar)], ['Sodium mg', d => fmtN(totals(d).sodium)]];
     case 'ex': return [['Workouts', d => esc((d.workouts || []).map(w => w.title || w.type).join(', ')) || '—'], ['Cal burned', d => totals(d).hasEx ? fmtN(totals(d).burn) : '—']];
     case 'mood': return [['Energy', d => d.feel?.energy ?? '—'], ['Stress', d => d.feel?.stress ?? '—'], ['Tags', d => esc((d.feel?.tags || []).join(', ')) || '—']];
     case 'sleep': return [['Score', d => d.sleep?.score ?? '—'], ['Source', d => esc(srcName(d.sleep?.source))]];

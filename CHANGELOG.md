@@ -7,9 +7,19 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.7** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.8** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.8 (October 19, 2026)
+
+- **Partial days are marked.** Until a day's final Lose It report arrives (always the case for today), its food is labelled:
+  - **"So far today"** on the Food card
+  - **"so far"** on the Calories tile
+  - **(partial)** in the Calories page's Source column
+  - partial in what the Coach is told
+- Regression tests: 64 checks.
+- Script: only the version number changed. Pasting it is optional.
 
 ### v2.7 (October 19, 2026)
 
