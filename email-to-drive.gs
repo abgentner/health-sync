@@ -1,6 +1,6 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 1.12
+ * Version 2.3
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
@@ -9,7 +9,8 @@
  * into Google Drive › Health Sync › Inbox.
  *
  * It can also RECEIVE Apple Health data sent from your iPhone (Health Auto Export's
- * REST API automation, or a Shortcut) once deployed as a web app — see doPost below. The Health Sync app imports them the
+ * REST API automation, or a Shortcut) once deployed as a web app — see doPost below —
+ * and EMAIL you the Coach's weekly review when the Health Sync app asks it to. The Health Sync app imports them the
  * next time you open it.
  *
  * Each email is labelled "health-sync-saved" in Gmail once its attachments
@@ -18,14 +19,14 @@
  * Your Strava keys are kept in this project's Script Properties (only you can
  * see them), never in this code.
  *
- * Setup: see README.md, Step 10 (emails) and Step 12 (Strava).
+ * Setup: see SETUP.md, Step 9 (emails), Step 10 (Strava) and Step 12c (Coach email).
  */
 
 // Which emails to look for. Lose It sends its reports from donotreply@loseit.com.
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '1.12';   // printed at the start of every run
+const SCRIPT_VERSION = '2.3';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -47,11 +48,11 @@ function setup() {
 /** What the hourly timer runs. */
 function hourly() {
   console.log('Health Sync script v' + SCRIPT_VERSION);
-  try {
-    saveHealthReports();
-  } finally {
-    syncStrava();
-  }
+  const errors = {};
+  try { saveHealthReports(); } catch (e) { errors.email = String(e.message || e); console.error(e); }
+  try { syncStrava(); } catch (e) { errors.strava = String(e.message || e); console.error(e); }
+  try { checkSources_(errors); } catch (e) { console.error(e); }
+  if (errors.email || errors.strava) throw new Error(Object.values(errors).join(' | '));   // still shows as Failed in Executions
 }
 
 /** Turns the hourly check off. */
@@ -76,6 +77,7 @@ function saveHealthReports() {
         if (!FILE_TYPES.test(att.getName())) return;
         folder.createFile(att.copyBlob()).setName(`${stamp} ${att.getName()}`);
         saved++;
+        if (/loseit/i.test(msg.getFrom())) props_().setProperty('LAST_LOSEIT', String(msg.getDate().getTime()));
       });
     });
     thread.addLabel(label);
@@ -90,7 +92,7 @@ const props_ = () => PropertiesService.getScriptProperties();
 /** Step 1: prints the link you open to let this script read your Strava activities. */
 function stravaLink() {
   const id = (props_().getProperty('STRAVA_CLIENT_ID') || '').trim();
-  if (!id) throw new Error('Add STRAVA_CLIENT_ID in Project Settings › Script Properties first (README Step 12).');
+  if (!id) throw new Error('Add STRAVA_CLIENT_ID in Project Settings › Script Properties first (SETUP.md Step 10).');
   const url = 'https://www.strava.com/oauth/authorize?client_id=' + encodeURIComponent(id) +
     '&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=activity:read_all';
   console.log('Copy this link into your browser, click Authorize, then copy the whole address of the page you land on:\n\n' + url);
@@ -105,7 +107,7 @@ function stravaConnect() {
   if (m) code = m[1];
   if (!code) {
     if (p.getProperty('STRAVA_REFRESH')) { console.log('Already connected to Strava. Nothing to do: run setup or stravaBackfill.'); return; }
-    throw new Error('Add STRAVA_CODE in Script Properties first (README Step 12).');
+    throw new Error('Add STRAVA_CODE in Script Properties first (SETUP.md Step 10).');
   }
   let t;
   try {
@@ -167,6 +169,7 @@ function syncStrava() {
   const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmm');
   inboxFolder_().createFile(`${stamp} strava.json`, JSON.stringify({ source: 'strava', activities }), 'application/json');
   p.setProperty('STRAVA_SEEN', JSON.stringify(seen.concat(fresh.map(a => a.id)).slice(-300)));
+  p.setProperty('STRAVA_LAST_NEW', new Date().toISOString());
   console.log(`Strava: saved ${activities.length} new activit${activities.length === 1 ? 'y' : 'ies'}.`);
 }
 
@@ -178,7 +181,7 @@ function syncStrava() {
  */
 function stravaBackfill() {
   const token = stravaAccess_();
-  if (!token) throw new Error('Connect Strava first: run stravaLink, then stravaConnect (README Step 12d).');
+  if (!token) throw new Error('Connect Strava first: run stravaLink, then stravaConnect (SETUP.md Step 10d).');
   const p = props_();
   let all = [], page = 1, batch;
   do {
@@ -238,7 +241,7 @@ function stravaGet_(path, token) {
 }
 
 /* ================== Receiving Apple Health data ================== */
-// Deploy this project as a Web app (README Step 13-1b). Your iPhone then sends data to
+// Deploy this project as a Web app (SETUP.md Step 11a-2). Your iPhone then sends data to
 //   <web app address>?key=<your key>
 // and each delivery is saved into Health Sync › Inbox for the app to import.
 
@@ -251,7 +254,7 @@ function healthAddress() {
   try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
   console.log(url
     ? 'Health Sync script v' + SCRIPT_VERSION + '\nGive Health Auto Export this address (copy all of it):\n\n' + url + '?key=' + key
-    : 'Your key is: ' + key + '\nDeploy the script as a Web app first (README Step 13-1b), then run healthAddress again to get the full address.');
+    : 'Your key is: ' + key + '\nDeploy the script as a Web app first (SETUP.md Step 11a-2), then run healthAddress again to get the full address.');
 }
 
 function doPost(e) {
@@ -260,15 +263,69 @@ function doPost(e) {
   if (!key || !e || !e.parameter || e.parameter.key !== key) return reply({ ok: false, error: 'wrong or missing key' });
   const body = e.postData && e.postData.contents;
   if (!body) return reply({ ok: false, error: 'no data received' });
+  // The Health Sync app asking for a review email (sent only to you, the owner of this script).
+  let msg = null;
+  try { msg = JSON.parse(body); } catch (err) {}
+  if (msg && msg.action === 'email') {
+    MailApp.sendEmail({ to: Session.getEffectiveUser().getEmail(), subject: String(msg.subject || 'Health Sync review').slice(0, 200), htmlBody: String(msg.html || ''), name: 'Health Sync' });
+    return reply({ ok: true, emailed: true });
+  }
   const isJson = /^\s*[{[]/.test(body);
   const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmmss');
   inboxFolder_().createFile(`${stamp} apple-health.${isJson ? 'json' : 'txt'}`, body, isJson ? 'application/json' : 'text/plain');
   return reply({ ok: true, saved: body.length });
 }
 
+/** Run once after pasting v2.0: lets the script send email, and sends you a test message. */
+function emailTest() {
+  MailApp.sendEmail({ to: Session.getEffectiveUser().getEmail(), subject: 'Health Sync: test email', htmlBody: '<p>Email from your Health Sync script works. Weekly Coach reviews will arrive like this.</p>', name: 'Health Sync' });
+  console.log('Test email sent to ' + Session.getEffectiveUser().getEmail());
+}
+
 /** Lets you check the address in a browser: it should say Health Sync is listening. */
 function doGet() {
   return ContentService.createTextOutput('Health Sync is listening (script v' + SCRIPT_VERSION + '). Send data with POST.');
+}
+
+/* ======================== Data health check ======================== */
+// Every hour: note when each source last delivered, save it as Health Sync › health-sync-status.json
+// (the app shows it), and email you once a day if something has stopped.
+const LATE_HOURS = 36;
+function checkSources_(errors) {
+  const p = props_(), now = Date.now(), hours = t => t ? Math.round((now - t) / 36e5) : null;
+  const loseIt = Number(p.getProperty('LAST_LOSEIT')) || null;
+  let hae = null, haeSize = null, haeName = '';
+  const it = DriveApp.searchFolders("title contains 'Auto Export' and trashed = false");
+  while (it.hasNext()) {
+    const walk = (f, depth) => {
+      const files = f.getFiles();
+      while (files.hasNext()) { const x = files.next(), t = x.getLastUpdated().getTime(); if (!hae || t > hae) { hae = t; haeSize = x.getSize(); haeName = x.getName(); } }
+      if (depth < 3) { const subs = f.getFolders(); while (subs.hasNext()) walk(subs.next(), depth + 1); }
+    };
+    walk(it.next(), 1);
+  }
+  const status = {
+    checkedAt: new Date(now).toISOString(), scriptVersion: SCRIPT_VERSION,
+    loseIt: { lastAt: loseIt ? new Date(loseIt).toISOString() : null, hoursAgo: hours(loseIt), error: errors.email || null },
+    appleHealth: { lastAt: hae ? new Date(hae).toISOString() : null, hoursAgo: hours(hae), file: haeName, sizeKB: haeSize != null ? Math.round(haeSize / 1024) : null, minuteData: haeSize != null && haeSize > 400 * 1024 },
+    strava: { connected: !!p.getProperty('STRAVA_REFRESH'), lastNewAt: p.getProperty('STRAVA_LAST_NEW') || null, error: errors.strava || null },
+  };
+  const root = inboxFolder_().getParents().next();
+  const old = root.getFilesByName('health-sync-status.json');
+  if (old.hasNext()) old.next().setContent(JSON.stringify(status)); else root.createFile('health-sync-status.json', JSON.stringify(status), 'application/json');
+
+  const problems = [];
+  if (status.loseIt.lastAt && status.loseIt.hoursAgo > LATE_HOURS) problems.push(['loseit', `No Lose It report email in ${status.loseIt.hoursAgo} hours. Check that Lose It is still emailing daily reports to this Gmail.`]);
+  if (status.loseIt.error) problems.push(['email', `Saving Lose It emails failed: ${status.loseIt.error}`]);
+  if (status.appleHealth.lastAt && status.appleHealth.hoursAgo > LATE_HOURS) problems.push(['hae', `Health Auto Export hasn't updated in ${status.appleHealth.hoursAgo} hours. Open it on your iPhone and check the automation is on (and Background App Refresh is allowed).`]);
+  if (status.appleHealth.minuteData) problems.push(['haemin', `Health Auto Export is sending minute-by-minute data (${status.appleHealth.sizeKB} KB). Steps, active calories and flights are being ignored. Set the automation's Time Grouping back to Day.`]);
+  if (status.strava.error) problems.push(['strava', `Strava sync failed: ${status.strava.error}. Run stravaCheck in the script for details.`]);
+  for (const [k, msg] of problems) {
+    const last = Number(p.getProperty('ALERT_' + k)) || 0;
+    if (now - last < 24 * 36e5) continue;   // at most one email per problem per day
+    MailApp.sendEmail({ to: Session.getEffectiveUser().getEmail(), subject: 'Health Sync: data problem', htmlBody: `<p>${msg}</p><p style="color:#666;font-size:13px">Health Sync checks this every hour and emails at most once a day per problem.</p>`, name: 'Health Sync' });
+    p.setProperty('ALERT_' + k, String(now));
+  }
 }
 
 /* ============================ Helpers ============================ */

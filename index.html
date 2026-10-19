@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.2 -->
+<!-- Health Sync app · version 2.3 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -305,6 +305,14 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .rv-row summary:hover{background:var(--surface-2)}
 .rv-body{padding:4px 16px 16px}
 .rv-inc textarea{width:100%}
+.health-chip{margin-left:auto;border:0;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;background:var(--warn-bg);color:var(--warn-ink)}
+.health-chip.bad{background:color-mix(in oklab,var(--bad) 15%,var(--surface));color:var(--bad)}
+.health-chip:not([hidden])+.status{margin-left:0}
+.dh{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border)}
+.dh:first-child{border-top:0}
+.dh i{flex:none;width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--muted)}
+.dh i.ok{background:var(--good)} .dh i.warn{background:#d79a00} .dh i.bad{background:var(--bad)}
+.dh b{font-weight:600} .dh .fix{font-size:13px;color:var(--text-2);margin-top:2px}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -331,9 +339,9 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <h1>Health Sync</h1>
     <p>Workouts, steps, food, weight and feelings in one place, saved to your Google Drive.</p>
     <div class="stack">
-      <div id="w-file" class="notice" hidden>This page was opened from a file on your computer. Google sign-in only works from the app's web address (for example <b>https://yourname.github.io/health-sync/</b>). See README.md, Step 7.</div>
+      <div id="w-file" class="notice" hidden>This page was opened from a file on your computer. Google sign-in only works from the app's web address (for example <b>https://yourname.github.io/health-sync/</b>). See SETUP.md, Step 7.</div>
       <div id="w-noid" hidden class="stack">
-        <div class="notice">No Google Client ID is set yet. Add it to <b>config.js</b> (README.md, Step 6), or paste it here to use it in this browser only.</div>
+        <div class="notice">No Google Client ID is set yet. Add it to <b>config.js</b> (SETUP.md, Step 6), or paste it here to use it in this browser only.</div>
         <div><label for="w-id">Google Client ID</label><input id="w-id" type="text" placeholder="1234-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></div>
         <button class="btn" id="w-saveid">Save Client ID</button>
       </div>
@@ -350,6 +358,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   <div class="wrap">
     <div class="hdr">
       <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a78d6"/><stop offset="1" stop-color="#5b54d6"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lg)"/><path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Health Sync</div>
+      <button class="health-chip" id="hc" hidden title="A data source is late — open Import for details"></button>
       <div class="status" title=""><span class="dot" id="st-dot"></span><span class="lbl" id="st-lbl">Ready</span></div>
       <button class="btn small" id="btn-sync" title="Reload data and check the Drive Inbox">Sync</button>
     </div>
@@ -476,7 +485,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   <div class="span-lbl" id="coach-progress" hidden></div>
   <div class="card" id="coach-setup" hidden>
     <div class="card-h"><h2>Set up the coach</h2></div>
-    <p class="small" style="margin-top:0">Weekly reviews are written by Claude. Add your Anthropic API key in <b>Settings › Coach</b> (README Step 14). Reviews then appear here every Monday, and the weeks since September are filled in automatically.</p>
+    <p class="small" style="margin-top:0">Weekly reviews are written by Claude. Add your Anthropic API key in <b>Settings › Coach</b> (SETUP.md Step 12). Reviews then appear here every Monday, and the weeks since September are filled in automatically.</p>
     <button class="btn small" id="coach-gosettings">Open Settings</button>
   </div>
   <div id="coach-latest"></div>
@@ -601,6 +610,10 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <!-- Import -->
 <section class="tab" id="tab-imp" hidden>
+  <div class="card" id="dh-card">
+    <div class="card-h"><h2>Data health</h2><span class="muted small" id="dh-sub"></span></div>
+    <div class="list" id="dh-list"></div>
+  </div>
   <div class="card" id="imp-drive">
     <div class="card-h"><h2>Google Drive Inbox</h2></div>
     <p class="small" style="margin-top:0">Drop your Lose It and Garmin export files (Lose It Daily Report PDFs, CSV or ZIP) into <b>Health Sync › Inbox</b> in Google Drive. The app imports them every time it opens, then moves them to <b>Processed</b>. It also picks up new files from the <b>Health Auto Export</b> folder automatically (and leaves those where they are).</p>
@@ -706,7 +719,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.2';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.3';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -963,6 +976,11 @@ const Drive = {
     if (f.mimeType.startsWith('application/vnd.google-apps')) throw new Error('is a Google Doc/Slides file, not a spreadsheet export');
     const r = await this.api(`files/${f.id}?alt=media`);
     return { name: f.name, buf: await r.arrayBuffer() };
+  },
+  async scriptStatus() {
+    const f = await this.list(`name='health-sync-status.json' and '${this.ids.root}' in parents and trashed=false`);
+    if (!f.length) return null;
+    try { return await (await this.api(`files/${f[0].id}?alt=media`)).json(); } catch { return null; }
   },
   async moveToProcessed(f) {
     await this.api(`files/${f.id}?addParents=${this.ids.processed}&removeParents=${this.ids.inbox}&fields=id`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -1681,6 +1699,7 @@ const charts = {};
 
 function render() {
   if (metricKey) renderMetric();
+  renderHealth();
   renderCoach(); renderCoachSettings();
   renderDash(); renderLog(); renderHist(); renderImports(); renderSettings(); if (!planEditing) renderPlan();
 }
@@ -2787,6 +2806,55 @@ async function saveCoachSettings() {
   if (!coachDirty) { toast('Coach settings saved.'); renderCoachSettings(); renderCoach(); autoReviews(); }
 }
 
+
+/* ================= data health ================= */
+let scriptStat = null;
+async function loadHealth() {
+  if (store === Drive) { try { scriptStat = await Drive.scriptStatus(); } catch { scriptStat = null; } }
+  renderHealth();
+}
+function healthRows() {
+  const H = h => h == null ? 'never' : h < 1 ? 'under an hour ago' : h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+  const st = scriptStat, rows = [];
+  const since = iso => iso ? Math.round((Date.now() - Date.parse(iso)) / 36e5) : null;
+  const lastImport = re => { const x = (data.imports || []).filter(i => re.test(i.what || '')).map(i => i.at).sort().pop(); return x || null; };
+  if (store !== Drive) return [['gray', 'This computer only', 'Data health checks need Google Drive mode.', '']];
+  if (!st) rows.push(['warn', 'Google script', 'No status yet from your script.', 'Paste script v2.3 or later into script.google.com and run setup once (README › Updating the app).']);
+  else {
+    const h = since(st.checkedAt);
+    rows.push([h > 3 ? 'bad' : 'ok', 'Google script', `Last ran ${H(h)} · v${st.scriptVersion}`, h > 3 ? 'It should run every hour. In script.google.com › Triggers, check the hourly trigger exists; run setup to recreate it.' : '']);
+    const l = st.loseIt;
+    rows.push([l.error ? 'bad' : !l.lastAt ? 'gray' : l.hoursAgo > 72 ? 'bad' : l.hoursAgo > 36 ? 'warn' : 'ok', 'Lose It report',
+      l.lastAt ? `Last email ${H(l.hoursAgo)}` : 'No report email seen yet (tracking starts with script v2.3)', l.error ? `Saving emails failed: ${l.error}` : l.hoursAgo > 36 ? 'Check that Lose It is still emailing daily reports to your Gmail (donotreply@loseit.com).' : '']);
+    const a = st.appleHealth;
+    rows.push([a.minuteData ? 'warn' : !a.lastAt ? 'gray' : a.hoursAgo > 72 ? 'bad' : a.hoursAgo > 36 ? 'warn' : 'ok', 'Apple Health (Health Auto Export)',
+      a.lastAt ? `Updated ${H(a.hoursAgo)} · ${a.sizeKB} KB` : 'No Health Auto Export folder found',
+      a.minuteData ? 'The file is minute-by-minute (too big). Set the automation’s Time Grouping to Day — steps, active calories and flights are ignored until then.' : a.hoursAgo > 36 ? 'Open Health Auto Export on your iPhone: check the automation is on, and Settings › General › Background App Refresh is on for it.' : '']);
+    const s = st.strava;
+    rows.push([s.error ? 'bad' : s.connected ? 'ok' : 'gray', 'Strava', s.connected ? `Connected${s.lastNewAt ? ` · last new workout saved ${H(since(s.lastNewAt))}` : ''}` : 'Not connected', s.error ? `Sync failed: ${s.error} — run stravaCheck in the script.` : '']);
+  }
+  const cc = coachCfg();
+  if (cc.apiKey) {
+    const lastMon = addDays(weekStart(todayKey()), -7), r = reviews()['week:' + lastMon];
+    const late = !r && todayKey() >= addDays(lastMon, 9);
+    rows.push([late ? 'warn' : 'ok', 'Coach', r ? `Last weekly review: week of ${fmtRange(r.start, r.end)}` : `Week of ${fmtRange(lastMon, addDays(lastMon, 6))}: ${late ? 'not written yet' : 'due once Sunday’s data is in'}`, late ? 'Open the Coach tab to see why (missing data, or an API key/credit problem).' : '']);
+  }
+  const li = lastImport(/Lose It|Apple Health|Strava|Garmin/);
+  rows.push(['gray', 'Last import into the app', li ? new Date(li).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'none yet', '']);
+  return rows;
+}
+function renderHealth() {
+  if (!$('#dh-list')) return;
+  const rows = healthRows();
+  $('#dh-list').innerHTML = rows.map(([c, name, line, fix]) => `<div class="dh"><i class="${c}"></i><div><b>${esc(name)}</b> <span class="muted small">${esc(line)}</span>${fix ? `<div class="fix">${esc(fix)}</div>` : ''}</div></div>`).join('');
+  $('#dh-sub').textContent = scriptStat ? `checked ${new Date(scriptStat.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '';
+  const bad = rows.filter(r => r[0] === 'bad').length, warn = rows.filter(r => r[0] === 'warn').length;
+  const hc = $('#hc');
+  hc.hidden = !(bad || warn);
+  hc.className = 'health-chip' + (bad ? ' bad' : '');
+  hc.textContent = `⚠ ${plural(bad + warn, 'data issue')}`;
+}
+
 /* ================= metric details ================= */
 const METRICS = {
   steps:  { name: 'Steps', c: '--c-steps', unit: 'steps', dp: 0, kind: 'bar', sum: true },
@@ -3079,6 +3147,7 @@ async function syncNow() {
     setStatus('Up to date');
     render();
     autoReviews().catch(e => toast(e.message, 8000));
+    loadHealth();
   });
 }
 
@@ -3139,6 +3208,7 @@ async function startApp(kind) {
     if (n) { render(); toast(`Imported ${n} new file${n > 1 ? 's' : ''} from your Drive Inbox.`); }
   }
   autoReviews().catch(e => toast(e.message, 8000));
+  loadHealth();
   if (location.hash === '#coach') goTab('coach');
 }
 
@@ -3375,6 +3445,8 @@ $('#tab-coach').addEventListener('click', async e => {
     else if (t.dataset.delrev) { if (!confirm('Delete this review?')) return; const k = t.dataset.delrev; reviews()[k] = { key: k, deleted: true, updatedAt: new Date().toISOString() }; coachDirty = true; await savePersist(); renderCoach(); }
   } catch (err) { toast(err.message, 8000); }
 });
+
+$('#hc').onclick = () => goTab('imp');
 
 boot();
 checkForUpdate();
