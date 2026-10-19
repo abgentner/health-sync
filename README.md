@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.5** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.7** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -38,6 +38,8 @@ There's nothing to do. Open the app when you like:
 2. **Yesterday is complete**; today usually isn't, because most sources send a day's totals the next morning. That's why averages always end yesterday.
 3. **Log how you feel** in **Log today** (mood, energy, stress, tags, notes), and override an anchor box if the data got it wrong.
 4. **Mondays:** the Coach writes last week's review and emails it to you.
+
+**Lose It sends two kinds of report:** a **daily** report each morning (yesterday, complete) and a **weekly** report on Mondays, which includes a *partial* today. A day only counts as final once a report sent **after that day ended** has arrived, and an older report never overwrites a newer one.
 
 **Re-importing never doubles anything.** A newer report for the same day replaces the old one, the same workout from Garmin and Strava is kept once, and anything you type in by hand is never overwritten.
 

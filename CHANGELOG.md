@@ -7,9 +7,23 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.5** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.7** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.7 (October 19, 2026)
+
+- **Lose It weekly reports handled correctly.** The Monday weekly report includes a partial "today", and the app now uses each report's **send time**:
+  - a day is final only once a report sent **after that day ended** arrives, so a 10:29 am snapshot of today doesn't count as the whole day
+  - a report never overwrites a day with an **older** report's food
+  - the Import tab notes when a report included a partial day
+- Regression tests: 62 checks.
+- Script: only the version number changed. Pasting it is optional.
+
+### v2.6 (October 19, 2026)
+
+- **Source tags:** every food item on the Dashboard and in Log today shows where it came from (Lose It, Apple Health, Strava, Manual). The Calories detail page's Daily log has a **Source** column (Lose It, Apple Health totals, Manual).
+- Script: only the version number changed. Pasting it is optional.
 
 ### v2.5 (October 19, 2026)
 

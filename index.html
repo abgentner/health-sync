@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.5 -->
+<!-- Health Sync app · version 2.7 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -747,7 +747,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.5';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.7';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1369,7 +1369,7 @@ function importCsv(name, text, parent) {
   }
   if (has('activity type') && !has('date')) return [`${label}: skipped (this is Garmin's monthly Activities report — counts only. Use the activity list at connect.garmin.com/modern/activities › Export CSV instead)`];
   if (has('activity type')) res = impGarminActivities(body);
-  else if ((has('meal') || (has('type') && find(/^protein|^fat/))) && find(/^calories/) && find(/^name/)) res = impLoseItFood(body, find);
+  else if ((has('meal') || (has('type') && find(/^protein|^fat/))) && find(/^calories/) && find(/^name/)) res = impLoseItFood(body, find, name);
   else if (/exercise/.test(fn) && find(/^name/) && find(/calories/)) res = impLoseItExercise(body, find);
   else if (/sleep/.test(fn) || find(/sleep/)) res = impSleep(body, headers, find);
   else if (find(/weight/) && !find(/^steps|steps$/)) res = impWeight(body, headers, find, fn);
@@ -1442,7 +1442,28 @@ function impStrava(name, j) {
   return `${name}: ${added} Strava activit${added === 1 ? 'y' : 'ies'}${dup ? `, ${dup} already in from Garmin` : ''} (${rangeText(dates)})`;
 }
 
-function impLoseItFood(rows, find) {
+// When a Lose It report was SENT: the script names files "2026-10-19 1029 …" from the email's time.
+// Files without that stamp (dragged in by hand) count as sent now.
+function reportSentAt(name) {
+  const m = String(name || '').match(/(\d{4})-(\d{2})-(\d{2}) (\d{2})(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : Date.now();
+}
+const dayEndsAt = k => { const d = keyToDate(k); d.setDate(d.getDate() + 1); return d.getTime(); };
+// Should a report sent at `sent` replace this day's Lose It food? Never with an older report than the one we have.
+function takeLoseItDay(d, k, sent) {
+  if (d.loseItGen && sent < Date.parse(d.loseItGen)) return false;
+  d.loseItGen = new Date(sent).toISOString();
+  // The day is final only if the report was sent after the day ended (a Monday weekly report includes a partial "today").
+  if (sent >= dayEndsAt(k)) d.loseItAt = d.loseItGen; else delete d.loseItAt;
+  return true;
+}
+// Has the final Lose It report for this day arrived?
+function loseItFinal(d, k) {
+  const g = d?.loseItAt || d?.loseItGen;
+  if (g) return Date.parse(g) >= dayEndsAt(k);
+  return !!d?.food?.some(f => f.source === 'loseit');   // days imported before v2.7
+}
+function impLoseItFood(rows, find, name) {
   const c = { date: find(/^date/), name: find(/^name/), meal: find(/^meal/) || find(/^type$/), qty: find(/^quantity/), units: find(/^units?$/), cal: find(/^calories/),
     del: find(/^deleted/), fat: find(/^fat/), satFat: find(/^saturated fat/), protein: find(/^protein/), carbs: find(/^carbohydrates|^carbs/),
     fiber: find(/^fiber/), sugar: find(/^sugar/), chol: find(/^cholesterol/), sodium: find(/^sodium/) };
@@ -1472,16 +1493,19 @@ function impLoseItFood(rows, find) {
     count++;
   });
   // A Lose It export is the full log for each day it covers, so it replaces that day's Lose It entries.
-  for (const k of dates) {
+  const sent = reportSentAt(name);
+  let older = 0;
+  for (const k of [...dates]) {
     const d = day(k);
+    if (!takeLoseItDay(d, k, sent)) { older++; dates.delete(k); continue; }
     d.food = d.food.filter(f => f.source !== 'loseit').concat(byDay[k] || []);
-    d.loseItAt = new Date().toISOString();
     d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(exByDay[k] || []);
     if (byDay[k]?.length) delete d.nutrition;   // per-food nutrients replace the PDF's day totals
     touch(k);
   }
   const nEx = Object.values(exByDay).reduce((n, a) => n + a.length, 0);
-  return { what: 'Lose It food entries', count, dates, note: [nEx && plural(nEx, 'Lose It workout'), exSkipped && `skipped ${exSkipped} exercise rows already covered by Garmin/Strava`].filter(Boolean).join(', ') };
+  const partial = [...dates].filter(k => sent < dayEndsAt(k));
+  return { what: 'Lose It food entries', count, dates, note: [nEx && plural(nEx, 'Lose It workout'), exSkipped && `skipped ${exSkipped} exercise rows already covered by Garmin/Strava`, older && `kept newer reports for ${plural(older, 'day')}`, partial.length && `${fmtDay(partial[0], { month: 'short', day: 'numeric' })} is partial (sent before the day ended)`].filter(Boolean).join(', ') };
 }
 
 function impLoseItExercise(rows, find) {
@@ -1665,9 +1689,10 @@ async function importPdf(name, buf) {
   const keys = Object.keys(days);
   if (!keys.length) return [`${name}: skipped (this PDF isn't a Lose It Daily Report)`];
   let foods = 0;
+  const sent = reportSentAt(name);
   for (const key of keys) {
     const D = days[key], d = day(key);
-    d.loseItAt = new Date().toISOString();
+    if (!takeLoseItDay(d, key, sent)) continue;
     d.food = d.food.filter(f => f.source !== 'loseit').concat(D.food.map((f, i) => ({ id: `loseit|${key}|${i}`, source: 'loseit', name: f.name, meal: f.meal, qty: f.qty, units: f.units, calories: f.cal })));
     d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(D.ex.map((e, i) => ({ id: `loseit|${key}|x${i}`, source: 'loseit', type: e.name, title: e.name, durationMin: e.mins, calories: e.cal })));
     if (Object.keys(D.nut).length) d.nutrition = { ...D.nut, source: 'loseit' }; else delete d.nutrition;
@@ -1831,7 +1856,7 @@ function renderDash() {
     const order = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
     const names = Object.keys(meals).sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9));
     $('#d-food').innerHTML = names.map(m => `<div class="li"><span class="n"><b>${esc(m)}</b></span><span class="x"><b>${fmtN(meals[m].reduce((s, x) => s + (x.calories || 0), 0))} cal</b></span></div>` +
-      meals[m].map(x => `<div class="li"><span class="n">${esc(x.name)}${x.qty ? ` <span class="muted small">${fmtN(x.qty, 2)} ${esc(x.units)}</span>` : ''}</span><span class="x">${fmtN(x.calories)}</span></div>`).join('')).join('');
+      meals[m].map(x => `<div class="li"><span class="n">${esc(x.name)}${x.qty ? ` <span class="muted small">${fmtN(x.qty, 2)} ${esc(x.units)}</span>` : ''}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${fmtN(x.calories)}</span></div>`).join('')).join('');
     const t = totals(d);
     if (t.hasNutr) $('#d-food').innerHTML += `<div class="sub-h" style="margin-top:16px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`;
   } else {
@@ -2023,7 +2048,7 @@ function renderLogLists() {
   const d = getDay(logDate);
   const ws = d?.workouts || [], fd = d?.food || [];
   $('#l-workouts').innerHTML = ws.length ? ws.map((x, i) => `<div class="li"><span class="n">${esc(x.title || x.type)}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${[x.durationMin != null && fmtN(x.durationMin) + ' min', x.calories && fmtN(x.calories) + ' cal'].filter(Boolean).join(' · ')}</span><button class="del" data-del="workouts" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">None yet.</p>';
-  $('#l-food').innerHTML = fd.length ? fd.map((x, i) => `<div class="li"><span class="n">${esc(x.name)}<span class="tag">${esc(x.meal || srcName(x.source))}</span></span><span class="x">${fmtN(x.calories)} cal</span><button class="del" data-del="food" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">None yet.</p>';
+  $('#l-food').innerHTML = fd.length ? fd.map((x, i) => `<div class="li"><span class="n">${esc(x.name)}${x.meal ? `<span class="tag">${esc(x.meal)}</span>` : ''}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${fmtN(x.calories)} cal</span><button class="del" data-del="food" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">None yet.</p>';
 }
 
 async function saveLogDay() {
@@ -2081,7 +2106,7 @@ function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
   if (['food', 'budget', 'meal'].includes(r.type) && k) {
     const t = todayKey();
     if (k >= t) return { ok: false, pending: true, why: 'Waiting for Lose It — today isn’t over yet' };
-    if (k === addDays(t, -1) && !d?.loseItAt && !d?.food?.some(f => f.source === 'loseit')) return { ok: false, pending: true, why: 'Waiting for yesterday’s Lose It report' };
+    if (k === addDays(t, -1) && !loseItFinal(d, k)) return { ok: false, pending: true, why: 'Waiting for yesterday’s Lose It report' };
   }
   if (r.type === 'workout') {
     const mins = (d?.workouts || []).reduce((s, w) => s + (w.durationMin || 0), 0);
@@ -3278,7 +3303,7 @@ function renderMetric() {
 
 function metricColumns(key) {
   switch (key) {
-    case 'cal': return [['Protein g', d => fmtN(totals(d).protein)], ['Carbs g', d => fmtN(totals(d).carbs)], ['Fat g', d => fmtN(totals(d).fat)], ['Fiber g', d => fmtN(totals(d).fiber)], ['Sugars g', d => fmtN(totals(d).sugar)], ['Sodium mg', d => fmtN(totals(d).sodium)]];
+    case 'cal': return [['Source', d => { const t = totals(d); return t.fromHealth ? 'Apple Health totals' : esc([...new Set((d.food || []).map(f => srcName(f.source)))].join(', ')) || '—'; }], ['Protein g', d => fmtN(totals(d).protein)], ['Carbs g', d => fmtN(totals(d).carbs)], ['Fat g', d => fmtN(totals(d).fat)], ['Fiber g', d => fmtN(totals(d).fiber)], ['Sugars g', d => fmtN(totals(d).sugar)], ['Sodium mg', d => fmtN(totals(d).sodium)]];
     case 'ex': return [['Workouts', d => esc((d.workouts || []).map(w => w.title || w.type).join(', ')) || '—'], ['Cal burned', d => totals(d).hasEx ? fmtN(totals(d).burn) : '—']];
     case 'mood': return [['Energy', d => d.feel?.energy ?? '—'], ['Stress', d => d.feel?.stress ?? '—'], ['Tags', d => esc((d.feel?.tags || []).join(', ')) || '—']];
     case 'sleep': return [['Score', d => d.sleep?.score ?? '—'], ['Source', d => esc(srcName(d.sleep?.source))]];
