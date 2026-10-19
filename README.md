@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.3** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.4** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -118,6 +118,19 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
   | Daily anchors | How often each box was checked, how many full weeks met the goal, and your current streak 🔥 |
 
 - **Daily log table:** every day in the period, newest first. **Click any column header to sort by it** (▼ highest/newest first). Click it again to reverse (▲). Blank days always go to the bottom. Click a row to open that day on the Dashboard.
+
+### Weight page (trend, goals, BMI, predictions)
+
+Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale → Apple Health → Health Auto Export**. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
+
+- **Trend weight:** a smoothed weight that moves 10% of the way toward each new weigh-in. It ignores day-to-day water swings (1–4 lb is normal) and shows what's really happening. The **Weight tile** on the Dashboard and the **Coach** both use it.
+- **Chart:** your weigh-ins as faint dots, the trend as a bold line, and a **dashed projection** to your goal at the selected rate.
+- **Progress:** an arc from your start weight to your goal, with % complete, amount to go, and **milestones** on round numbers (every 5 lb by default).
+- **Trend change:** trend weight change over 7 days, 30 days, 90 days and all time, plus your rate per week.
+- **Last 10 days:** high, latest, trend and low, so a heavy morning has context.
+- **Body mass index:** a BMI gauge for your trend weight, and the weight range for each category at your height. BMI is a rough screen that doesn't separate muscle from fat, so body fat % from Withings is a better guide.
+- **Predictions:** pick **Commitment** (the rate you set), **Current** (last 30 days) or **Overall** (since you started). You'll see the date you're projected to reach each milestone and your goal, plus your predicted weight on any **events** you add (a reunion, a trip). Predictions extend the trend in a straight line, so treat distant dates as rough.
+- **Goals and settings** (bottom of the page): goal weight, height, starting weight and date (the first weigh-in if left blank), milestone size, committed rate, and events. They sync to all your devices.
 
 **Getting back to the Dashboard:** click **← Dashboard** (top left), press **Esc**, or use your browser's or mouse's **Back** button.
 

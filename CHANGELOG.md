@@ -7,9 +7,24 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.3** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.4** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.4 (October 19, 2026)
+
+- **Weight page, inspired by Happy Scale:**
+  - **trend weight** (smoothed), with weigh-in dots and a dashed projection on the chart
+  - **progress** to your goal, with round-number milestones
+  - **trend change** over 7, 30 and 90 days and all time
+  - **last-10-days** high, latest, trend and low
+  - a **BMI** gauge with weight ranges for your height
+  - **predictions** at your committed, current or overall rate, including your own **events**
+  - goals and settings editable on the page
+- The **Weight tile** now shows trend weight and its weekly rate.
+- The **Coach** judges weight by the trend and its rate, not single weigh-ins, and knows your goal.
+- Regression tests: 49 checks (the trend maths added).
+- Script: only the version number changed. Pasting it is optional.
 
 ### v2.3 (October 19, 2026)
 

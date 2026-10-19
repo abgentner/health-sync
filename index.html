@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.3 -->
+<!-- Health Sync app · version 2.4 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -313,6 +313,31 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .dh i{flex:none;width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--muted)}
 .dh i.ok{background:var(--good)} .dh i.warn{background:#d79a00} .dh i.bad{background:var(--bad)}
 .dh b{font-weight:600} .dh .fix{font-size:13px;color:var(--text-2);margin-top:2px}
+.wt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
+.wt-card{margin:0}
+.wt-gauge{position:relative;max-width:300px;margin:0 auto}
+.wt-gauge svg{width:100%;display:block}
+.wt-gauge .g-track{fill:none;stroke:var(--surface-2);stroke-width:14;stroke-linecap:round}
+.wt-gauge .g-fill{fill:none;stroke:var(--c-weight);stroke-width:14;stroke-linecap:round}
+.wt-gauge .g-seg{fill:none;stroke-width:14}
+.wt-gauge .g-dot{fill:var(--surface);stroke:var(--text);stroke-width:3}
+.wt-gauge-in{position:absolute;left:0;right:0;bottom:4px;text-align:center}
+.wt-big{font-size:34px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.wt-3,.wt-4{display:grid;gap:8px;margin-top:10px}
+.wt-3{grid-template-columns:repeat(3,1fr)} .wt-4{grid-template-columns:repeat(4,1fr)}
+.wt-3 div,.wt-4 div{background:var(--surface-2);border-radius:10px;padding:8px;text-align:center;display:flex;flex-direction:column}
+.wt-3 b,.wt-4 b{font-size:17px;font-variant-numeric:tabular-nums} .wt-3 span,.wt-4 span{font-size:11.5px;color:var(--muted)}
+.wt-4 .down b{color:var(--good)} .wt-4 .up b{color:var(--bad)}
+.wt-4 .hi{background:color-mix(in oklab,var(--bad) 10%,var(--surface))} .wt-4 .lo{background:color-mix(in oklab,var(--good) 10%,var(--surface))} .wt-4 .tr{background:color-mix(in oklab,var(--c-weight) 12%,var(--surface))}
+.wt-ms{display:flex;align-items:center;margin:14px 6px 0}
+.wt-ms i{flex:none;width:12px;height:12px;border-radius:50%;border:2px solid var(--border);background:var(--surface)}
+.wt-ms i.on{background:var(--c-weight);border-color:var(--c-weight)}
+.wt-ms b{flex:1;height:2px;background:var(--border)}
+.wt-seg{display:flex;width:100%} .wt-seg button{flex:1;display:flex;flex-direction:column;align-items:center}
+.wt-seg small{font-size:11px;opacity:.8}
+.sw2{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px}
+.wt-set summary{cursor:pointer;list-style:none} .wt-set summary::-webkit-details-marker{display:none}
+.wt-set{grid-column:1/-1}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -453,6 +478,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   </div>
   <div class="span-lbl" id="m-sub"></div>
   <div class="tiles m-stats" id="m-stats"></div>
+  <div id="m-weight"></div>
   <div class="card">
     <div class="card-h"><h2 id="m-chart-t">Day by day</h2><div class="legend" id="m-legend"></div></div>
     <div class="chart-box" style="height:300px"><canvas id="m-chart"></canvas></div>
@@ -719,7 +745,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.3';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.4';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -802,7 +828,7 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
@@ -1000,7 +1026,7 @@ async function persist() {
     const seen = new Set(remote.imports.map(i => i.id));
     for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
     remote.imports = remote.imports.slice(-500);
-    if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; }
+    if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; remote.weightCfg = data.weightCfg; }
     if (coachDirty) {
       // Reviews merge one by one; the most recently written or edited copy of each wins.
       const stamp = r => (r && (r.updatedAt || r.createdAt)) || '';
@@ -1735,7 +1761,8 @@ function dayTiles() {
     tile('steps', 'Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcName(d.stepsSource)) : 'none yet'),
     tile('cal', 'Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
     tile('ex', 'Exercise', t.hasEx ? fmtN(t.exMin) : '—', t.hasEx ? 'min' : '', t.hasEx ? `${fmtN(t.burn)} cal burned` : 'no workouts'),
-    tile('weight', 'Weight', w ? fmtN(w.value, 1) : '—', w ? w.unit : '', wSub),
+    (() => { const S = weightSeries(), t = trendOn(S, dashDate), r = trendRate(S, 30, dashDate);
+      return t == null ? tile('weight', 'Weight', '—', '', '') : tile('weight', 'Weight · trend', fmtN(t, 1), S.unit, `${w ? `latest ${fmtN(w.value, 1)}` : ''}${r != null ? ` · ${r > 0 ? '+' : r < 0 ? '−' : ''}${fmtN(Math.abs(r), 1)}/wk` : ''}`); })(),
     tile('mood', 'Mood', f?.mood ? MOODS[f.mood - 1] : '—', '', f?.mood ? [f.energy && `energy ${f.energy}/5`, f.stress && `stress ${f.stress}/5`].filter(Boolean).join(' · ') : 'not logged'),
     tile('sleep', 'Sleep', sleepHours(d) != null ? fmtN(sleepHours(d), 1) : '—', sleepHours(d) != null ? 'h' : '', d?.sleep?.score ? `score ${d.sleep.score}` : ''),
   ];
@@ -1764,7 +1791,8 @@ function avgTiles(n) {
     tile('steps', 'Steps', fmtN(avg(steps)), steps.length ? '/day' : '', days(steps.length)),
     tile('cal', 'Calories eaten', food.length ? fmtN(avg(food.map(t => t.calIn))) : '—', food.length ? '/day' : '', food.length ? `P ${fmtN(avg(food.map(t => t.protein)))}g · C ${fmtN(avg(food.map(t => t.carbs)))}g · F ${fmtN(avg(food.map(t => t.fat)))}g · ${plural(food.length, 'day')}` : days(0)),
     tile('ex', 'Exercise', exDays ? fmtN(exMin / exDays) : '—', exDays ? 'min/day' : '', exDays ? `${plural(nW, 'workout')} · ${fmtN(burn)} cal total` : days(0)),
-    tile('weight', 'Weight', wts.length ? fmtN(avg(wts), 1) : '—', wts.length ? unit : '', wts.length > 1 ? `${wts[wts.length - 1] - wts[0] > 0 ? '+' : ''}${fmtN(wts[wts.length - 1] - wts[0], 1)} over ${plural(wts.length, 'reading')}` : days(wts.length)),
+    (() => { const S = weightSeries(), t = trendOn(S, end), t0 = trendOn(S, addDays(end, -(n - 1)));
+      return t == null ? tile('weight', 'Weight', '—', '', days(0)) : tile('weight', 'Weight · trend', fmtN(t, 1), S.unit, t0 != null ? `${t - t0 > 0 ? '+' : t - t0 < 0 ? '−' : ''}${fmtN(Math.abs(t - t0), 1)} over ${n} days · ${plural(wts.length, 'weigh-in')}` : plural(wts.length, 'weigh-in')); })(),
     tile('mood', 'Mood', am ? `${MOODS[Math.round(am) - 1]} ${fmtN(am, 1)}` : '—', '', moods.length ? [energy.length && `energy ${fmtN(avg(energy), 1)}`, stress.length && `stress ${fmtN(avg(stress), 1)}`, plural(moods.length, 'day')].filter(Boolean).join(' · ') : 'not logged'),
     tile('sleep', 'Sleep', sleep.length ? fmtN(avg(sleep), 1) : '—', sleep.length ? 'h/night' : '', days(sleep.length)),
   ];
@@ -2494,6 +2522,7 @@ function periodStats(ks) {
     avg_steps: a(v(d => d?.steps)), avg_sleep_h: a(v(sleepHours)), avg_resting_hr: a(v(d => healthValue(d, 'restingHR'))),
     avg_calories_logged_days: a(food.map(t => t.calIn)), avg_protein_g: a(food.map(t => t.protein)), avg_fiber_g: a(food.map(t => t.fiber)), avg_sodium_mg: a(food.map(t => t.sodium)),
     workouts: D.reduce((n, d) => n + (d?.workouts?.length || 0), 0), exercise_min: Math.round(T.reduce((n, t) => n + t.exMin, 0)),
+    weight_trend: (() => { const S = weightSeries(), a = trendOn(S, ks[0]), b = trendOn(S, ks[ks.length - 1]), r = trendRate(S, 30, ks[ks.length - 1]); return a == null || b == null ? null : `${a.toFixed(1)} → ${b.toFixed(1)} ${S.unit} (trend; 30-day rate ${r == null ? 'n/a' : r.toFixed(2)} ${S.unit}/week)`; })(),
     weight_first_last: (() => { const w = D.filter(d => d?.weight != null); return w.length ? `${w[0].weight} → ${w[w.length - 1].weight} ${w[0].weightUnit || 'lb'}` : null; })(),
   };
 }
@@ -2509,6 +2538,7 @@ function buildDigest(start, end, opts = {}) {
       plan_foods: cc.planFoods.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [name, unit, cal, protein, fat, sat, carbs, fiber, sugar, sodium] = l.split('|').map(x => x.trim()); return { name, per: unit, cal, protein_g: protein, fat_g: fat, sat_fat_g: sat, carbs_g: carbs, fiber_g: fiber, sugar_g: sugar, sodium_mg: sodium }; }),
       daily_anchors: c.names.map((nm, i) => ({ name: nm, reminder: c.hints[i] || '', auto_check_rule: c.rules[i] })),
       weekly_anchor_goal: `${c.target} of ${c.names.length * 7}`,
+      weight_goal: (() => { const w = weightCfg(); return w.goal == null ? null : { goal: w.goal, committed_rate_per_week: w.rate, events: w.events }; })(),
       nutrition_targets: { fiber_g_min: cc.targets.fiberMin, sodium_mg_max: cc.targets.sodiumMax, sat_fat_pct_of_calories_max: cc.targets.satFatPctMax, sugars_g_max: cc.targets.sugarMax },
     },
     this_period: periodStats(ks),
@@ -2530,6 +2560,8 @@ Grade: a letter A to F with + or - allowed. Base it mainly on anchor completion 
 Narrative: a short story of the period in plain prose, as long as it needs to be and no longer. Separate paragraphs with a blank line.
 
 Nutrition: check the mix, not just calories: protein (as a share of calories), fiber, sodium, saturated fat (% of calories), sugars, against the targets. Name the specific logged foods driving any problem. For each real problem, suggest swaps that stay inside the plan's guardrails (the daily food plan, the anchor rules such as the daytime calorie budget and the one-plate dinner, the plan foods list first, then foods the user already logs). Give approximate numbers for the swap. If nothing is off this period, leave swaps empty rather than padding. This is coaching, not medical advice; if something looks risky (for example very low calories several days running), say so plainly and suggest checking with a doctor or dietitian.
+
+Weight: judge it by weight_trend (a smoothed trend weight) and its weekly rate, never by a single weigh-in; day-to-day swings of 1-4 lb are mostly water, sodium and food in transit, so mention a jump only to explain it (for example after high-sodium days). Compare the rate with the plan's weight goal and committed rate when present.
 
 If last_weekly_review is present, check whether its focus items were followed. focus: at most 3 concrete actions for the next period. If user_question is present, answer it directly in question_answer using the data; otherwise return an empty string.`;
 
@@ -2855,6 +2887,180 @@ function renderHealth() {
   hc.textContent = `⚠ ${plural(bad + warn, 'data issue')}`;
 }
 
+
+/* ================= weight: trend, goals, BMI, predictions ================= */
+// Trend weight = exponentially smoothed weight: each weigh-in moves the trend 10% of the way toward it,
+// so a salty dinner or a water-heavy morning barely moves it. Days without a weigh-in keep the trend.
+const TREND_ALPHA = 0.1;
+const weightCfg = () => {
+  const c = data.weightCfg || {};
+  return { heightIn: c.heightIn ?? null, goal: c.goal ?? null, start: c.start ?? null, startDate: c.startDate || null,
+    step: c.step ?? 5, rate: c.rate ?? 1, events: Array.isArray(c.events) ? c.events : [] };
+};
+function weightSeries() {
+  const unit = weightUnit();
+  const toU = d => (d.weightUnit || 'lb') === unit ? d.weight : unit === 'lb' ? d.weight * 2.20462 : d.weight / 2.20462;
+  const ks = Object.keys(data.days).filter(k => data.days[k].weight != null).sort();
+  if (!ks.length) return { unit, rows: [], byKey: {} };
+  const rows = [];
+  let t = null;
+  for (let k = ks[0]; k <= todayKey(); k = addDays(k, 1)) {
+    const d = data.days[k], w = d?.weight != null ? toU(d) : null;
+    if (w != null) t = t == null ? w : t + TREND_ALPHA * (w - t);
+    rows.push({ k, w, t });
+  }
+  return { unit, rows, byKey: Object.fromEntries(rows.map(r => [r.k, r])) };
+}
+const trendOn = (S, k) => { if (!S.rows.length || k < S.rows[0].k) return null; const r = S.byKey[k] || S.rows[S.rows.length - 1]; return r.t; };
+// Rate in units per week from the trend over the last n days (negative = losing).
+function trendRate(S, days, end = todayKey()) {
+  const a = trendOn(S, addDays(end, -days)), b = trendOn(S, end);
+  return a == null || b == null ? null : (b - a) / days * 7;
+}
+function weightGoals(S) {
+  const c = weightCfg(), first = S.rows.find(r => r.w != null);
+  const start = c.start ?? first?.w ?? null, startDate = c.startDate || first?.k || null;
+  return { ...c, start, startDate };
+}
+const BMI_CATS = [['Underweight', 0, 18.5, 'var(--c-steps)'], ['Normal', 18.5, 25, 'var(--good)'], ['Overweight', 25, 30, '#d79a00'], ['Obese class I', 30, 35, 'var(--c-cal)'], ['Obese class II', 35, 40, 'var(--bad)'], ['Obese class III', 40, 99, 'var(--c-mood)']];
+const bmiOf = (w, unit, hIn) => w == null || !hIn ? null : (unit === 'kg' ? w * 2.20462 : w) * 703 / (hIn * hIn);
+const weightForBmi = (b, unit, hIn) => { const lb = b * hIn * hIn / 703; return unit === 'kg' ? lb / 2.20462 : lb; };
+let predMode = 'commit';
+
+// Arc helper: 180° gauge from left to right; frac 0..1
+function arcPath(cx, cy, r, f0, f1) {
+  const p = f => [cx - r * Math.cos(Math.PI * f), cy - r * Math.sin(Math.PI * f)];
+  const [x0, y0] = p(f0), [x1, y1] = p(f1);
+  return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${f1 - f0 > 0.5 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+}
+
+function renderWeightExtras() {
+  const box = $('#m-weight');
+  if (metricKey !== 'weight') { box.innerHTML = ''; return; }
+  const S = weightSeries(), G = weightGoals(S), u = S.unit;
+  if (!S.rows.length) { box.innerHTML = '<div class="card"><p class="muted" style="margin:0">No weigh-ins yet. They arrive from your Withings scale through Apple Health and Health Auto Export.</p></div>'; return; }
+  const today = todayKey(), last = [...S.rows].reverse().find(r => r.w != null), trendNow = trendOn(S, today);
+  const f1 = v => v == null ? '—' : fmtN(v, 1);
+  const sgn = v => v == null ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtN(Math.abs(v), 1)}`;
+  const cards = [];
+
+  // --- progress toward the goal, with milestones
+  if (G.goal != null && G.start != null && G.start !== G.goal) {
+    const losing = G.goal < G.start, total = Math.abs(G.start - G.goal), done = Math.max(0, Math.min(total, losing ? G.start - trendNow : trendNow - G.start));
+    const frac = done / total, ms = [];
+    // Milestones sit on round numbers (e.g. every 5 lb: 180, 175, 170), between the start and the goal.
+    let m0 = losing ? Math.floor(G.start / G.step) * G.step : Math.ceil(G.start / G.step) * G.step;
+    if (Math.abs(m0 - G.start) < 0.05) m0 += losing ? -G.step : G.step;
+    for (let m = m0; losing ? m > G.goal + 1e-9 : m < G.goal - 1e-9; m += losing ? -G.step : G.step) ms.push(Math.round(m * 10) / 10);
+    ms.push(G.goal);
+    const reached = ms.filter(m => losing ? trendNow <= m : trendNow >= m).length, next = ms[reached];
+    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Progress</h2><span class="muted small">${f1(G.start)} → ${f1(G.goal)} ${u}${G.startDate ? ` · since ${fmtDay(G.startDate, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</span></div>
+      <div class="wt-gauge"><svg viewBox="0 0 220 124" aria-hidden="true"><path d="${arcPath(110, 112, 92, 0, 1)}" class="g-track"/>${frac > 0.002 ? `<path d="${arcPath(110, 112, 92, 0, Math.min(frac, 0.999))}" class="g-fill"/>` : ''}</svg>
+        <div class="wt-gauge-in"><div class="muted small">${next != null ? `Milestone ${reached + 1} · ${f1(next)} ${u}` : 'Goal reached'}</div><div class="wt-big">${f1(trendNow)}</div><div class="muted small">trend weight</div></div></div>
+      <div class="wt-3"><div><b>${f1(last.w)}</b><span>latest</span></div><div><b>${Math.round(frac * 100)}%</b><span>complete</span></div><div><b>${f1(Math.max(0, total - done))}</b><span>to go</span></div></div>
+      <div class="wt-ms" title="Milestones every ${fmtN(G.step, 1)} ${u}">${ms.map((m, i) => `<i class="${i < reached ? 'on' : ''}" title="${f1(m)} ${u}"></i>`).join('<b></b>')}</div>
+      <div class="muted small" style="text-align:center;margin-top:6px">${reached} of ${ms.length} milestones</div></div>`);
+  }
+
+  // --- change in trend over standard windows
+  const ch = d => { const a = trendOn(S, addDays(today, -d)); return a == null ? null : trendNow - a; };
+  const allCh = G.start != null ? trendNow - G.start : null;
+  cards.push(`<div class="card wt-card"><div class="card-h"><h2>Trend change</h2><span class="muted small">${u}, by trend weight</span></div>
+    <div class="wt-4">${[['7 days', ch(7)], ['30 days', ch(30)], ['90 days', ch(90)], ['All time', allCh]].map(([l, v]) => `<div class="${v == null ? '' : v < 0 ? 'down' : v > 0 ? 'up' : ''}"><b>${sgn(v)}</b><span>${l}</span></div>`).join('')}</div>
+    <div class="muted small" style="margin-top:8px">Rate: ${sgn(trendRate(S, 30))} ${u}/week over 30 days · ${sgn(trendRate(S, 7))} over 7 days</div></div>`);
+
+  // --- recent stats (last 10 days of weigh-ins)
+  const recent = S.rows.filter(r => r.w != null && r.k >= addDays(today, -9));
+  if (recent.length) {
+    const hi = recent.reduce((a, b) => b.w > a.w ? b : a), lo = recent.reduce((a, b) => b.w < a.w ? b : a);
+    const ago = k => { const n = Math.round((keyToDate(today) - keyToDate(k)) / 864e5); return n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`; };
+    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Last 10 days</h2></div><div class="wt-4">
+      <div class="hi"><b>${f1(hi.w)}</b><span>high · ${ago(hi.k)}</span></div><div><b>${f1(last.w)}</b><span>latest · ${ago(last.k)}</span></div>
+      <div class="tr"><b>${f1(trendNow)}</b><span>trend</span></div><div class="lo"><b>${f1(lo.w)}</b><span>low · ${ago(lo.k)}</span></div></div>
+      <div class="muted small" style="margin-top:8px">The ${f1(hi.w - lo.w)} ${u} spread is mostly water, sodium and food in transit. The trend is what's real.</div></div>`);
+  }
+
+  // --- BMI
+  if (G.heightIn) {
+    const b = bmiOf(trendNow, u, G.heightIn), lo = 15, hi = 42, pos = Math.max(0, Math.min(1, (b - lo) / (hi - lo)));
+    const cat = BMI_CATS.find(c => b >= c[1] && b < c[2]);
+    const seg = BMI_CATS.map(c => `<path d="${arcPath(110, 112, 88, Math.max(0, (c[1] - lo) / (hi - lo)) + 0.004, Math.min(1, (c[2] - lo) / (hi - lo)) - 0.004)}" stroke="${c[3]}" class="g-seg"/>`).join('');
+    const mx = 110 - 88 * Math.cos(Math.PI * pos), my = 112 - 88 * Math.sin(Math.PI * pos);
+    const minW = S.rows.filter(r => r.w != null && r.k >= addDays(today, -9)).reduce((m, r) => Math.min(m, r.w), Infinity);
+    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Body mass index</h2><span class="muted small">height ${Math.floor(G.heightIn / 12)}′ ${fmtN(G.heightIn % 12, 1)}″</span></div>
+      <div class="wt-gauge"><svg viewBox="0 0 220 124" aria-hidden="true">${seg}<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="8" class="g-dot"/></svg>
+        <div class="wt-gauge-in"><div class="wt-big">${fmtN(b, 1)}</div><div class="muted small">${esc(cat?.[0] || '')}</div></div></div>
+      <div class="list small" style="margin-top:6px">${BMI_CATS.map(c => `<div class="li"><span class="n"><i class="sw2" style="background:${c[3]}"></i>${c[0]}</span><span class="x">${c[1] === 0 ? `${f1(weightForBmi(c[2], u, G.heightIn) - 0.1)} ${u} or below` : c[2] === 99 ? `${f1(weightForBmi(c[1], u, G.heightIn))} ${u} or above` : `${f1(weightForBmi(c[1], u, G.heightIn))} – ${f1(weightForBmi(c[2], u, G.heightIn) - 0.1)} ${u}`}</span></div>`).join('')}</div>
+      <div class="muted small" style="margin-top:6px">BMI is a rough screen: it doesn't tell muscle from fat. Your body fat % (from Withings) is a better guide when it's available.</div></div>`);
+  }
+
+  // --- predictions
+  if (G.goal != null) {
+    const rates = { commit: -Math.abs(G.rate) * (G.goal < trendNow ? 1 : -1), current: trendRate(S, 30), overall: G.start != null && G.startDate ? (trendNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : null };
+    const r = rates[predMode];
+    const rows = [];
+    const toward = r != null && Math.abs(r) > 0.01 && Math.sign(r) === Math.sign(G.goal - trendNow);
+    const dateFor = w => toward ? addDays(today, Math.round((w - trendNow) / r * 7)) : null;
+    const weightOn = k => r == null ? null : trendNow + r * ((keyToDate(k) - keyToDate(today)) / 864e5) / 7;
+    // upcoming milestones and the goal
+    const losing = G.goal < trendNow;
+    for (let m = Math.ceil(trendNow / G.step) * G.step; losing ? m > G.goal : m < G.goal; m += losing ? -G.step : G.step) { if (Math.abs(m - trendNow) > 0.05 && (losing ? m < trendNow : m > trendNow)) rows.push({ w: m, label: 'Milestone', k: dateFor(m) }); }
+    rows.push({ w: G.goal, label: 'Goal', k: dateFor(G.goal), goal: true });
+    for (const e of G.events) if (e.date >= today) rows.push({ w: weightOn(e.date), label: e.name, k: e.date, event: true });
+    rows.sort((a, b) => (a.k || '9999').localeCompare(b.k || '9999'));
+    const inW = k => { const d = Math.round((keyToDate(k) - keyToDate(today)) / 864e5); return d < 14 ? plural(d, 'day') : d < 70 ? plural(Math.round(d / 7), 'week') : plural(Math.round(d / 30.4), 'month'); };
+    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Predictions</h2></div>
+      <div class="seg wt-seg" id="wt-pred">${[['commit', 'Commitment', rates.commit], ['current', 'Current rate', rates.current], ['overall', 'Overall rate', rates.overall]].map(([k, l, v]) => `<button data-p="${k}" class="${predMode === k ? 'on' : ''}">${l}<small>${v == null ? '—' : sgn(v)}</small></button>`).join('')}</div>
+      <p class="small" style="margin:10px 0 6px">${r == null ? 'Not enough weigh-ins yet for this rate.' : toward ? `At ${sgn(r)} ${u}/week, here's the forecast:` : `At ${sgn(r)} ${u}/week you're not moving toward your goal, so only event-date weights are shown.`}</p>
+      <div class="list">${rows.filter(x => x.w != null).slice(0, 12).map(x => `<div class="li"><span class="n"><b>${f1(x.w)} ${u}</b> <span class="muted small">${esc(x.label)}</span></span><span class="x small">${x.k ? `${esc(fmtDay(x.k, { month: 'short', day: 'numeric', year: 'numeric' }))} <span class="muted">· in ${inW(x.k)}</span>` : '<span class="muted">—</span>'}</span></div>`).join('')}</div>
+      <div class="muted small" style="margin-top:6px">Predictions follow the trend line in a straight line, so they get rougher the further out they go.</div></div>`);
+  }
+
+  // --- goals and settings (editable here)
+  const hFt = G.heightIn ? Math.floor(G.heightIn / 12) : '', hIn = G.heightIn ? Math.round((G.heightIn % 12) * 10) / 10 : '';
+  cards.push(`<details class="card wt-card wt-set"${G.goal == null || !G.heightIn ? ' open' : ''}><summary><h2 style="display:inline">Goals and settings</h2> <span class="muted small">${G.goal == null || !G.heightIn ? '— add your goal and height to see progress, BMI and predictions' : 'edit'}</span></summary>
+    <div class="form-grid" style="margin-top:12px">
+      <div><label>Goal weight (${u})</label><input type="number" step="0.1" id="wg-goal" value="${G.goal ?? ''}"></div>
+      <div><label>Height</label><div class="row" style="flex-wrap:nowrap"><input type="number" id="wg-ft" value="${hFt}" placeholder="ft" style="width:70px"> ft <input type="number" step="0.5" id="wg-in" value="${hIn}" placeholder="in" style="width:80px"> in</div></div>
+      <div><label>Starting weight (${u})</label><input type="number" step="0.1" id="wg-start" value="${weightCfg().start ?? ''}" placeholder="${f1(S.rows.find(x => x.w != null)?.w)} (first weigh-in)"></div>
+      <div><label>Start date</label><input type="date" id="wg-sdate" value="${weightCfg().startDate || ''}"></div>
+      <div><label>Milestone every (${u})</label><input type="number" step="0.5" min="0.5" id="wg-step" value="${G.step}"></div>
+      <div><label>Committed rate (${u} per week)</label><input type="number" step="0.1" min="0" id="wg-rate" value="${G.rate}"></div>
+    </div>
+    <div class="sub-h" style="margin-top:14px">Events</div>
+    <div class="list small" id="wg-events">${G.events.map((e, i) => `<div class="li"><span class="n">${esc(e.name)} <span class="muted">· ${esc(fmtDay(e.date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span></span><button class="del" data-wev="${i}" aria-label="Remove event">×</button></div>`).join('') || '<p class="muted" style="margin:0">None yet, e.g. a reunion, trip or wedding.</p>'}</div>
+    <div class="row" style="margin-top:8px"><input type="text" id="wg-ename" placeholder="Event name" class="grow"><input type="date" id="wg-edate" style="width:auto"><button class="btn small" id="wg-eadd">Add event</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary small" id="wg-save" style="margin-left:auto">Save</button></div></details>`);
+  box.innerHTML = `<div class="wt-grid">${cards.join('')}</div>`;
+}
+
+async function saveWeightCfg(extra = {}) {
+  const v = id => num($(id).value);
+  const ft = v('#wg-ft'), inch = v('#wg-in');
+  data.weightCfg = { ...weightCfg(), goal: v('#wg-goal'), heightIn: ft != null || inch != null ? (ft || 0) * 12 + (inch || 0) : null,
+    start: v('#wg-start'), startDate: $('#wg-sdate').value || null, step: v('#wg-step') || 5, rate: v('#wg-rate') ?? 1, ...extra };
+  planDirty = true;
+  await savePersist();
+  renderMetric();
+}
+
+// Weight chart on the detail page: faint daily weigh-ins, the trend line, and a dashed projection to the goal.
+function weightChartData(keys) {
+  const S = weightSeries(), G = weightGoals(S), today = todayKey();
+  const raw = keys.map(k => S.byKey[k]?.w ?? null), trend = keys.map(k => S.byKey[k]?.t ?? null);
+  const labels = keys.slice(), proj = keys.map(() => null);
+  const end = keys[keys.length - 1], tNow = trendOn(S, today);
+  if (end >= today && G.goal != null && tNow != null) {
+    const r = predMode === 'current' ? trendRate(S, 30) : predMode === 'overall' && G.start != null && G.startDate ? (tNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : -Math.abs(G.rate) * (G.goal < tNow ? 1 : -1);
+    if (r && Math.sign(r) === Math.sign(G.goal - tNow)) {
+      const daysToGoal = Math.round((G.goal - tNow) / r * 7), extend = Math.min(daysToGoal, Math.max(14, Math.round(keys.length * 0.6)));
+      proj[proj.length - 1] = tNow;
+      for (let i = 1; i <= extend; i++) { labels.push(addDays(end, i)); raw.push(null); trend.push(null); proj.push(tNow + r * i / 7); }
+    }
+  }
+  return { labels, raw, trend, proj, unit: S.unit };
+}
+
 /* ================= metric details ================= */
 const METRICS = {
   steps:  { name: 'Steps', c: '--c-steps', unit: 'steps', dp: 0, kind: 'bar', sum: true },
@@ -2987,7 +3193,25 @@ function renderMetric() {
   $('#m-legend').innerHTML = `<span style="--c:${color}"><i class="${M.kind === 'bar' ? 'bx' : 'bx'}" style="--c:${color}"></i>Daily</span><span><i class="ln" style="--c:${color}"></i>7-day average</span>`;
   $('#m-legend').querySelectorAll('i').forEach(i => { i.style.display = 'inline-block'; });
   const labels = keys.map(k => fmtDay(k, n > 200 ? { month: 'short', year: '2-digit' } : { month: 'short', day: 'numeric' }));
+  $('#m-chart-t').textContent = 'Day by day';
   charts['m-chart']?.destroy();
+  if (key === 'weight') {
+    const W = weightChartData(keys);
+    $('#m-chart-t').textContent = 'Weigh-ins and trend';
+    $('#m-legend').innerHTML = `<span><i class="bx" style="--c:${color};display:inline-block;border-radius:50%"></i>Weigh-in</span><span><i class="ln" style="--c:${color};display:inline-block"></i>Trend</span>${W.proj.some(v => v != null) ? `<span><i class="ln" style="--c:${color};display:inline-block;opacity:.5"></i>Projection</span>` : ''}`;
+    charts['m-chart'] = new Chart($('#m-chart'), {
+      data: { labels: W.labels.map(k => fmtDay(k, W.labels.length > 200 ? { month: 'short', year: '2-digit' } : { month: 'short', day: 'numeric' })), datasets: [
+        { type: 'line', label: 'Weigh-in', data: W.raw, showLine: false, pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: hexA(color, 0.35), pointBorderColor: hexA(color, 0.6), order: 2 },
+        { type: 'line', label: 'Trend', data: W.trend, borderColor: color, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.25, spanGaps: true, order: 1 },
+        { type: 'line', label: 'Projection', data: W.proj, borderColor: hexA(color, 0.55), borderDash: [6, 5], borderWidth: 2, pointRadius: 0, spanGaps: true, order: 3 },
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: { filter: i => i.parsed.y != null, callbacks: { label: c => `${c.dataset.label}: ${fmtN(c.parsed.y, 1)} ${W.unit}` } } },
+        scales: { x: { grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxTicksLimit: 8, maxRotation: 0, autoSkip: true } }, y: { grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 6 } } },
+      },
+    });
+  } else
   charts['m-chart'] = new Chart($('#m-chart'), {
     data: { labels, datasets: [
       M.kind === 'bar'
@@ -3006,6 +3230,8 @@ function renderMetric() {
       },
     },
   });
+
+  renderWeightExtras();
 
   // ---- by day of week (Mon–Sun)
   const dow = [[], [], [], [], [], [], []];
@@ -3447,6 +3673,19 @@ $('#tab-coach').addEventListener('click', async e => {
 });
 
 $('#hc').onclick = () => goTab('imp');
+
+$('#m-weight').addEventListener('click', async e => {
+  const p = e.target.closest('[data-p]');
+  if (p) { predMode = p.dataset.p; renderMetric(); return; }
+  if (e.target.closest('#wg-save')) { await saveWeightCfg(); toast('Weight goals saved.'); return; }
+  if (e.target.closest('#wg-eadd')) {
+    const name = $('#wg-ename').value.trim(), date = $('#wg-edate').value;
+    if (!name || !date) { toast('Give the event a name and a date.'); return; }
+    await saveWeightCfg({ events: [...weightCfg().events, { name, date }].sort((a, b) => a.date.localeCompare(b.date)) }); return;
+  }
+  const rm = e.target.closest('[data-wev]');
+  if (rm) { const ev2 = weightCfg().events.slice(); ev2.splice(+rm.dataset.wev, 1); await saveWeightCfg({ events: ev2 }); }
+});
 
 boot();
 checkForUpdate();
