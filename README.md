@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.8** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.9** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -38,6 +38,8 @@ There's nothing to do. Open the app when you like:
 2. **Yesterday is complete**; today usually isn't, because most sources send a day's totals the next morning. That's why averages always end yesterday.
 3. **Log how you feel** in **Log today** (mood, energy, stress, tags, notes), and override an anchor box if the data got it wrong.
 4. **Mondays:** the Coach writes last week's review and emails it to you.
+
+**Where nutrition comes from:** **Lose It's report** brings every food with calories, protein, carbs, fat, saturated fat, sugars, fiber, sodium and cholesterol. **Vitamins and minerals** (potassium, calcium, iron, magnesium, vitamins A, B, C, D, E and K, folate, zinc and more, plus caffeine) come from **Apple Health**, where Lose It writes them, via Health Auto Export. They appear under **Food card › Vitamins and minerals** and on the Calories page, as % of the daily value. Only foods with that data in Lose It count, so totals are a minimum.
 
 **Lose It sends two kinds of report:** a **daily** report each morning (yesterday, complete) and a **weekly** report on Mondays, which includes a *partial* today. A day only counts as final once a report sent **after that day ended** has arrived, and an older report never overwrites a newer one. Until then, that day's food is marked **so far**: on the Food card, on the Calories tile, as *(partial)* in the Calories page's Source column, and to the Coach.
 

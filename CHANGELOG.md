@@ -7,9 +7,18 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.8** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.9** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.9 (October 19, 2026)
+
+- **Vitamins and minerals.** About 29 micronutrients come in from Apple Health: potassium, calcium, magnesium, iron, zinc, vitamins A, B1, B2, B3, B5, B6, B12, C, D, E and K, folate, biotin, trace minerals, mono- and polyunsaturated fat, and caffeine. Lose It writes them there; its emailed report doesn't include them.
+  - **Food card:** a fold-out list with % of daily value ("so far" on partial days).
+  - **Calories page:** average per day against daily values.
+  - **Coach:** flags clear, consistent shortfalls with plan-friendly foods, and treats the totals as a minimum.
+- Regression tests: 71 checks (real Oct 15 values: potassium 1,856 mg, calcium 521 mg, vitamin C 75 mg …).
+- Script: only the version number changed. Pasting it is optional.
 
 ### v2.8 (October 19, 2026)
 

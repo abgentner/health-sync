@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.8 -->
+<!-- Health Sync app · version 2.9 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -748,7 +748,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.8';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.9';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -852,7 +852,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !(d.health && Object.keys(d.health).length)) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !(d.health && Object.keys(d.health).length)) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -1208,7 +1208,8 @@ function impHaeJson(name, j) {
   const days = {}, notDaily = new Set(), repaired = new Set();
   const add = (k, key, v) => { if (!k || v == null || isNaN(v)) return; const e = (days[k] ||= {})[key] ||= []; e.push(v); };
   for (const m of j.data?.metrics || j.metrics || []) {
-    const key = HAE_METRICS[String(m.name || '').toLowerCase()];
+    const mname = String(m.name || '').toLowerCase(), micro = MICRO_BY[mname.replace(/^dietary_/, '')];
+    const key = HAE_METRICS[mname] || (micro ? 'x:' + micro.key : null);
     if (!key) continue;
     if (DEDUPE_KEYS.has(key) && (m.data || []).some(r => !/ 00:00(:00)?( |$)/.test(String(r.date || '')))) {
       notDaily.add(HEALTH_METRICS[key]?.name.toLowerCase() || key);
@@ -1237,19 +1238,35 @@ function impHaeJson(name, j) {
       }
       const v = num(r.qty ?? r.Avg ?? r.avg ?? r.value);
       if (v == null) continue;
-      add(haeDay(r.date || r.startDate), key, key === 'weight' || key.startsWith('n:') ? v : haeConvert(key, v, m.units));
+      add(haeDay(r.date || r.startDate), key, key.startsWith('x:') ? massTo(v, m.units, MICRO_BY[key.slice(2)].u) : key === 'weight' || key.startsWith('n:') ? v : haeConvert(key, v, m.units));
       if (key === 'weight') (days[haeDay(r.date || r.startDate)] ||= {}).weightUnit = /kg/i.test(m.units || '') ? 'kg' : 'lb';
     }
   }
   const res = applyHae(name, days, notDaily);
   return repaired.size ? `${res} · removed double-counted values saved earlier on ${rangeText(repaired)}` : res;
 }
+// Vitamins and minerals come from Apple Health (Lose It writes them there; its emailed report doesn't include them).
+// dv = FDA daily value for adults; null = no daily value (shown as an amount only).
+const MICROS = [
+  ['potassium', 'Potassium', 'mg', 4700], ['calcium', 'Calcium', 'mg', 1300], ['magnesium', 'Magnesium', 'mg', 420], ['iron', 'Iron', 'mg', 18],
+  ['zinc', 'Zinc', 'mg', 11], ['phosphorus', 'Phosphorus', 'mg', 1250], ['vitamin_a', 'Vitamin A', 'mcg', 900], ['vitamin_c', 'Vitamin C', 'mg', 90],
+  ['vitamin_d', 'Vitamin D', 'mcg', 20], ['vitamin_e', 'Vitamin E', 'mg', 15], ['vitamin_k', 'Vitamin K', 'mcg', 120], ['thiamin', 'Thiamin (B1)', 'mg', 1.2],
+  ['riboflavin', 'Riboflavin (B2)', 'mg', 1.3], ['niacin', 'Niacin (B3)', 'mg', 16], ['vitamin_b6', 'Vitamin B6', 'mg', 1.7], ['folate', 'Folate', 'mcg', 400],
+  ['vitamin_b12', 'Vitamin B12', 'mcg', 2.4], ['biotin', 'Biotin', 'mcg', 30], ['pantothenic_acid', 'Pantothenic acid (B5)', 'mg', 5], ['copper', 'Copper', 'mg', 0.9],
+  ['manganese', 'Manganese', 'mg', 2.3], ['selenium', 'Selenium', 'mcg', 55], ['iodine', 'Iodine', 'mcg', 150], ['chromium', 'Chromium', 'mcg', 35],
+  ['molybdenum', 'Molybdenum', 'mcg', 45], ['chloride', 'Chloride', 'mg', 2300], ['monounsaturated_fat', 'Monounsaturated fat', 'g', null],
+  ['polyunsaturated_fat', 'Polyunsaturated fat', 'g', null], ['caffeine', 'Caffeine', 'mg', null],
+].map(([key, name, u, dv]) => ({ key, name, u, dv }));
+const MICRO_BY = Object.fromEntries(MICROS.map(m => [m.key, m]));
+// Convert between g, mg and mcg.
+const massTo = (v, from, to) => { const f = { g: 1e6, mg: 1e3, mcg: 1, 'µg': 1, ug: 1 }; const a = f[String(from || to).toLowerCase()], b = f[to]; return a && b ? v * a / b : v; };
 const HAE_COLS = [
   [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^(weight|body mass)/, 'weight'],
   [/^resting heart rate/, 'restingHR'], [/^heart rate variability/, 'hrv'], [/^active energy/, 'activeCal'], [/^flights climbed/, 'flights'],
   [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'],
   [/^dietary energy/, 'n:calories'], [/^protein/, 'n:protein'], [/^carbohydrates/, 'n:carbs'], [/^total fat/, 'n:fat'], [/^saturated fat/, 'n:satFat'],
   [/^fiber/, 'n:fiber'], [/^sugar/, 'n:sugar'], [/^sodium/, 'n:sodium'], [/^cholesterol/, 'n:cholesterol'],
+  ...MICROS.map(m => [new RegExp('^' + m.name.toLowerCase().replace(/ \(.*\)/, '').replace(/[()]/g, '') + ' \\('), 'x:' + m.key]),
 ];
 function impHaeCsv(label, headers, body) {
   const dc = headers.find(h => /^date/.test(h)) || headers[0];
@@ -1263,7 +1280,7 @@ function impHaeCsv(label, headers, body) {
       const v = num(r[h]);
       if (v == null || r[h] === '') continue;
       const e = (days[k] ||= {});
-      (e[key] ||= []).push(key === 'weight' || key.startsWith('n:') ? v : key === 'sleep' && /min/i.test(unit) ? v / 60 : haeConvert(key, v, unit));
+      (e[key] ||= []).push(key.startsWith('x:') ? massTo(v, unit.replace(/^l?bs?$/, ''), MICRO_BY[key.slice(2)].u) : key === 'weight' || key.startsWith('n:') ? v : key === 'sleep' && /min/i.test(unit) ? v / 60 : haeConvert(key, v, unit));
       if (key === 'weight') e.weightUnit = /kg/i.test(unit) ? 'kg' : 'lb';
     }
   }
@@ -1286,6 +1303,8 @@ function applyHae(name, days, notDaily = new Set()) {
       for (const x of NUTRIENTS) if (e['n:' + x.key]) n[x.key] = Math.round(sumOf(e['n:' + x.key]) * 10) / 10;
       d.healthFood = n; got.add('nutrition');
     }
+    const mx = Object.keys(e).filter(x => x.startsWith('x:'));
+    if (mx.length) { d.micros = Object.fromEntries(mx.map(x => [x.slice(2), Math.round(sumOf(e[x]) * 100) / 100])); got.add('vitamins and minerals'); }
     touch(k); dates.add(k);
   }
   const warn = notDaily.size ? ` — ⚠ ignored ${[...notDaily].join(', ')}: this file has hourly/minute data, which double-counts iPhone + Garmin. In Health Auto Export, set the automation's Aggregation to "Day".` : '';
@@ -1465,6 +1484,14 @@ function loseItFinal(d, k) {
   return !!d?.food?.some(f => f.source === 'loseit');   // days imported before v2.7
 }
 // Food for a day is partial until its final Lose It report arrives (today always is).
+function microsHtml(d, k) {
+  const mi = d?.micros; if (!mi) return '';
+  const rows = MICROS.filter(m => mi[m.key] != null);
+  if (!rows.length) return '';
+  return `<details class="micros"><summary class="sub-h" style="margin:14px 0 6px;cursor:pointer">Vitamins and minerals${foodPartial(d, k) ? ' · so far' : ''} <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(from Apple Health · % of daily value)</span></summary>
+    <div class="hbars" style="--c:var(--c-cal)">${rows.map(m => { const v = mi[m.key], pct = m.dv ? v / m.dv * 100 : null; return `<div class="hb"><span class="l">${esc(m.name)}</span><span class="t">${pct != null ? `<i style="width:${Math.min(100, Math.max(2, pct))}%"></i>` : ''}</span><span class="x">${fmtN(v, v < 10 ? 1 : 0)} ${m.u}${pct != null ? ` · ${Math.round(pct)}%` : ''}</span></div>`; }).join('')}</div>
+    <p class="muted small" style="margin:6px 0 0">Counts only foods that have vitamin and mineral data in Lose It, so real intake may be higher.</p></details>`;
+}
 function foodPartial(d, k) {
   if (!d || !k) return false;
   const t = totals(d);
@@ -1870,11 +1897,13 @@ function renderDash() {
       meals[m].map(x => `<div class="li"><span class="n">${esc(x.name)}${x.qty ? ` <span class="muted small">${fmtN(x.qty, 2)} ${esc(x.units)}</span>` : ''}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${fmtN(x.calories)}</span></div>`).join('')).join('');
     const t = totals(d);
     if (t.hasNutr) $('#d-food').innerHTML += `<div class="sub-h" style="margin-top:16px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`;
+    $('#d-food').innerHTML += microsHtml(d, dashDate);
   } else {
     const t = totals(d);
     $('#d-food').innerHTML = t.fromHealth
       ? `<p class="muted small" style="margin:0 0 4px">No Lose It report for this day yet — these are the day's totals${foodPartial(d, dashDate) ? ' so far' : ''} from Apple Health.</p><div class="sub-h" style="margin-top:12px">Nutrients · ${fmtN(t.calIn)} cal</div><div class="nutr">${NUTRIENTS.map(n => `<div><span>${n.name}</span><b>${fmtN(t[n.key])} ${n.u}</b></div>`).join('')}</div>`
       : '<p class="muted small" style="margin:0">No food on this day.</p>';
+    if (t.fromHealth) $('#d-food').innerHTML += microsHtml(d, dashDate);
   }
 
   const f = d?.feel;
@@ -2553,6 +2582,7 @@ function dayDigest(k) {
     calories: t.hasFood ? Math.round(t.calIn) : null,
     nutrients: t.hasNutr ? Object.fromEntries(NUTRIENTS.map(n => [`${n.key}_${n.u}`, r(t[n.key])])) : null,
     calories_by_meal: Object.keys(meals).length ? meals : null,
+    vitamins_minerals: d?.micros ? Object.fromEntries(MICROS.filter(m => d.micros[m.key] != null).map(m => [m.name, `${Math.round(d.micros[m.key] * 10) / 10} ${m.u}${m.dv ? ` (${Math.round(d.micros[m.key] / m.dv * 100)}% DV)` : ''}`])) : null,
     foods: foods.length ? foods : null,
     steps: d?.steps ?? null, sleep_h: sleepHours(d), resting_hr: healthValue(d, 'restingHR'), active_cal: healthValue(d, 'activeCal'),
     weight: d?.weight != null ? `${d.weight} ${d.weightUnit || 'lb'}` : null,
@@ -2571,6 +2601,7 @@ function periodStats(ks) {
     anchors: `${ks.reduce((n, k) => n + anchorCount(getDay(k)), 0)} of ${c.names.length * ks.length}`,
     avg_steps: a(v(d => d?.steps)), avg_sleep_h: a(v(sleepHours)), avg_resting_hr: a(v(d => healthValue(d, 'restingHR'))),
     avg_calories_logged_days: a(food.map(t => t.calIn)), avg_protein_g: a(food.map(t => t.protein)), avg_fiber_g: a(food.map(t => t.fiber)), avg_sodium_mg: a(food.map(t => t.sodium)),
+    vitamins_minerals_avg_pct_dv: (() => { const Dm = D.filter(d => d?.micros); if (!Dm.length) return null; return Object.fromEntries(MICROS.filter(m => m.dv).map(m => [m.name, Dm.map(d => d.micros[m.key]).filter(v => v != null)]).filter(([, a]) => a.length).map(([n, a]) => { const m = MICROS.find(x => x.name === n); return [n, Math.round(avg(a) / m.dv * 100) + '%']; })); })(),
     workouts: D.reduce((n, d) => n + (d?.workouts?.length || 0), 0), exercise_min: Math.round(T.reduce((n, t) => n + t.exMin, 0)),
     weight_trend: (() => { const S = weightSeries(), a = trendOn(S, ks[0]), b = trendOn(S, ks[ks.length - 1]), r = trendRate(S, 30, ks[ks.length - 1]); return a == null || b == null ? null : `${a.toFixed(1)} → ${b.toFixed(1)} ${S.unit} (trend; 30-day rate ${r == null ? 'n/a' : r.toFixed(2)} ${S.unit}/week)`; })(),
     weight_first_last: (() => { const w = D.filter(d => d?.weight != null); return w.length ? `${w[0].weight} → ${w[w.length - 1].weight} ${w[0].weightUnit || 'lb'}` : null; })(),
@@ -2613,7 +2644,7 @@ Nutrition: check the mix, not just calories: protein (as a share of calories), f
 
 Weight: judge it by weight_trend (a smoothed trend weight) and its weekly rate, never by a single weigh-in; day-to-day swings of 1-4 lb are mostly water, sodium and food in transit, so mention a jump only to explain it (for example after high-sodium days). Compare the rate with the plan's weight goal and committed rate when present.
 
-If last_weekly_review is present, check whether its focus items were followed. focus: at most 3 concrete actions for the next period. If user_question is present, answer it directly in question_answer using the data; otherwise return an empty string.`;
+Vitamins and minerals come from Apple Health and only count foods that have that data in Lose It, so treat them as a minimum. Mention only clear, consistent shortfalls (for example potassium or magnesium well under 50% of daily value most days) and suggest plan-friendly foods that supply them; don't recommend supplements beyond suggesting the user ask their doctor.\n\nIf last_weekly_review is present, check whether its focus items were followed. focus: at most 3 concrete actions for the next period. If user_question is present, answer it directly in question_answer using the data; otherwise return an empty string.`;
 
 const REVIEW_SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -3352,6 +3383,8 @@ function metricExtra(key, keys, vals, color, unit) {
     const top = Object.entries(foods).sort((a, b) => b[1].n - a[1].n).slice(0, 8).map(([nm, e]) => [nm, e.n, `${fmtN(e.cal / e.n)} cal each`]);
     return ['Nutrition breakdown',
       `<div class="sub-h">Average macros per day</div>${hbars([['Protein', P, `${Math.round(P * 4 / kc * 100)}%`], ['Carbs', C, `${Math.round(C * 4 / kc * 100)}%`], ['Fat', F, `${Math.round(F * 9 / kc * 100)}%`]], color, v => fmtN(v) + ' g')}
+       ${(() => { const Dm = D.filter(d => d.micros && !foodPartial(d, d._k)); if (!Dm.length) return ''; const rows = MICROS.map(m => [m, Dm.map(d => d.micros[m.key]).filter(v => v != null)]).filter(([, a]) => a.length);
+         return `<div class="sub-h">Vitamins and minerals (average per day · ${plural(Dm.length, 'day')} · % of daily value)</div>${hbars(rows.map(([m, a]) => { const v = avg(a); return [m.name, m.dv ? Math.min(150, v / m.dv * 100) : 0, `${fmtN(v, v < 10 ? 1 : 0)} ${m.u}`]; }), color, v => v ? Math.round(v) + '%' : '—')}<p class="muted small" style="margin:6px 0 0">From Apple Health; only foods with vitamin and mineral data in Lose It are counted.</p>`; })()}
        <div class="sub-h">Other nutrients (average per day)</div><div class="nutr">${NUTRIENTS.slice(3).map(n => `<div><span>${n.name}</span><b>${fmtN(avg(T.map(t => t[n.key])))} ${n.u}</b></div>`).join('')}</div>
        <div class="sub-h">Average calories by meal</div>${hbars(mealRows, color, v => fmtN(v) + ' cal')}
        <div class="sub-h">Most-logged foods</div>${hbars(top, color, v => v + '×')}`];
