@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 1.12** · October 16, 2026 · [Version history](#version-history)
+> **Version 2.2** · October 19, 2026 · [Version history](#version-history)
 
 **Health Sync is a free, private health app that runs in your web browser.** It brings your **workouts, steps, food, weight, sleep and feelings** together in one place.
 
@@ -29,15 +29,16 @@ There's nothing to install and nothing to pay for. You open a web link, and that
 13. [Step 11 (optional) — Bring in your whole Garmin history](#step-11-optional--bring-in-your-whole-garmin-history)
 14. [Step 12 (optional) — Get workouts within the hour from Strava](#step-12-optional--get-workouts-within-the-hour-from-strava)
 15. [Step 13 (optional) — Steps, sleep, heart rate and more from Apple Health (iPhone)](#step-13-optional--steps-sleep-heart-rate-and-more-from-apple-health-iphone)
-16. [Using the app every day](#using-the-app-every-day)
-17. [What each screen does](#what-each-screen-does)
-18. [Signing in: what to expect](#signing-in-what-to-expect)
-19. [Updating the app](#updating-the-app)
-20. [Backups](#backups)
-21. [Troubleshooting](#troubleshooting)
-22. [Privacy: who can see what](#privacy-who-can-see-what)
-23. [FAQ](#faq)
-24. [Version history](#version-history)
+16. [Step 14 (optional) — Weekly Coach reviews by Claude](#step-14-optional--weekly-coach-reviews-by-claude)
+17. [Using the app every day](#using-the-app-every-day)
+18. [What each screen does](#what-each-screen-does)
+19. [Signing in: what to expect](#signing-in-what-to-expect)
+20. [Updating the app](#updating-the-app)
+21. [Backups](#backups)
+22. [Troubleshooting](#troubleshooting)
+23. [Privacy: who can see what](#privacy-who-can-see-what)
+24. [FAQ](#faq)
+25. [Version history](#version-history)
 
 ---
 
@@ -741,6 +742,75 @@ Now every time you leave Lose It or Garmin Connect, your latest Apple Health dat
 
 ---
 
+## Step 14 (optional) — Weekly Coach reviews by Claude
+
+**What this does:** every Monday, the first time you open Health Sync, Claude writes a review of the week just finished (Mon–Sun). It also emails you a copy. The review includes:
+
+- a **letter grade** and why you got it
+- a short **narrative** of the week
+- **went well / fell short / what's working / what isn't**
+- a **nutrition mix** check, with **swaps that fit your plan**
+- up to 3 things to **focus** on next week
+
+You can also ask for a review of **any dates** at any time (**Coach › Review now**), with an optional question such as "How am I doing on sodium?".
+
+**Cost:** Claude is paid for through Anthropic's API, separately from any Claude.ai subscription.
+- A weekly review costs about **10–15¢**, so roughly **$6–8 a year**.
+- On-demand reviews cost about the same for a week, and up to about $1 for a whole year.
+- **More swap ideas** costs about 2¢.
+
+**Privacy:** to write a review, a summary of that period's data (your food log, nutrients, steps, sleep, workouts, anchors, mood notes and your plan) is sent to Anthropic's API. Your API key is stored in your Google Drive data file, never on GitHub, and is left out of backups.
+
+### 14a. Get an Anthropic API key (5 minutes)
+
+1. Go to **https://console.anthropic.com** and sign up. Your personal Gmail is fine.
+2. Open **Billing** (or **Plans & billing**) and add credit. **$10** covers more than a year of weekly reviews.
+3. Open **API Keys** → **Create Key**, name it `Health Sync`, and **copy the key** (it starts with `sk-ant-`).
+   - It's only shown once. If you lose it, create a new one.
+
+### 14b. Turn on the Coach
+
+1. In Health Sync, open **Settings › Coach**.
+2. Paste the key into **Anthropic API key**.
+3. Click **Save coach settings**.
+
+4. **Track your balance:** in **Settings › Coach › Usage and balance**:
+   - Type the credit you bought (e.g. `20`) under **Bought credit** and click **Add credit**.
+   - If you turned on **auto-reload** in the console, tick **Auto-reload is on in my console**, enter its numbers (e.g. when below **$5**, add **$20**), and click **Save coach settings**. The estimate then adds each automatic top-up itself, so you never need to enter them.
+
+That's it. Health Sync writes the reviews for every week since **September 7** in the background, oldest first. That takes a few minutes. After that it writes one each Monday. Only the newest week's review is emailed.
+
+### 14c. Turn on the Monday email (5 minutes)
+
+The email comes from your own Google script, so it needs the script's v2.0 code:
+
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v2.0) and click **💾 Save**.
+2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
+   - Google asks for permission again, this time to **send email as you**. Allow it.
+   - Check that you received a test email.
+3. Click **Deploy** → **Manage deployments** → **✏️ (edit)** → **Version: New version** → **Deploy**. This puts the new code live at the same address.
+4. Choose **`healthAddress`** and click **▶ Run**, then copy the full address from the log (it ends in `?key=…`).
+5. In Health Sync, open **Settings › Coach**, paste it into **Script address**, make sure **Email me each weekly review** is ticked, and click **Save coach settings**.
+
+### Usage and balance
+
+Anthropic doesn't let an API key read the account balance, so Health Sync tracks it itself. Every call to Claude returns its exact token counts, and the app prices them and keeps a log.
+
+- **Coach tab (top):** *Est. balance $19.62 · 48¢ this month · auto-reload +$20 below $5*. With auto-reload off, it turns red with a reminder when the balance drops under **$2**.
+- **Each review:** shows what it cost, including any regenerations and More swap ideas.
+- **Settings › Coach › Usage and balance:** estimated balance, this month, all time, number of calls, and a **Recent calls** list with tokens and cost for each.
+- **If the estimate ever differs** from the balance on console.anthropic.com (e.g. after using the key elsewhere), type the console's number under **Console shows** and click **Set balance**.
+
+### 14d. Your plan and targets
+
+**Settings › Coach** also holds what the Coach judges your food against. It's pre-filled from your plan, and you can edit it any time:
+
+- **Your daily food plan:** 2–3 Kate Farms shakes, plus 1 bag of salad, plus 8–12 oz of cooked protein.
+- **Plan foods:** your shakes, salad kits and proteins, with their nutrition. One per line: name | per | cal | protein | fat | sat fat | carbs | fiber | sugar | sodium. Swaps come from this list first.
+- **Nutrition targets:** fiber at least 25 g, sodium under 2,300 mg, saturated fat under 10% of calories, sugars under 50 g.
+
+---
+
 ## Using the app every day
 
 1. **Drop new files in the Inbox** whenever you like, from your phone or any computer.
@@ -777,7 +847,7 @@ Now every time you leave Lose It or Garmin Connect, your latest Apple Health dat
   - Days with no data for a measure are **skipped**, so they don't pull the average down. Each tile says how many days it's based on.
   - **Exercise** is minutes per day across all days that have any data, so a day without a workout counts as 0.
   - The app remembers which button you picked.
-- **Tabs along the top:** Dashboard · **Plan** · Log today · History · Import · Settings.
+- **Tabs along the top:** Dashboard · **Coach** · **Plan** · Log today · History · Import · Settings.
 - **Daily anchors** (top of the Trends card): this week's habit boxes, for example **12 of 21 · goal 17**.
   - A bar of 21 boxes fills in as you go. The dashed boxes after the goal are your **weekly buffer** for real life.
   - Next to it, a little grid shows how many boxes you got each day (Mon–Sun).
@@ -826,6 +896,28 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
 - **Daily log table:** every day in the period, newest first. **Click any column header to sort by it** (▼ highest/newest first). Click it again to reverse (▲). Blank days always go to the bottom. Click a row to open that day on the Dashboard.
 
 **Getting back to the Dashboard:** click **← Dashboard** (top left), press **Esc**, or use your browser's or mouse's **Back** button.
+
+### Coach
+
+Reviews written by Claude (set up in [Step 14](#step-14-optional--weekly-coach-reviews-by-claude)).
+
+- **Weekly:** written automatically the first time you open the app on or after Monday, once Sunday's data has arrived. If it hasn't yet, the Coach tab says "Waiting for …'s data". A review takes about **20–40 seconds** to write, and you can keep using the app meanwhile.
+- **What's in a review:**
+  - grade and why
+  - narrative
+  - went well, fell short, what's working, what isn't
+  - nutrition mix, with the problem foods named
+  - swaps that fit your plan
+  - focus for next week
+  - the week's key numbers
+
+  Reviews follow up on the previous week's focus.
+- **More swap ideas:** asks Claude for more swaps within your plan's rules.
+- **Regenerate:** rewrites a review, for example after late data arrives.
+- **Incomplete weeks:** if food was logged on fewer than half the days, the week isn't graded. You can **add a note** (e.g. "On vacation") that later reviews take into account, or tap **Write a review anyway**.
+- **Previous weeks:** listed below the latest review, newest first. Tap one to expand it.
+- **On demand:** tap **Review now**, then pick dates (or a quick range), optionally ask a question, and optionally tick **Email it to me**. These are kept in the **On demand** list, and you can delete them.
+- It's coaching, not medical advice. If something looks risky, it says so and suggests checking with a doctor or dietitian.
 
 ### Plan
 
@@ -988,6 +1080,9 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 | **"Strava sign-in failed (400)" when running stravaConnect** | The code expired or was already used. Run **stravaLink** again, authorize again, paste the new address into `STRAVA_CODE`, and run **stravaConnect** right away. |
 | **"Strava sign-in failed (401)"** | The Client ID or Client Secret in Script Properties is wrong. Copy them again from strava.com/settings/api. Watch out for extra spaces. |
 | **Strava workouts don't appear** | Check that the workout is on Strava (Garmin → Strava sync). Check the script's **Executions** for errors. New workouts arrive within about an hour. |
+| **Coach says "the API key was rejected"** | Copy the key again from console.anthropic.com › API Keys (or create a new one), paste it in **Settings › Coach**, and save. |
+| **Coach says "out of credit"** | Add credit at console.anthropic.com › Billing. |
+| **No Monday email** | Run **emailTest** in the script (Step 14c), make sure you made a **New version** deployment, and check that **Script address** in Settings › Coach ends in `?key=…`. |
 | **Lose It emails aren't showing up in the Inbox** | See [Step 10e](#10e-if-it-saves-nothing). Also check that the emails arrive in the **same personal Gmail** the script is set up in. |
 | **The dashboard shows "—" for today** | Normal. Today's data usually arrives tomorrow. Use the **7-day avg** button (or another average), which always ends yesterday. |
 
@@ -1053,9 +1148,36 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README** (`README.md`) | At the very top |
-| **Your copies** | The Desktop folder name, like **Health Sync v1.12** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.2** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.2 (October 19, 2026)
+
+- **Auto-reload support.** Tell Health Sync your console's auto-reload settings (e.g. add $20 when below $5), and the estimated balance includes each automatic top-up. There's no low-balance warning while auto-reload is on.
+- Script: only the version number changed. Pasting it is optional.
+
+### v2.1 (October 19, 2026)
+
+- **Usage and estimated balance for the Coach.** Every call to Claude is logged with its exact token counts and cost.
+  - The Coach tab shows the estimated balance and this month's spending, with a low-balance warning under $2.
+  - Each review shows its cost.
+  - **Settings › Coach** has **Add credit**, **Set balance** (to match the console) and a recent-calls log.
+- Script: only the version number changed. Pasting it is optional.
+
+### v2.0 (October 19, 2026)
+
+- **New Coach tab.** Claude writes a weekly review (Mon–Sun) the first time you open the app on or after Monday, and emails it to you. Each review has:
+  - a letter grade and why
+  - a short narrative
+  - went well / fell short / what's working / what isn't
+  - a **nutrition mix** check (fiber, sodium, saturated fat, sugars, protein), with **swaps that fit your plan** and a **More swap ideas** button
+  - focus for next week
+- **Review now:** on-demand reviews for any dates, with an optional question and email.
+- **Incomplete weeks** (food logged on fewer than half the days) aren't graded, and you can add a note to them.
+- **Backfill:** weeks from September 7 are written automatically, the first time the Coach is turned on.
+- **Settings › Coach:** API key, script address for email, your daily food plan, plan foods with nutrition, and nutrition targets.
+- **Script v2.0: paste and redeploy (Step 14c).** It can now send the review email (`doPost` + `emailTest`).
 
 ### v1.12 (October 16, 2026)
 

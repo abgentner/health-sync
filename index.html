@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.1 -->
+<!-- Health Sync app · version 2.2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -637,6 +637,11 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
       <label style="margin:0">Bought credit: $ <input type="number" id="cu-add" min="0" step="0.01" style="width:90px"></label><button class="btn small" id="cu-add-go">Add credit</button>
       <label style="margin:0 0 0 12px">Console shows: $ <input type="number" id="cu-set" min="0" step="0.01" style="width:90px"></label><button class="btn small" id="cu-set-go">Set balance</button>
     </div>
+    <div class="row" style="margin-top:10px">
+      <label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cs-ar"> Auto-reload is on in my console:</label>
+      <label style="margin:0">when below $ <input type="number" id="cs-ar-below" min="0" step="1" style="width:70px"></label>
+      <label style="margin:0">add $ <input type="number" id="cs-ar-amt" min="0" step="1" style="width:70px"></label>
+    </div>
     <p class="small muted" style="margin:6px 0 0">The balance is worked out from every call's exact token count. If it ever differs from <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">your console balance</a>, enter the console's number with Set balance.</p>
     <details style="margin-top:8px"><summary class="small" style="cursor:pointer">Recent calls</summary><div class="list small" id="cu-list" style="margin-top:6px"></div></details>
     <div class="sub-h" style="margin-top:16px">Your daily food plan</div>
@@ -701,7 +706,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.2';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -2423,7 +2428,8 @@ let coachProgress = '';
 
 const coachCfg = () => {
   const c = data.coachCfg || {};
-  return { apiKey: c.apiKey || '', scriptUrl: c.scriptUrl || '', email: c.email !== false, planDay: c.planDay || PLAN_DAY_DEFAULT,
+  return { apiKey: c.apiKey || '', scriptUrl: c.scriptUrl || '', email: c.email !== false,
+    autoReload: { on: c.autoReload?.on !== false, below: c.autoReload?.below ?? 5, amount: c.autoReload?.amount ?? 20 }, planDay: c.planDay || PLAN_DAY_DEFAULT,
     planFoods: c.planFoods || PLAN_FOODS_DEFAULT, targets: { ...TARGETS_DEFAULT, ...(c.targets || {}) } };
 };
 const reviews = () => (data.reviews ||= {});
@@ -2588,13 +2594,15 @@ function usageSummary() {
   const month = todayKey().slice(0, 7);
   const spentMonth = ev.filter(e => e.type === 'call' && e.at.slice(0, 7) === month).reduce((n, e) => n + e.cost, 0);
   const spentAll = ev.filter(e => e.type === 'call').reduce((n, e) => n + e.cost, 0);
-  let bal = null;
+  // Anthropic's auto-reload tops the account up when it drops below a threshold; mirror that so the estimate stays right.
+  const ar = coachCfg().autoReload;
+  let bal = null, reloads = 0;
   for (const e of ev) {
     if (e.type === 'set') bal = e.amount;
     else if (e.type === 'credit') bal = (bal || 0) + e.amount;
-    else if (e.type === 'call' && bal != null) bal -= e.cost;
+    else if (e.type === 'call' && bal != null) { bal -= e.cost; if (ar.on && bal < ar.below) { bal += ar.amount; reloads++; } }
   }
-  return { spentMonth, spentAll, balance: bal, calls: ev.filter(e => e.type === 'call') };
+  return { spentMonth, spentAll, balance: bal, calls: ev.filter(e => e.type === 'call'), reloads, autoReload: ar };
 }
 const money = v => v == null ? '—' : v < 1 && v > -1 ? `${Math.round(v * 100)}¢` : `$${v.toFixed(2)}`;
 async function addCredit(type) {
@@ -2705,8 +2713,9 @@ function renderCoach() {
   const list = Object.values(reviews()).filter(r => !r.deleted && (coachView === 'week' ? r.kind === 'week' : r.kind === 'adhoc') && r.status !== 'writing').sort((a, b) => (b.end + b.createdAt).localeCompare(a.end + a.createdAt));
   const latest = list[0];
   const us = usageSummary();
+  const low = us.balance != null && !us.autoReload.on && us.balance < 2;
   $('#coach-bal').innerHTML = us.balance != null
-    ? `Est. balance <b style="color:${us.balance < 2 ? 'var(--bad)' : 'inherit'}">${money(us.balance)}</b> · ${money(us.spentMonth)} this month${us.balance < 2 ? ' · <b style="color:var(--bad)">running low — add credit at console.anthropic.com, then add it in Settings › Coach</b>' : ''}`
+    ? `Est. balance <b style="color:${low ? 'var(--bad)' : 'inherit'}">${money(us.balance)}</b> · ${money(us.spentMonth)} this month${us.autoReload.on ? ` · auto-reload +$${us.autoReload.amount} below $${us.autoReload.below}${us.reloads ? ` (${plural(us.reloads, 'reload')} so far)` : ''}` : ''}${low ? ' · <b style="color:var(--bad)">running low — add credit at console.anthropic.com, then add it in Settings › Coach</b>' : ''}`
     : us.calls.length ? `${money(us.spentMonth)} spent this month · add your credit in Settings › Coach to track the balance` : '';
   $('#coach-progress').textContent = coachProgress;
   $('#coach-progress').hidden = !coachProgress;
@@ -2756,7 +2765,8 @@ async function runReviewNow() {
 
 function renderCoachSettings() {
   const cc = coachCfg(), us = usageSummary();
-  $('#cu-nums').innerHTML = [['Est. balance', us.balance != null ? money(us.balance) : 'not set'], ['This month', money(us.spentMonth)], ['All time', money(us.spentAll)], ['Calls', String(us.calls.length)]].map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+  $('#cs-ar').checked = cc.autoReload.on; $('#cs-ar-below').value = cc.autoReload.below; $('#cs-ar-amt').value = cc.autoReload.amount;
+  $('#cu-nums').innerHTML = [['Est. balance', us.balance != null ? money(us.balance) : 'not set'], ['This month', money(us.spentMonth)], ['All time', money(us.spentAll)], ['Auto-reloads', cc.autoReload.on ? String(us.reloads) : 'off']].map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join('');
   $('#cu-list').innerHTML = us.calls.slice(-25).reverse().map(e => `<div class="li"><span class="n">${esc(e.what)}<div class="muted">${esc(new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} · ${fmtN(e.in)} in / ${fmtN(e.out)} out tokens</div></span><span class="x">${money(e.cost)}</span></div>`).join('') || '<p class="muted" style="margin:0">No calls yet.</p>';
   $('#cs-key').value = cc.apiKey ? '••••••••' + cc.apiKey.slice(-4) : '';
   $('#cs-script').value = cc.scriptUrl; $('#cs-email').checked = cc.email;
@@ -2769,6 +2779,7 @@ async function saveCoachSettings() {
   data.coachCfg = { ...prev,
     apiKey: k && !k.startsWith('••••') ? k : prev.apiKey || '',
     scriptUrl: $('#cs-script').value.trim(), email: $('#cs-email').checked,
+    autoReload: { on: $('#cs-ar').checked, below: num($('#cs-ar-below').value) ?? 5, amount: num($('#cs-ar-amt').value) ?? 20 },
     planDay: $('#cs-planday').value.trim(), planFoods: $('#cs-foods').value.trim(),
     targets: { fiberMin: num($('#cs-fiber').value) ?? 25, sodiumMax: num($('#cs-sodium').value) ?? 2300, satFatPctMax: num($('#cs-satfat').value) ?? 10, sugarMax: num($('#cs-sugar').value) ?? 50 } };
   coachDirty = true;
