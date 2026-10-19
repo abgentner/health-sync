@@ -7,9 +7,18 @@ Every release has one version number, shared by all its files. To check you're u
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.4** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.5** |
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.5 (October 19, 2026)
+
+- **Fixed:** food-based anchor boxes (Day Pack, Dinner Boundary) could tick for today before Lose It's report existed.
+  - They now show **… Waiting for Lose It** for today, and for yesterday until its report arrives.
+  - The Coach is told when a box is still pending.
+  - Movement is unchanged: it ticks as soon as a workout arrives.
+- Regression tests: 56 checks.
+- Script: only the version number changed. Pasting it is optional.
 
 ### v2.4 (October 19, 2026)
 

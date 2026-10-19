@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.4 -->
+<!-- Health Sync app · version 2.5 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -205,6 +205,8 @@ tbody tr:hover{background:var(--surface-2)}
 .anchor.on .an-src{color:var(--c-anchor)}
 .anchor.on{border-color:var(--c-anchor);background:color-mix(in oklab,var(--c-anchor) 8%,var(--surface))}
 .anchor.on .ck{background:var(--c-anchor);border-color:var(--c-anchor)}
+.anchor.pend .ck{border-style:dashed;color:var(--muted);font-weight:600}
+.anchor.pend .an-src{color:var(--muted)}
 .an-sum{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:center;padding:4px 0 18px;margin-bottom:16px;border-bottom:1px solid var(--border)}
 .an-big{font-size:30px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .an-big .u{font-size:14px;color:var(--text-2);font-weight:550;margin-left:4px;letter-spacing:0}
@@ -745,7 +747,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.4';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.5';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -837,7 +839,11 @@ let planDirty = false;
 let settings = Object.assign({ units: 'imperial', theme: '', span: 7, cloudNotes: true }, LS.get('hs-settings', {}));
 const saveSettings = () => LS.set('hs-settings', settings);
 
-function getDay(k) { return data.days[k]; }
+function getDay(k) {
+  const d = data.days[k];
+  if (d && d._k !== k) Object.defineProperty(d, '_k', { value: k, configurable: true });   // lets rules know which day they're judging
+  return d;
+}
 function day(k) {
   const d = data.days[k] || (data.days[k] = {});
   d.food ||= []; d.workouts ||= [];
@@ -1469,6 +1475,7 @@ function impLoseItFood(rows, find) {
   for (const k of dates) {
     const d = day(k);
     d.food = d.food.filter(f => f.source !== 'loseit').concat(byDay[k] || []);
+    d.loseItAt = new Date().toISOString();
     d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(exByDay[k] || []);
     if (byDay[k]?.length) delete d.nutrition;   // per-food nutrients replace the PDF's day totals
     touch(k);
@@ -1660,6 +1667,7 @@ async function importPdf(name, buf) {
   let foods = 0;
   for (const key of keys) {
     const D = days[key], d = day(key);
+    d.loseItAt = new Date().toISOString();
     d.food = d.food.filter(f => f.source !== 'loseit').concat(D.food.map((f, i) => ({ id: `loseit|${key}|${i}`, source: 'loseit', name: f.name, meal: f.meal, qty: f.qty, units: f.units, calories: f.cal })));
     d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(D.ex.map((e, i) => ({ id: `loseit|${key}|x${i}`, source: 'loseit', type: e.name, title: e.name, durationMin: e.mins, calories: e.cal })));
     if (Object.keys(D.nut).length) d.nutrition = { ...D.nut, source: 'loseit' }; else delete d.nutrition;
@@ -2066,9 +2074,15 @@ const anchorCfg = () => {
 };
 
 // What the imported data says about box i: { ok, why } — or null when the box is check-by-hand only.
-function autoAnchor(d, i, c = anchorCfg()) {
+function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
   const r = c.rules[i];
   if (!r || r.type === 'none') return null;
+  // Food boxes are only judged once the day is over and its Lose It report has arrived (it lands the next morning).
+  if (['food', 'budget', 'meal'].includes(r.type) && k) {
+    const t = todayKey();
+    if (k >= t) return { ok: false, pending: true, why: 'Waiting for Lose It — today isn’t over yet' };
+    if (k === addDays(t, -1) && !d?.loseItAt && !d?.food?.some(f => f.source === 'loseit')) return { ok: false, pending: true, why: 'Waiting for yesterday’s Lose It report' };
+  }
   if (r.type === 'workout') {
     const mins = (d?.workouts || []).reduce((s, w) => s + (w.durationMin || 0), 0);
     if (!d?.workouts?.length) return { ok: false, why: 'no workouts yet' };
@@ -2096,10 +2110,10 @@ function autoAnchor(d, i, c = anchorCfg()) {
   return null;
 }
 // A box set by hand (true/false) wins; otherwise the imported data decides.
-function anchorState(d, i, manual = d?.anchors?.[i], c) {
-  const auto = autoAnchor(d, i, c);
+function anchorState(d, i, manual = d?.anchors?.[i], c, k) {
+  const auto = autoAnchor(d, i, c, k ?? d?._k);
   if (manual === true || manual === false) return { on: manual, manual: true, auto };
-  return { on: !!auto?.ok, manual: false, auto };
+  return { on: !!auto?.ok, manual: false, auto, pending: !!auto?.pending };
 }
 const anchorCount = (d, manual) => { const c = anchorCfg(); return c.names.reduce((n, _, i) => n + (anchorState(d, i, manual ? manual[i] : d?.anchors?.[i], c).on ? 1 : 0), 0); };
 const weekStart = k => addDays(k, -((keyToDate(k).getDay() + 6) % 7));   // weeks run Monday–Sunday
@@ -2108,12 +2122,12 @@ let anchorDraft = [];
 function renderAnchorBoxes() {
   const c = anchorCfg(), d = getDay(logDate);
   $('#an-boxes').innerHTML = c.names.map((n, i) => {
-    const st = anchorState(d, i, anchorDraft[i], c);
+    const st = anchorState(d, i, anchorDraft[i], c, logDate);
     const src = st.manual
       ? `<div class="an-src">Set by hand${st.auto ? ` · <a href="#" data-reset="${i}">use imported data</a>` : ''}</div>`
       : st.auto ? `<div class="an-src">Auto · ${esc(st.auto.why)}</div>` : '';
-    return `<button type="button" class="anchor${st.on ? ' on' : ''}" data-i="${i}" aria-pressed="${st.on}">
-    <span class="ck">${st.on ? '✓' : ''}</span><span><div class="an-n">${esc(n)}</div>${c.hints[i] ? `<div class="an-h">${esc(c.hints[i])}</div>` : ''}${src}</span></button>`;
+    return `<button type="button" class="anchor${st.on ? ' on' : ''}${st.pending ? ' pend' : ''}" data-i="${i}" aria-pressed="${st.on}">
+    <span class="ck">${st.on ? '✓' : st.pending ? '…' : ''}</span><span><div class="an-n">${esc(n)}</div>${c.hints[i] ? `<div class="an-h">${esc(c.hints[i])}</div>` : ''}${src}</span></button>`;
   }).join('');
   const ws = weekStart(logDate);
   let got = 0; for (let i = 0; i < 7; i++) { const k = addDays(ws, i); got += k === logDate ? anchorCount(d, anchorDraft) : anchorCount(getDay(k)); }
@@ -2422,7 +2436,7 @@ function renderHist() {
   if (n) { const cut = addDays(todayKey(), -(n - 1)); keys = keys.filter(k => k >= cut); }
   $('#h-empty').hidden = !!keys.length;
   $('#h-body').innerHTML = keys.map(k => {
-    const d = data.days[k], t = totals(d);
+    const d = getDay(k), t = totals(d);
     return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${anchorCount(d) + '/' + anchorCfg().names.length}</td><td data-sort="${d.feel?.mood ?? ''}">${d.feel?.mood ? MOODS[d.feel.mood - 1] : '—'}</td></tr>`;
   }).join('');
   sortTable('h');
@@ -2507,7 +2521,7 @@ function dayDigest(k) {
     steps: d?.steps ?? null, sleep_h: sleepHours(d), resting_hr: healthValue(d, 'restingHR'), active_cal: healthValue(d, 'activeCal'),
     weight: d?.weight != null ? `${d.weight} ${d.weightUnit || 'lb'}` : null,
     workouts: (d?.workouts || []).map(w => ({ type: w.type || w.title, minutes: Math.round(w.durationMin || 0), calories: w.calories ?? null, distance: w.distance ?? null })),
-    anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c); return [nm, { checked: s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
+    anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
     mood: d?.feel?.mood ?? null, energy: d?.feel?.energy ?? null, stress: d?.feel?.stress ?? null, tags: d?.feel?.tags?.length ? d.feel.tags : null, notes: d?.feel?.notes || null,
   };
 }

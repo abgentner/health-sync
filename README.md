@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.4** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.5** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -207,7 +207,7 @@ Your plan's **3 daily anchor boxes**, with a weekly goal of **17 out of 21** (ab
 - Each box in **Log today** says why it's checked or not, for example *"Auto · 32 min of exercise"*.
 - **Click a box to override it.** For example, tick Dinner Boundary if you stuck to the one-plate rule but Lose It didn't log dinner. It then says **"Set by hand"**. Click **Save day**.
 - To go back to automatic, click **use imported data** on that box, or click the box back to whatever the data says.
-- Boxes fill in as your files arrive, so yesterday's boxes may tick themselves the next morning, when the Lose It report comes in.
+- **Food boxes wait for Lose It.** Day Pack and Dinner Boundary show **… Waiting for Lose It** for today, and for yesterday until its report arrives (usually by morning). Then they're judged. Movement ticks as soon as a workout arrives.
 
 **Changing the boxes:** in **Settings → Daily anchors**, you can rename each box, change its reminder, change how it's checked, and change the weekly goal. How it's checked can be:
 
