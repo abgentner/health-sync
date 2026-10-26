@@ -7,7 +7,7 @@ The app and the docs share one version number. The script has its own (see below
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.10** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.10.1** |
 
 ### How versions are numbered (from v2.9 on)
 
@@ -19,6 +19,12 @@ The app and the docs share one version number. The script has its own (see below
 **The script has its own version**, and it only goes up when the script's code changes. **If the script's version changes in a release, paste it in.** Otherwise leave it alone.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.10.1 (October 26, 2026)
+
+- **Fixed:** the 👁 on a hidden tile didn't respond to clicks, because the tile's faded title row was covering it. It now shows the tile again.
+- Regression tests: 82 checks, including one that checks the 👁 is clickable.
+- Script: unchanged (still v2.9).
 
 ### v2.10 (October 26, 2026)
 
