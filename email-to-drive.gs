@@ -1,12 +1,14 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 2.9
+ * Version 2.12
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
  *     PDF, CSV or ZIP attached, and saves the attachments, and
  *  2. if you've connected Strava, saves any new Strava activities,
- * into Google Drive › Health Sync › Inbox.
+ * into Google Drive › Health Sync › Inbox, and
+ *  3. if you've added a Garmin key, reads all your Garmin Connect data straight from Garmin
+ *     into Google Drive › Health Sync › Garmin (and loads your Garmin history in the background).
  *
  * It can also RECEIVE Apple Health data sent from your iPhone (Health Auto Export's
  * REST API automation, or a Shortcut) once deployed as a web app — see doPost below —
@@ -16,17 +18,17 @@
  * Each email is labelled "health-sync-saved" in Gmail once its attachments
  * are saved, so nothing is copied twice. Your emails are not changed or deleted.
  *
- * Your Strava keys are kept in this project's Script Properties (only you can
+ * Your Strava and Garmin keys are kept in this project's Script Properties (only you can
  * see them), never in this code.
  *
- * Setup: see SETUP.md, Step 9 (emails), Step 10 (Strava) and Step 12c (Coach email).
+ * Setup: see SETUP.md, Step 9 (emails), Step 10 (Strava), Step 12c (Coach email) and Step 13 (Garmin).
  */
 
 // Which emails to look for. Lose It sends its reports from donotreply@loseit.com.
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '2.9';   // printed at the start of every run
+const SCRIPT_VERSION = '2.12';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -51,8 +53,9 @@ function hourly() {
   const errors = {};
   try { saveHealthReports(); } catch (e) { errors.email = String(e.message || e); console.error(e); }
   try { syncStrava(); } catch (e) { errors.strava = String(e.message || e); console.error(e); }
+  try { syncGarmin(); } catch (e) { errors.garmin = String(e.message || e); console.error(e); }
   try { checkSources_(errors); } catch (e) { console.error(e); }
-  if (errors.email || errors.strava) throw new Error(Object.values(errors).join(' | '));   // still shows as Failed in Executions
+  if (errors.email || errors.strava || errors.garmin) throw new Error(Object.values(errors).join(' | '));   // still shows as Failed in Executions
 }
 
 /** Turns the hourly check off. */
@@ -240,6 +243,281 @@ function stravaGet_(path, token) {
   return JSON.parse(res.getContentText());
 }
 
+/* ============================ Garmin ============================= */
+// Reads everything the Garmin Connect Personal API offers, straight from Garmin, and keeps it in
+// Google Drive › Health Sync › Garmin:
+//   days/<year>/garmin-<date>.json             everything Garmin has for that day (complete, as Garmin sends it)
+//   activities/<year>/garmin-activity-<date>-<id>.json   each workout: summary, full detail, laps/splits, workout steps
+//   fit/<year>/garmin-<date>-<id>.zip          each workout's original file from your watch
+//   profile.json                               your settings, heart rate zones and weight goals
+// Every hour it re-reads the last few days (sleep and late watch syncs land after the fact) and new workouts,
+// then spends a couple of minutes loading your history, newest first, until it reaches your first Garmin data.
+//
+// Your key lives only in this project's Script Properties: GARMIN_KEY, plus GARMIN_KEY_EXPIRES (the date it
+// expires, like 2027-10-26) so you get a reminder before it stops working. Setup: SETUP.md Step 13.
+
+const GARMIN_API = 'https://personal.connectapi.garmin.com';
+const GARMIN_RECENT_DAYS = 3;          // today and the 2 days before it are re-read every hour
+const GARMIN_CHUNK_DAYS = 28;          // the longest date range every Garmin endpoint accepts
+const GARMIN_HISTORY_SECONDS = 120;    // time each hourly run spends on history (Google allows 90 minutes of runs a day in all)
+const GARMIN_EMPTY_TO_STOP = 3;        // history is complete after this many empty 28-day stretches in a row
+const GARMIN_BATCH = 20;               // requests sent to Garmin at once
+const GARMIN_KEY_WARN_DAYS = 30;       // start reminding you this many days before the key expires
+
+// Endpoints that take a date range. split() turns Garmin's reply into [date, value] pairs.
+const byField_ = f => j => (Array.isArray(j) ? j : []).map(x => [garminDate_(x[f]), x]);
+const GARMIN_RANGE = [
+  { key: 'dailySummary', path: (a, b) => `/usersummary-service/v2/dailysummaries?startDate=${a}&endDate=${b}`, split: j => byField_('calendarDate')(j && j.data) },
+  { key: 'steps', path: (a, b) => `/usersummary-service/stats/steps/daily/${a}/${b}`, split: byField_('calendarDate') },
+  { key: 'stress', path: (a, b) => `/usersummary-service/stats/stress/daily/${a}/${b}`, split: byField_('calendarDate') },
+  { key: 'hydration', path: (a, b) => `/usersummary-service/stats/hydration/daily/${a}/${b}`, split: byField_('calendarDate') },
+  { key: 'sleep', path: (a, b) => `/sleep-service/sleep/dailySleepSummariesByDate?startDate=${a}&endDate=${b}`, split: byField_('calendarDate') },
+  { key: 'hrv', path: (a, b) => `/hrv-service/hrv/daily/${a}/${b}`, split: j => byField_('calendarDate')(j && j.hrvSummaries) },
+  { key: 'bodyBattery', path: (a, b) => `/wellness-service/wellness/bodyBattery/reports/daily?startDate=${a}&endDate=${b}`, split: byField_('date') },
+  { key: 'weighIns', list: true, path: (a, b) => `/weight-service/weight/all/${a}/${b}`, split: j => (Array.isArray(j) ? j : []).map(x => [garminDate_(x.calendarDate || x.date), x]) },
+  { key: 'weightDay', path: (a, b) => `/weight-service/weight/range/${a}/${b}?includeAll=true`, split: j => byField_('summaryDate')(j && j.dailyWeightSummaries) },
+  { key: 'wellnessActivities', list: true, path: (a, b) => `/wellnessactivity-service/activity/summary/range/${a}/${b}`, split: j => (Array.isArray(j) ? j : []).map(x => [garminDate_(x.calendarDate || x.startTimestampLocal), x]) },
+];
+// Endpoints that take one day.
+const GARMIN_DAY = [
+  { key: 'userSummary', path: d => `/usersummary-service/usersummary/daily?calendarDate=${d}` },
+  { key: 'heartRate', path: d => `/wellness-service/wellness/dailyHeartRate?date=${d}` },
+  { key: 'pulseOx', path: d => `/wellness-service/wellness/daily/spo2acclimation/${d}` },
+  { key: 'hrvReadings', path: d => `/hrv-service/hrv/${d}` },
+  { key: 'sleepDetail', path: d => `/sleep-service/sleep/dailySleep?date=${d}` },
+  { key: 'nutrition', path: d => `/nutrition-service/food/logs/${d}?includeGoals=true&includeNutrition=true&includeMedia=false` },
+  { key: 'fitnessAge', path: d => `/fitnessage-service/fitnessage/v2/${d}` },
+  { key: 'menstrualSummary', path: d => `/periodichealth-service/menstrualcycle/summary/${d}` },
+  { key: 'menstrualDay', path: d => `/periodichealth-service/menstrualcycle/dayview/${d}?includeAnalysis=true` },
+];
+
+/** Run once after adding GARMIN_KEY: checks the key and every kind of Garmin data, and saves yesterday as a sample. */
+function garminCheck() {
+  console.log('Health Sync script v' + SCRIPT_VERSION);
+  const p = props_(), key = (p.getProperty('GARMIN_KEY') || '').trim(), exp = garminKeyDaysLeft_();
+  console.log('GARMIN_KEY: ' + (key ? key.length + ' characters' : 'MISSING: add it in Project Settings › Script Properties (SETUP.md Step 13)'));
+  console.log('GARMIN_KEY_EXPIRES: ' + (exp == null ? 'not set (add it, like 2027-10-26, to get a reminder before the key stops working)' : `${p.getProperty('GARMIN_KEY_EXPIRES')} (${exp} days left)`));
+  if (!key) return;
+  p.deleteProperty('GARMIN_TOKEN_EXP');
+  garminToken_();
+  console.log('Sign-in: OK (reply had ' + p.getProperty('GARMIN_TOKEN_SHAPE') + ')');
+  const y = garminAddDays_(garminToday_(), -1);
+  const shape = v => v == null ? 'empty' : Array.isArray(v) ? `list of ${v.length}` : typeof v === 'object' ? `${Object.keys(v).length} fields` : typeof v;
+  const r = garminGetAll_(GARMIN_RANGE.map(e => e.path(y, y)).concat(GARMIN_DAY.map(e => e.path(y))));
+  GARMIN_RANGE.concat(GARMIN_DAY).forEach((e, i) => console.log(`${e.key}: ${r[i].code}${r[i].code < 300 ? ' · ' + shape(r[i].json) : ' · ' + r[i].text.slice(0, 120)}`));
+  const acts = garminGetAll_([`/activitylist-service/activities/search/activities?start=0&limit=5`])[0];
+  console.log(`activities: ${acts.code} · ${shape(acts.json)}`);
+  garminSaveDays_(y, y, true);
+  console.log(`Saved ${y} to Health Sync › Garmin › days. The hourly check now keeps Garmin up to date and loads your history in the background.`);
+}
+
+/** Optional: loads Garmin history for about 5 minutes right now, instead of a little each hour. Run it as often as you like. */
+function garminHistoryNow() {
+  console.log('Health Sync script v' + SCRIPT_VERSION);
+  const t0 = Date.now();
+  garminHistory_(t0, 300);
+  console.log(garminHistoryLine_());
+}
+
+/** Starts the history load again from the top (for example after Garmin adds new kinds of data). */
+function garminRestartHistory() {
+  ['GARMIN_HISTORY_TO', 'GARMIN_HISTORY_EMPTY', 'GARMIN_HISTORY_DONE', 'GARMIN_ACT_OFFSET', 'GARMIN_ACT_DONE'].forEach(k => props_().deleteProperty(k));
+  console.log('Garmin history will be loaded again, starting with the most recent days.');
+}
+
+/** What the hourly check runs. Does nothing until GARMIN_KEY is added. */
+function syncGarmin() {
+  const p = props_();
+  if (!(p.getProperty('GARMIN_KEY') || '').trim()) return;
+  const left = garminKeyDaysLeft_();
+  if (left != null && left < 0) throw new Error(`Garmin key expired on ${p.getProperty('GARMIN_KEY_EXPIRES')}. Create a new one (SETUP.md Step 13) and paste it into GARMIN_KEY and GARMIN_KEY_EXPIRES.`);
+  if (Number(p.getProperty('GARMIN_PAUSE_UNTIL')) > Date.now()) { console.log('Garmin: pausing (Garmin asked to slow down); trying again next hour.'); return; }
+  const t0 = Date.now(), today = garminToday_();
+  garminSaveDays_(garminAddDays_(today, 1 - GARMIN_RECENT_DAYS), today, true);
+  if (p.getProperty('GARMIN_PROFILE_DAY') !== today) { garminProfile_(); p.setProperty('GARMIN_PROFILE_DAY', today); }
+  const fresh = garminRecentActivities_();
+  p.setProperty('GARMIN_LAST_OK', new Date().toISOString());
+  if (fresh) p.setProperty('GARMIN_LAST_NEW', new Date().toISOString());
+  garminHistory_(t0, GARMIN_HISTORY_SECONDS);
+  console.log(`Garmin: up to date${fresh ? ` · ${fresh} new workout${fresh === 1 ? '' : 's'}` : ''} · ${garminHistoryLine_()}`);
+}
+
+// History: days go back 28 at a time from just before the recent window; workouts page back through the list.
+function garminHistory_(t0, seconds) {
+  const p = props_(), timeLeft = () => seconds * 1000 - (Date.now() - t0);
+  const stopAt = (p.getProperty('GARMIN_HISTORY_FROM') || '').trim();   // optional: don't go further back than this date
+  while (timeLeft() > 40e3 && p.getProperty('GARMIN_HISTORY_DONE') !== 'yes') {
+    const to = p.getProperty('GARMIN_HISTORY_TO') || garminAddDays_(garminToday_(), -GARMIN_RECENT_DAYS);
+    let from = garminAddDays_(to, 1 - GARMIN_CHUNK_DAYS);
+    if (stopAt && from < stopAt) from = stopAt;
+    const { found, earliest } = garminSaveDays_(from, to, false);
+    const empty = found ? 0 : Number(p.getProperty('GARMIN_HISTORY_EMPTY') || 0) + 1;
+    const was = p.getProperty('GARMIN_EARLIEST');
+    if (earliest && (!was || earliest < was)) p.setProperty('GARMIN_EARLIEST', earliest);
+    p.setProperties({ GARMIN_HISTORY_TO: garminAddDays_(from, -1), GARMIN_HISTORY_EMPTY: String(empty) });
+    if (empty >= GARMIN_EMPTY_TO_STOP || (stopAt && from <= stopAt)) p.setProperty('GARMIN_HISTORY_DONE', 'yes');
+  }
+  while (timeLeft() > 40e3 && p.getProperty('GARMIN_ACT_DONE') !== 'yes') {
+    const offset = Number(p.getProperty('GARMIN_ACT_OFFSET') || 0);
+    const page = garminGetAll_([`/activitylist-service/activities/search/activities?start=${offset}&limit=${GARMIN_BATCH}`])[0];
+    if (page.code >= 300) throw new Error(`Garmin workouts list failed (${page.code}): ${page.text.slice(0, 160)}`);
+    const list = Array.isArray(page.json) ? page.json : [];
+    const index = garminIndex_();
+    for (const a of list) if (!index.saved[a.activityId]) { garminSaveActivity_(a, true, index); if (timeLeft() < 20e3) break; }
+    garminSaveIndex_(index);
+    p.setProperty('GARMIN_ACT_OFFSET', String(offset + list.length));
+    if (list.length < GARMIN_BATCH) p.setProperty('GARMIN_ACT_DONE', 'yes');
+  }
+}
+function garminHistoryLine_() {
+  const p = props_(), days = p.getProperty('GARMIN_HISTORY_DONE') === 'yes', acts = p.getProperty('GARMIN_ACT_DONE') === 'yes';
+  const n = Object.keys(garminIndex_().saved).length;
+  return `history: days ${days ? 'complete' : 'loading'}${p.getProperty('GARMIN_EARLIEST') ? ' (back to ' + p.getProperty('GARMIN_EARLIEST') + ')' : ''}, workouts ${acts ? 'complete' : 'loading'} (${n} saved)`;
+}
+
+// Reads every kind of daily data for from..to and saves one file per day. Returns how many days had data, and the earliest.
+function garminSaveDays_(from, to, keepEmpty) {
+  const days = [];
+  for (let d = from; d <= to; d = garminAddDays_(d, 1)) days.push(d);
+  const now = new Date().toISOString(), off = garminOff_();
+  const out = {};
+  days.forEach(d => out[d] = { source: 'garmin', version: 1, date: d, fetchedAt: now, scriptVersion: SCRIPT_VERSION, data: {}, status: {} });
+  const ranges = GARMIN_RANGE.filter(e => !off[e.key]);
+  const rr = garminGetAll_(ranges.map(e => e.path(from, to)));
+  ranges.forEach((e, i) => {
+    const r = rr[i];
+    days.forEach(d => out[d].status[e.key] = r.code);
+    if (r.code >= 300 || r.json == null) return;
+    for (const [d, v] of e.split(r.json)) if (out[d]) { if (e.list) (out[d].data[e.key] = out[d].data[e.key] || []).push(v); else out[d].data[e.key] = v; }
+  });
+  const singles = GARMIN_DAY.filter(e => !off[e.key]), pairs = [];
+  days.forEach(d => singles.forEach(e => pairs.push([d, e])));
+  const codes = {};
+  for (let i = 0; i < pairs.length; i += GARMIN_BATCH) {
+    const part = pairs.slice(i, i + GARMIN_BATCH), res = garminGetAll_(part.map(([d, e]) => e.path(d)));
+    part.forEach(([d, e], j) => {
+      const r = res[j];
+      out[d].status[e.key] = r.code; (codes[e.key] = codes[e.key] || []).push(r.code);
+      if (r.code < 300 && r.json != null) out[d].data[e.key] = r.json;
+    });
+  }
+  // An endpoint that refuses every day (not offered for your account or watch) is skipped for 30 days.
+  for (const [k, cs] of Object.entries(codes)) if (cs.length >= 7 && cs.every(c => c >= 400 && c < 500 && c !== 401 && c !== 429)) { off[k] = Date.now() + 30 * 864e5; garminSetOff_(off); }
+  let found = 0, earliest = null;
+  for (const d of days) {
+    const has = garminHasData_(out[d].data);
+    if (has) { found++; if (!earliest || d < earliest) earliest = d; }
+    if (has || keepEmpty) saveJson_(garminFolder_('days', d.slice(0, 4)), `garmin-${d}.json`, out[d]);
+  }
+  return { found, earliest };
+}
+function garminHasData_(x) {
+  const s = x.dailySummary || {}, u = x.userSummary || {};
+  return !!(s.includesWellnessData || s.includesActivityData || u.includesWellnessData || u.totalSteps || (x.steps && x.steps.totalSteps) ||
+    (x.sleep && x.sleep.sleepTimeSeconds) || (x.weighIns && x.weighIns.length) || (x.hrv && x.hrv.lastNightAvg) || (x.wellnessActivities && x.wellnessActivities.length));
+}
+
+function garminProfile_() {
+  const t = garminToday_();
+  const keys = ['settings', 'heartRateZones', 'weightGoals'];
+  const r = garminGetAll_(['/userprofile-service/userprofile/settings', '/biometric-service/heartRateZones/v2', `/goal-service/goal/user/effective/weightgoal/${garminAddDays_(t, -365)}/${garminAddDays_(t, 365)}`]);
+  const doc = { source: 'garmin', version: 1, fetchedAt: new Date().toISOString(), data: {}, status: {} };
+  keys.forEach((k, i) => { doc.status[k] = r[i].code; if (r[i].code < 300) doc.data[k] = r[i].json; });
+  saveJson_(garminFolder_(), 'profile.json', doc);
+}
+
+// New and recently changed workouts. Returns how many were new.
+function garminRecentActivities_() {
+  const t = garminToday_(), index = garminIndex_();
+  const r = garminGetAll_([`/activitylist-service/activities/search/activities?startDate=${garminAddDays_(t, 1 - GARMIN_RECENT_DAYS)}&endDate=${t}&start=0&limit=100`])[0];
+  if (r.code >= 300) throw new Error(`Garmin workouts list failed (${r.code}): ${r.text.slice(0, 160)}`);
+  let fresh = 0;
+  for (const a of Array.isArray(r.json) ? r.json : []) { const isNew = !index.saved[a.activityId]; if (isNew) fresh++; garminSaveActivity_(a, isNew, index); }
+  garminSaveIndex_(index);
+  return fresh;
+}
+function garminSaveActivity_(a, withFile, index) {
+  const id = a.activityId, d = garminDate_(a.startTimeLocal) || garminToday_();
+  const [det, wo] = garminGetAll_([`/activity-service/activity/${id}`, `/activity-service/activity/${id}/workouts`]);
+  const doc = { source: 'garmin', version: 1, fetchedAt: new Date().toISOString(), activityId: id, date: d, summary: a,
+    detail: det.code < 300 ? det.json : null, workouts: wo.code < 300 ? wo.json : null, status: { detail: det.code, workouts: wo.code } };
+  if (withFile) {
+    const f = UrlFetchApp.fetch(GARMIN_API + `/download-service/files/activity/${id}`, { headers: { Authorization: 'Bearer ' + garminToken_() }, muteHttpExceptions: true });
+    doc.status.file = f.getResponseCode();
+    if (f.getResponseCode() < 300) { const name = `garmin-${d}-${id}.zip`; replaceFile_(garminFolder_('fit', d.slice(0, 4)), name, f.getBlob().setName(name)); doc.file = name; }
+  } else if (index.saved[id] && index.saved[id].file) doc.file = index.saved[id].file;
+  saveJson_(garminFolder_('activities', d.slice(0, 4)), `garmin-activity-${d}-${id}.json`, doc);
+  index.saved[id] = { date: d, file: doc.file || null };
+}
+function garminIndex_() {
+  const it = garminFolder_().getFilesByName('activities-index.json');
+  try { return it.hasNext() ? JSON.parse(it.next().getBlob().getDataAsString()) : { saved: {} }; } catch (e) { return { saved: {} }; }
+}
+function garminSaveIndex_(index) { saveJson_(garminFolder_(), 'activities-index.json', index); }
+
+// Sign-in: the key is swapped for an access token that lasts 24 hours.
+function garminToken_() {
+  const p = props_(), key = (p.getProperty('GARMIN_KEY') || '').trim();
+  if (!key) throw new Error('Add GARMIN_KEY in Project Settings › Script Properties first (SETUP.md Step 13).');
+  if (Number(p.getProperty('GARMIN_TOKEN_EXP')) - 10 * 60e3 > Date.now() && p.getProperty('GARMIN_TOKEN')) return p.getProperty('GARMIN_TOKEN');
+  const res = UrlFetchApp.fetch(GARMIN_API + '/personalapitoken-service/personal-api/personal-api-key/token', { method: 'post', headers: { Authorization: 'ApiKey ' + key }, muteHttpExceptions: true });
+  const code = res.getResponseCode(), text = res.getContentText();
+  if (code === 401 || code === 403) throw new Error(`Garmin refused the key (${code}). It may have expired or been deleted: create a new one (SETUP.md Step 13) and paste it into GARMIN_KEY.`);
+  if (code >= 300) throw new Error(`Garmin sign-in failed (${code}): ${text.slice(0, 160)}`);
+  let token = null, ttl = null, shape = 'plain text';
+  try {
+    const j = JSON.parse(text);
+    if (typeof j === 'string') token = j;
+    else {
+      shape = 'fields: ' + Object.keys(j).join(', ');
+      token = j.access_token || j.accessToken || j.token || j.value || null;
+      ttl = Number(j.expires_in || j.expiresIn) || null;
+      if (!token) token = Object.values(j).find(v => typeof v === 'string' && v.length > 40) || null;
+    }
+  } catch (e) { token = text.trim(); }
+  if (!token) throw new Error('Garmin sign-in worked, but the reply had no token in it (' + shape + '). Send this message to Claude.');
+  p.setProperties({ GARMIN_TOKEN: token, GARMIN_TOKEN_EXP: String(Date.now() + (ttl ? ttl * 1000 : 24 * 36e5)), GARMIN_TOKEN_SHAPE: shape });
+  return token;
+}
+// Sends requests GARMIN_BATCH at a time. Returns [{ code, json, text }] in the same order.
+function garminGetAll_(paths) {
+  const out = [];
+  for (let i = 0; i < paths.length; i += GARMIN_BATCH) {
+    const part = paths.slice(i, i + GARMIN_BATCH);
+    const send = () => UrlFetchApp.fetchAll(part.map(path => ({ url: GARMIN_API + path, headers: { Authorization: 'Bearer ' + garminToken_(), Accept: 'application/json' }, muteHttpExceptions: true })));
+    let res = send();
+    if (res.some(r => r.getResponseCode() === 401)) { props_().deleteProperty('GARMIN_TOKEN_EXP'); res = send(); }
+    if (res.some(r => r.getResponseCode() === 429)) {
+      props_().setProperty('GARMIN_PAUSE_UNTIL', String(Date.now() + 60 * 60e3));
+      throw new Error('Garmin asked to slow down (429). Pausing for an hour; nothing is lost.');
+    }
+    res.forEach(r => {
+      const code = r.getResponseCode(), text = code === 204 ? '' : r.getContentText();
+      let json = null; try { json = text ? JSON.parse(text) : null; } catch (e) {}
+      out.push({ code, json, text });
+    });
+  }
+  return out;
+}
+const garminOff_ = () => { const o = JSON.parse(props_().getProperty('GARMIN_OFF') || '{}'); for (const k of Object.keys(o)) if (o[k] < Date.now()) delete o[k]; return o; };
+const garminSetOff_ = o => props_().setProperty('GARMIN_OFF', JSON.stringify(o));
+function garminKeyDaysLeft_() {
+  const e = (props_().getProperty('GARMIN_KEY_EXPIRES') || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(e)) return null;
+  return Math.round((Date.parse(e + 'T00:00:00Z') - Date.parse(garminToday_() + 'T00:00:00Z')) / 864e5);
+}
+const garminToday_ = () => Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+const garminAddDays_ = (d, n) => { const [y, m, dd] = d.split('-').map(Number); return new Date(Date.UTC(y, m - 1, dd + n)).toISOString().slice(0, 10); };
+const garminDate_ = v => { const s = v && typeof v === 'object' ? (v.localDate || v.date || '') : String(v || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null; };
+const garminFolders_ = {};   // found once per run
+function garminFolder_(...sub) {
+  const k = sub.join('/');
+  if (garminFolders_[k]) return garminFolders_[k];
+  let f = sub.length ? garminFolder_(...sub.slice(0, -1)) : inboxFolder_().getParents().next();
+  const name = sub.length ? sub[sub.length - 1] : 'Garmin', it = f.getFoldersByName(name);
+  return garminFolders_[k] = it.hasNext() ? it.next() : f.createFolder(name);
+}
+
 /* ================== Receiving Apple Health data ================== */
 // Deploy this project as a Web app (SETUP.md Step 11a-2). Your iPhone then sends data to
 //   <web app address>?key=<your key>
@@ -309,6 +587,15 @@ function checkSources_(errors) {
     loseIt: { lastAt: loseIt ? new Date(loseIt).toISOString() : null, hoursAgo: hours(loseIt), error: errors.email || null },
     appleHealth: { lastAt: hae ? new Date(hae).toISOString() : null, hoursAgo: hours(hae), file: haeName, sizeKB: haeSize != null ? Math.round(haeSize / 1024) : null, minuteData: haeSize != null && haeSize > 400 * 1024 },
     strava: { connected: !!p.getProperty('STRAVA_REFRESH'), lastNewAt: p.getProperty('STRAVA_LAST_NEW') || null, error: errors.strava || null },
+    garmin: (() => {
+      const on = !!(p.getProperty('GARMIN_KEY') || '').trim();
+      if (!on) return { connected: false };
+      let saved = null; try { saved = Object.keys(garminIndex_().saved).length; } catch (e) {}
+      return { connected: true, lastOkAt: p.getProperty('GARMIN_LAST_OK') || null, lastNewAt: p.getProperty('GARMIN_LAST_NEW') || null, error: errors.garmin || null,
+        keyExpires: p.getProperty('GARMIN_KEY_EXPIRES') || null, keyDaysLeft: garminKeyDaysLeft_(),
+        history: { daysDone: p.getProperty('GARMIN_HISTORY_DONE') === 'yes', workoutsDone: p.getProperty('GARMIN_ACT_DONE') === 'yes',
+          backTo: p.getProperty('GARMIN_EARLIEST') || null, workouts: saved } };
+    })(),
   };
   const root = inboxFolder_().getParents().next();
   const old = root.getFilesByName('health-sync-status.json');
@@ -320,15 +607,30 @@ function checkSources_(errors) {
   if (status.appleHealth.lastAt && status.appleHealth.hoursAgo > LATE_HOURS) problems.push(['hae', `Health Auto Export hasn't updated in ${status.appleHealth.hoursAgo} hours. Open it on your iPhone and check the automation is on (and Background App Refresh is allowed).`]);
   if (status.appleHealth.minuteData) problems.push(['haemin', `Health Auto Export is sending minute-by-minute data (${status.appleHealth.sizeKB} KB). Steps, active calories and flights are being ignored. Set the automation's Time Grouping back to Day.`]);
   if (status.strava.error) problems.push(['strava', `Strava sync failed: ${status.strava.error}. Run stravaCheck in the script for details.`]);
-  for (const [k, msg] of problems) {
+  const gm = status.garmin;
+  if (gm.connected && gm.error && !/slow down/.test(gm.error)) problems.push(['garmin', `Garmin sync failed: ${gm.error} Run garminCheck in the script for details.`]);
+  if (gm.connected && gm.keyDaysLeft != null && gm.keyDaysLeft >= 0 && gm.keyDaysLeft <= GARMIN_KEY_WARN_DAYS)
+    problems.push(['garminkey', `Your Garmin key expires on ${gm.keyExpires} (${gm.keyDaysLeft} days). Create a new one on Garmin Connect and paste it into the script's GARMIN_KEY and GARMIN_KEY_EXPIRES (SETUP.md Step 13). It takes 2 minutes.`, 7]);
+  for (const [k, msg, everyDays = 1] of problems) {
     const last = Number(p.getProperty('ALERT_' + k)) || 0;
-    if (now - last < 24 * 36e5) continue;   // at most one email per problem per day
+    if (now - last < everyDays * 24 * 36e5) continue;   // at most one email per problem per day (key reminders: weekly)
     MailApp.sendEmail({ to: Session.getEffectiveUser().getEmail(), subject: 'Health Sync: data problem', htmlBody: `<p>${msg}</p><p style="color:#666;font-size:13px">Health Sync checks this every hour and emails at most once a day per problem.</p>`, name: 'Health Sync' });
     p.setProperty('ALERT_' + k, String(now));
   }
 }
 
 /* ============================ Helpers ============================ */
+
+// Saves obj as a JSON file in folder, replacing the file of that name if there is one.
+function saveJson_(folder, name, obj) {
+  const it = folder.getFilesByName(name), text = JSON.stringify(obj);
+  if (it.hasNext()) it.next().setContent(text); else folder.createFile(name, text, 'application/json');
+}
+function replaceFile_(folder, name, blob) {
+  const it = folder.getFilesByName(name);
+  while (it.hasNext()) it.next().setTrashed(true);
+  folder.createFile(blob);
+}
 
 function inboxFolder_() {
   let folder = DriveApp.getRootFolder();

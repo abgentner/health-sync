@@ -546,3 +546,69 @@ Anthropic doesn't let an API key read the account balance, so Health Sync tracks
 - **Your daily food plan:** 2–3 Kate Farms shakes, plus 1 bag of salad, plus 8–12 oz of cooked protein.
 - **Plan foods:** your shakes, salad kits and proteins, with their nutrition. One per line: name | per | cal | protein | fat | sat fat | carbs | fiber | sugar | sodium. Swaps come from this list first.
 - **Nutrition targets:** fiber at least 25 g, sodium under 2,300 mg, saturated fat under 10% of calories, sugars under 50 g.
+
+---
+
+## Step 13 — Everything from Garmin, straight from Garmin
+
+**What this does:** your Google script reads **all** of your Garmin Connect data directly from Garmin every hour, and loads your **whole Garmin history** in the background. It saves everything, complete, in **Google Drive › Health Sync › Garmin**:
+
+- **Every day:** steps, calories, Body Battery (with the full curve), stress (with the full curve), HRV and HRV status, sleep (stages, score, sleep need, naps), resting and all-day heart rate, Pulse Ox, respiration, intensity minutes, floors, hydration, weigh-ins and body composition, fitness age, and any food logged in Garmin.
+- **Every workout:** the summary, full detail (training effect, training load, heart rate zones, laps and splits, power, cadence…), the workout's steps, and the **original file from your watch**.
+- **Your profile:** settings, heart rate zones and weight goals.
+
+What it doesn't include: Garmin doesn't offer **training readiness, training status or VO2 max** through this API.
+
+> In this version (2.12) the app shows Garmin's **status** under Import › Data health. Showing the data itself on the dashboard, day pages and in the Coach comes in the next version, built on your real Garmin files.
+
+You need **Step 9 done first** (the script).
+
+### 13a. Create your Garmin key (2 min)
+
+1. Sign in at **https://connect.garmin.com** on a computer.
+2. Open the **Personal API Key** page. It's linked from **https://developer.garmin.com/gc-developer-program/personal/personal-api/** ("Go to the Personal API Key page").
+3. Click **Create Key**, read and accept the terms, and choose an expiration: **one year** is the longest.
+4. Click **Create**. The key is shown **only once**: copy it right away, and write down the **expiry date** it shows.
+5. Click **Done**.
+
+> 🔒 The key is like a password. Only paste it into your script's private settings (next step). Never put it in GitHub, in the app, or in a chat.
+
+### 13b. Paste the new script
+
+1. Open your project at **https://script.google.com** (**Health Sync email saver**).
+2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
+3. Paste in the new **`email-to-drive.gs`** (v2.12). Click **💾 Save**.
+
+### 13c. Add your key (privately)
+
+1. In the script's left sidebar, click **⚙️ Project Settings**.
+2. Scroll down to **Script Properties**, click **Edit script properties → Add script property**, and add two:
+
+   | Property | Value |
+   |---|---|
+   | `GARMIN_KEY` | the key you copied |
+   | `GARMIN_KEY_EXPIRES` | the expiry date, written like `2027-10-26` (year-month-day) |
+
+3. Click **Save script properties**.
+
+### 13d. Check it works
+
+1. Click **< > Editor**. In the function dropdown, choose **`garminCheck`** and click **▶ Run**.
+   - If Google asks for permission again, allow it the same way as before.
+2. The **Execution log** should show:
+   - **Sign-in: OK**
+   - one line per kind of Garmin data, mostly **200**. A **404** only means Garmin doesn't offer that for your account; the script then stops asking.
+   - **Saved *yesterday's date*** to Health Sync › Garmin › days.
+3. Choose **`setup`** and click **▶ Run**. This restarts the hourly timer with the new version.
+
+**That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then spends 2 minutes loading your history, newest first, until it reaches your first day on Garmin. Import › Data health shows how far back it has got.
+
+- **Faster history:** run **`garminHistoryNow`** as often as you like; each run loads about 5 minutes' worth.
+- **Don't need all of it?** Add a script property `GARMIN_HISTORY_FROM` with the earliest date you want, like `2024-01-01`.
+- **Garmin busy?** If Garmin asks the script to slow down, it pauses for an hour and carries on. Nothing is lost, and that doesn't send you an alert.
+
+### 13e. When the key expires
+
+- **30 days before** the date in `GARMIN_KEY_EXPIRES`, Data health turns **amber** and the script emails you a reminder once a week. Garmin also emails you about a week before.
+- **To renew (2 minutes):** create a new key (13a), then in **Script Properties** replace `GARMIN_KEY` and `GARMIN_KEY_EXPIRES` with the new ones. Nothing else changes, and nothing is lost.
+- **If it does expire,** Data health turns **red** and says so. Everything resumes when you add the new key.

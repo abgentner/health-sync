@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.10.1 -->
+<!-- Health Sync app · version 2.12 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -322,7 +322,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .dh{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border)}
 .dh:first-child{border-top:0}
 .dh i{flex:none;width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--muted)}
-.dh i.ok{background:var(--good)} .dh i.warn{background:#d79a00} .dh i.bad{background:var(--bad)}
+.dh i.ok{background:var(--good)} .dh i.warn,.dh i.gap{background:#d79a00} .dh i.bad{background:var(--bad)}
 .dh b{font-weight:600} .dh .fix{font-size:13px;color:var(--text-2);margin-top:2px}
 .wt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
 .wt-card{margin:0}
@@ -652,6 +652,11 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div class="card-h"><h2>Data health</h2><span class="muted small" id="dh-sub"></span></div>
     <div class="list" id="dh-list"></div>
   </div>
+  <div class="card" id="gap-card" hidden>
+    <div class="card-h"><h2>Days to check</h2><span class="muted small">last 4 weeks</span></div>
+    <p class="small" style="margin-top:0">These days have no food, very little food, or no final Lose It report. If you've since logged them in Lose It, bring them in: on <b>loseit.com</b>, open your <b>Log</b>, go to that week, choose <b>Export to spreadsheet</b>, and drop the file in <b>Health Sync › Inbox</b>. The newer file replaces what's here, and the Coach rewrites that week's review by itself.</p>
+    <div class="list" id="gap-list"></div>
+  </div>
   <div class="card" id="imp-drive">
     <div class="card-h"><h2>Google Drive Inbox</h2></div>
     <p class="small" style="margin-top:0">Drop your Lose It and Garmin export files (Lose It Daily Report PDFs, CSV or ZIP) into <b>Health Sync › Inbox</b> in Google Drive. The app imports them every time it opens, then moves them to <b>Processed</b>. It also picks up new files from the <b>Health Auto Export</b> folder automatically (and leaves those where they are).</p>
@@ -762,7 +767,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.10.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.12';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -845,12 +850,14 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, dashCfg: d.dashCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, dashCfg: d.dashCfg || null, gapsOk: d.gapsOk && typeof d.gapsOk === 'object' ? d.gapsOk : {}, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
 let importsDirty = false;
 let planDirty = false;
+let gapsDirty = false;
+let tileOps = {};   // tiles hidden/shown here since the last save: { kind: true (hide) | false (show) }
 let settings = Object.assign({ units: 'imperial', theme: '', span: 7, cloudNotes: true, hiddenTiles: [] }, LS.get('hs-settings', {}));
 const saveSettings = () => LS.set('hs-settings', settings);
 // Hidden dashboard tiles are saved with your data, so every computer shows the same tiles.
@@ -861,7 +868,7 @@ function toggleTile(kind, hide) {
   if (hide) h.push(kind);
   data.dashCfg = { ...(data.dashCfg || {}), hiddenTiles: h };
   settings.hiddenTiles = h; saveSettings();
-  planDirty = true; persist().catch(e => toast(e.message, 6000));
+  tileOps[kind] = hide; persist().catch(e => toast(e.message, 6000));
   renderDash(); syncTileToggles();
 }
 
@@ -1048,34 +1055,58 @@ const Drive = {
 let store = null;
 let busy = false;
 
-async function persist() {
-  if (!dirty.size && !importsDirty && !planDirty && !coachDirty) return;
+// Copy this computer's unsaved changes (flags in f) onto a freshly loaded copy of the data.
+function mergeLocal(remote, f) {
+  for (const k of f.days) { if (data.days[k]) remote.days[k] = data.days[k]; else delete remote.days[k]; }
+  const seen = new Set(remote.imports.map(i => i.id));
+  for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
+  remote.imports = remote.imports.slice(-500);
+  if (f.plan) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; remote.weightCfg = data.weightCfg; }
+  // Tiles merge one change at a time, so hiding one here never un-hides another one hidden elsewhere.
+  if (Object.keys(f.tiles).length) {
+    let h = (remote.dashCfg?.hiddenTiles || data.dashCfg?.hiddenTiles || settings.hiddenTiles || []).slice();
+    for (const [kind, hide] of Object.entries(f.tiles)) { h = h.filter(x => x !== kind); if (hide) h.push(kind); }
+    remote.dashCfg = { ...(remote.dashCfg || {}), hiddenTiles: h };
+  }
+  remote.gapsOk = { ...(remote.gapsOk || {}), ...(data.gapsOk || {}) };
+  if (f.coach) {
+    // Reviews merge one by one; the most recently written or edited copy of each wins.
+    const stamp = r => (r && (r.updatedAt || r.createdAt)) || '';
+    remote.reviews = { ...(remote.reviews || {}) };
+    for (const [k, r] of Object.entries(data.reviews || {})) if (!remote.reviews[k] || stamp(r) >= stamp(remote.reviews[k])) remote.reviews[k] = r;
+    remote.coachCfg = data.coachCfg;
+    const ids = new Set((remote.coachUsage ||= []).map(e => e.id));
+    for (const e of data.coachUsage || []) if (!ids.has(e.id)) remote.coachUsage.push(e);
+    remote.coachUsage = remote.coachUsage.sort((a, b) => a.at.localeCompare(b.at)).slice(-2000);
+  }
+  remote.watched = { ...(remote.watched || {}), ...(data.watched || {}) };
+  remote.watchedParser = Math.max(remote.watchedParser || 1, data.watchedParser || 1);
+}
+// Saves run one at a time. A change made while a save is in progress stays in memory and is saved by the next one.
+let persistChain = Promise.resolve();
+function persist() {
+  const run = persistChain.then(persistOnce, persistOnce);
+  persistChain = run.catch(() => {});
+  return run;
+}
+async function persistOnce() {
+  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !Object.keys(tileOps).length) return;
+  const f = { days: new Set(dirty), imports: importsDirty, plan: planDirty, coach: coachDirty, tiles: tileOps };
+  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; tileOps = {};
   setStatus('Saving…', 'busy');
   try {
     // Re-read the latest copy first so edits made on another computer aren't overwritten.
     const remote = await store.load();
-    for (const k of dirty) { if (data.days[k]) remote.days[k] = data.days[k]; else delete remote.days[k]; }
-    const seen = new Set(remote.imports.map(i => i.id));
-    for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
-    remote.imports = remote.imports.slice(-500);
-    if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; remote.weightCfg = data.weightCfg; remote.dashCfg = data.dashCfg; }
-    if (coachDirty) {
-      // Reviews merge one by one; the most recently written or edited copy of each wins.
-      const stamp = r => (r && (r.updatedAt || r.createdAt)) || '';
-      remote.reviews = { ...(remote.reviews || {}) };
-      for (const [k, r] of Object.entries(data.reviews || {})) if (!remote.reviews[k] || stamp(r) >= stamp(remote.reviews[k])) remote.reviews[k] = r;
-      remote.coachCfg = data.coachCfg;
-      const ids = new Set((remote.coachUsage ||= []).map(e => e.id));
-      for (const e of data.coachUsage || []) if (!ids.has(e.id)) remote.coachUsage.push(e);
-      remote.coachUsage = remote.coachUsage.sort((a, b) => a.at.localeCompare(b.at)).slice(-2000);
-    }
-    remote.watched = { ...(remote.watched || {}), ...(data.watched || {}) };
-    remote.watchedParser = Math.max(remote.watchedParser || 1, data.watchedParser || 1);
+    mergeLocal(remote, f);
     remote.updated = new Date().toISOString();
     await store.save(remote);
-    data = remote; dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false;
+    // Keep anything changed during the save on top (its flags are still set, so the next save writes it).
+    mergeLocal(remote, { days: dirty, imports: importsDirty, plan: planDirty, coach: coachDirty, tiles: tileOps });
+    data = remote;
     setStatus('Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
   } catch (e) {
+    for (const k of f.days) dirty.add(k);
+    importsDirty ||= f.imports; planDirty ||= f.plan; coachDirty ||= f.coach; tileOps = { ...f.tiles, ...tileOps };
     setStatus('Not saved', 'err');
     throw e;
   }
@@ -2798,10 +2829,12 @@ async function addCredit(type) {
 
 /* ---- writing a review ---- */
 const loggedDays = ks => ks.filter(k => totals(getDay(k)).hasFood).length;
-async function writeReview(key, { kind, start, end, question = '', email = true, force = false }) {
+async function writeReview(key, { kind, start, end, question = '', email = true, force = false, rewrite = '' }) {
   const ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1);
   const old = reviews()[key];
-  const base = { key, kind, start, end, question, createdAt: new Date().toISOString(), note: old?.note || '' };
+  const now = new Date().toISOString();
+  const base = { key, kind, start, end, question, createdAt: now, note: old?.note || '', basis: reviewBasis(start, end),
+    ...(force ? { forced: true } : {}), ...(rewrite ? { rewroteWhy: rewrite, rewroteAt: now } : {}) };
   const logged = loggedDays(ks);
   if (!force && logged < Math.ceil(ks.length / 2)) {
     reviews()[key] = { ...base, status: 'incomplete', logged, days: ks.length };
@@ -2848,15 +2881,46 @@ async function sendReviewEmail(r) {
 // Weekly reviews are written from Monday at noon, so Sunday's final Lose It report has time to arrive.
 const COACH_HOUR = 12;
 const reviewDueAt = sun => { const d = keyToDate(addDays(sun, 1)); d.setHours(COACH_HOUR, 0, 0, 0); return d.getTime(); };
-// On opening the app (and every few minutes while it's open): write any missing weekly reviews, oldest first.
+// What a review was based on, day by day: [day, calories logged (null = none), workouts]. Used to notice later changes.
+const reviewBasis = (start, end) => windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1)
+  .map(k => { const d = getDay(k), t = totals(d); return [k, t.hasFood ? Math.round(t.calIn) : null, (d?.workouts || []).length]; });
+// Has the data under a review changed enough to rewrite it? Returns the reason, or '' for no (small changes don't count).
+function basisChange(was, now) {
+  if (!was?.length || !now?.length) return '';
+  const old = Object.fromEntries(was.map(b => [b[0], b])), why = [];
+  for (const [k, cal, wo] of now) {
+    const o = old[k]; if (!o) continue;
+    const day = fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric' });
+    if (o[1] == null && cal != null) why.push(`${day}: food added (${fmtN(cal)} cal)`);
+    else if (o[1] != null && cal == null) why.push(`${day}: food removed`);
+    else if (o[1] != null && Math.abs(cal - o[1]) >= REWRITE_MIN_CAL) why.push(`${day}: ${cal > o[1] ? '+' : '−'}${fmtN(Math.abs(cal - o[1]))} cal`);
+    if (wo > (o[2] || 0)) why.push(`${day}: ${plural(wo - o[2], 'workout')} added`);
+  }
+  return why.join(' · ');
+}
+const REWRITE_MIN_CAL = 150;   // a day's logged calories must change by at least this much
+const REWRITES_PER_RUN = 3;    // at most this many rewrites each time it checks (every 10 minutes while open)
+// On opening the app (and every few minutes while it's open): write any missing weekly reviews, oldest first,
+// and rewrite any whose data has changed since (for example food logged late in Lose It, or a re-exported week).
 async function autoReviews() {
   if (!coachCfg().apiKey || coachBusy) return;
   const lastMon = addDays(weekStart(todayKey()), -7);
   let ws = weekStart(COACH_BACKFILL_FROM);
   if (ws < COACH_BACKFILL_FROM) ws = addDays(ws, 7);
+  let rewrites = 0;
   for (; ws <= lastMon; ws = addDays(ws, 7)) {
     const key = 'week:' + ws, r = reviews()[key];
-    if (r && !r.deleted && (r.status === 'done' || r.status === 'incomplete')) continue;
+    if (r && !r.deleted && (r.status === 'done' || r.status === 'incomplete')) {
+      const now = reviewBasis(ws, addDays(ws, 6));
+      // Reviews written before v2.11 don't know their data yet: remember it now, and compare from here on.
+      if (!r.basis) { r.basis = now; coachDirty = true; savePersist(); continue; }
+      const why = basisChange(r.basis, now);
+      if (!why || rewrites >= REWRITES_PER_RUN) continue;
+      rewrites++;
+      try { await writeReview(key, { kind: 'week', start: ws, end: addDays(ws, 6), email: false, force: !!r.forced, rewrite: why }); }
+      catch (e) { toast(e.message, 8000); return; }
+      continue;
+    }
     if (r?.status === 'writing' && Date.now() - Date.parse(r.createdAt) < 10 * 60e3) continue;   // another device is on it
     const sun = addDays(ws, 6), sd = getDay(sun);
     if (Date.now() < reviewDueAt(sun)) { coachProgress = `Last week's review will be written today at noon, once Sunday's Lose It report is in`; renderCoach(); return; }
@@ -2878,7 +2942,7 @@ function reviewHtml(r, compact) {
   const sec = (icon, title, items, cls = '') => items?.length ? `<div class="rv-box"><div class="rv-h ${cls}">${icon} ${esc(title)}</div><ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
   const n = r.nutrition || {};
   const flags = (n.flags || []).filter(f => f.status !== 'ok');
-  return `${r.question ? `<div class="rv-q"><b>You asked:</b> ${esc(r.question)}<p>${esc(r.question_answer || '')}</p></div>` : ''}
+  return `${r.rewroteWhy ? `<div class="muted small" style="margin-bottom:8px">↻ Rewritten ${esc(new Date(r.rewroteAt).toLocaleDateString([], { month: 'short', day: 'numeric' }))} because the data changed: ${esc(r.rewroteWhy)}</div>` : ''}${r.question ? `<div class="rv-q"><b>You asked:</b> ${esc(r.question)}<p>${esc(r.question_answer || '')}</p></div>` : ''}
     <div class="rv-why"><b>Why ${esc(r.grade)}:</b> ${esc(r.grade_reason)}</div>
     <div class="rv-story">${(r.narrative || '').split(/\n\s*\n/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
     <div class="rv-grid">${sec('✓', 'Went well', r.went_well, 'good')}${sec('!', 'Fell short', r.fell_short, 'bad')}${sec('↗', 'What seems to be working', r.working)}${sec('↘', "What isn't", r.not_working)}</div>
@@ -3001,19 +3065,57 @@ function healthRows() {
       a.minuteData ? 'The file is minute-by-minute (too big). Set the automation’s Time Grouping to Day — steps, active calories and flights are ignored until then.' : a.hoursAgo > 36 ? 'Open Health Auto Export on your iPhone: check the automation is on, and Settings › General › Background App Refresh is on for it.' : '']);
     const s = st.strava;
     rows.push([s.error ? 'bad' : s.connected ? 'ok' : 'gray', 'Strava', s.connected ? `Connected${s.lastNewAt ? ` · last new workout saved ${H(since(s.lastNewAt))}` : ''}` : 'Not connected', s.error ? `Sync failed: ${s.error} — run stravaCheck in the script.` : '']);
+    rows.push(garminRow(st.garmin, H, since));
   }
   const cc = coachCfg();
   if (cc.apiKey) {
     const lastMon = addDays(weekStart(todayKey()), -7), r = reviews()['week:' + lastMon];
     const late = !r && todayKey() >= addDays(lastMon, 9);
-    rows.push([late ? 'warn' : 'ok', 'Coach', r ? `Last weekly review: week of ${fmtRange(r.start, r.end)}` : `Week of ${fmtRange(lastMon, addDays(lastMon, 6))}: ${late ? 'not written yet' : 'due once Sunday’s data is in'}`, late ? 'Open the Coach tab to see why (missing data, or an API key/credit problem).' : '']);
+    rows.push([late ? 'warn' : 'ok', 'Coach', r ? `Last weekly review: week of ${fmtRange(r.start, r.end)}` : `Week of ${fmtRange(lastMon, addDays(lastMon, 6))}: ${late ? 'not written yet' : 'due Monday at noon'}`, late ? 'Open the Coach tab to see why (missing data, or an API key/credit problem).' : '']);
   }
   const li = lastImport(/Lose It|Apple Health|Strava|Garmin/);
   rows.push(['gray', 'Last import into the app', li ? new Date(li).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'none yet', '']);
   return rows;
 }
+// Recent days that look under-logged, grouped by week. Yesterday and today are left out (their Lose It report may not be in yet).
+const GAP_LOW_CAL = 800;
+function foodGaps() {
+  const t = todayKey(), first = Object.keys(data.days).filter(k => totals(getDay(k)).hasFood).sort()[0];
+  if (!first) return [];
+  const weeks = {};
+  for (let k = addDays(t, -28); k <= addDays(t, -2); k = addDays(k, 1)) {
+    if (k < first) continue;
+    const d = getDay(k), tt = totals(d);
+    const why = !tt.hasFood ? 'no food logged' : !tt.fromHealth && tt.calIn < GAP_LOW_CAL ? `only ${fmtN(tt.calIn)} cal logged` : foodPartial(d, k) ? 'no final Lose It report' : '';
+    if (why) (weeks[weekStart(k)] ||= []).push([k, why]);
+  }
+  return Object.entries(weeks).map(([ws, days]) => ({ ws, days, key: ws + '|' + days.map(x => x.join(':')).join(',') }))
+    .filter(g => !data.gapsOk?.[g.key]);
+}
+function renderGaps() {
+  const gaps = foodGaps();
+  $('#gap-card').hidden = !gaps.length;
+  $('#gap-list').innerHTML = gaps.map(g => `<div class="dh"><i class="gap"></i><div style="flex:1"><b>Week of ${esc(fmtRange(g.ws, addDays(g.ws, 6)))}</b>
+    <div class="fix">${g.days.map(([k, why]) => `${esc(fmtDay(k))}: ${esc(why)}`).join(' · ')}</div></div>
+    <button class="btn small ghost" data-gap-ok="${esc(g.key)}" title="Hide this week; it will come back if anything else changes">Looks right</button></div>`).join('');
+}
+// Garmin, read straight from Garmin by the script (script v2.12+): connection, history loading, key expiry.
+function garminRow(g, H, since) {
+  if (!g || !g.connected) return ['gray', 'Garmin', 'Not connected', g ? 'Optional: connect it to get Body Battery, HRV, stress, sleep score, Pulse Ox and full workout detail straight from Garmin (SETUP.md Step 13).' : ''];
+  const day = iso => fmtDay(iso, { month: 'short', day: 'numeric', year: 'numeric' }), h = g.history || {}, late = since(g.lastOkAt);
+  const done = h.daysDone && h.workoutsDone;
+  const parts = [h.backTo ? `back to ${day(h.backTo)}${done ? '' : ' so far'}` : '', h.workouts != null ? plural(h.workouts, 'workout') : ''].filter(Boolean).join(', ');
+  const line = `${g.lastOkAt ? 'Updated ' + H(late) : 'Not synced yet'} · ${done ? 'history complete' : 'loading history'}${parts ? ` (${parts})` : ''}${g.keyExpires ? ` · key expires ${day(g.keyExpires)}` : ''}`;
+  if (g.keyDaysLeft != null && g.keyDaysLeft < 0) return ['bad', 'Garmin', `Key expired on ${day(g.keyExpires)}`, 'Create a new key on Garmin Connect and paste it into the script’s GARMIN_KEY and GARMIN_KEY_EXPIRES (SETUP.md Step 13). Takes 2 minutes.'];
+  if (g.error) return [/slow down/.test(g.error) ? 'warn' : 'bad', 'Garmin', line, `${g.error}${/slow down/.test(g.error) ? '' : ' — run garminCheck in the script.'}`];
+  if (g.keyDaysLeft != null && g.keyDaysLeft <= 30) return ['warn', 'Garmin', line, `Your Garmin key expires in ${plural(g.keyDaysLeft, 'day')}. Create a new one and paste it into the script (SETUP.md Step 13).`];
+  if (late == null || late > 3) return ['warn', 'Garmin', line, 'Garmin should update every hour. Run garminCheck in the script to see why it hasn’t.'];
+  if (g.keyDaysLeft == null) return ['warn', 'Garmin', line, 'Add GARMIN_KEY_EXPIRES (the date your key expires, like 2027-10-26) to the script’s properties so you get a reminder before it stops working.'];
+  return ['ok', 'Garmin', line, ''];
+}
 function renderHealth() {
   if (!$('#dh-list')) return;
+  renderGaps();
   const rows = healthRows();
   $('#dh-list').innerHTML = rows.map(([c, name, line, fix]) => `<div class="dh"><i class="${c}"></i><div><b>${esc(name)}</b> <span class="muted small">${esc(line)}</span>${fix ? `<div class="fix">${esc(fix)}</div>` : ''}</div></div>`).join('');
   $('#dh-sub').textContent = scriptStat ? `checked ${new Date(scriptStat.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '';
@@ -3506,7 +3608,7 @@ async function runTask(fn) {
 async function syncNow() {
   await runTask(async () => {
     setStatus('Syncing…', 'busy');
-    if (dirty.size || importsDirty) await persist();
+    await persist();
     data = await store.load();
     if (store === Drive) await checkInbox(true);
     setStatus('Up to date');
@@ -3649,6 +3751,11 @@ $('#tab-dash').addEventListener('click', e => {
   e.stopPropagation();
   const kind = btn.dataset.hideTile;
   toggleTile(kind, !hiddenTiles().includes(kind));
+});
+$('#gap-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-gap-ok]'); if (!b) return;
+  (data.gapsOk ||= {})[b.dataset.gapOk] = true; gapsDirty = true;
+  persist().catch(err => toast(err.message, 6000)); renderGaps();
 });
 $('#m-back').onclick = backToDash;
 $('#m-range').onchange = () => {

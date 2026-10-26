@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.10.1** · October 26, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.12** · October 26, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -57,10 +57,19 @@ There's nothing to do. Open the app when you like:
 | **Lose It report** | An email arrived in the last 36 h | No email for 36 h (amber) or 72 h (red), or saving failed |
 | **Apple Health** | Health Auto Export updated in the last 36 h | Late, or it's sending **minute-by-minute** data (set Time Grouping to **Day**) |
 | **Strava** | Connected, no errors | The sync failed (run `stravaCheck`) |
+| **Garmin** | Updated in the last few hours; shows how far back history has loaded and when the key expires | Key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber, no email) |
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
 
 - When anything is amber or red, a **⚠ data issue** chip appears at the top of every screen. Tap it to open this panel.
 - **Alert emails:** your Google script checks every hour, even when the app is closed. It emails you **once a day per problem** if Lose It or Health Auto Export goes quiet for 36 hours, if Health Auto Export switches to minute data, or if Strava fails.
+
+### Days to check (catching up after travel)
+
+**Import tab › Days to check** lists days from the last 4 weeks that look under-logged: no food at all, under 800 calories, or no final Lose It report. Yesterday and today aren't included, because their report may still be on its way.
+
+- **If you've since logged those days in Lose It:** go to **loseit.com**, open your **Log**, go to that week, choose **Export to spreadsheet**, and drop the file in **Health Sync › Inbox**. A file you add by hand counts as the newest report, so it replaces what the app had for those days.
+- **If a day really was like that** (a fast, or a day you chose not to track): click **Looks right**. The week stays hidden on every computer unless something else changes in it.
+- Lose It's **Monday weekly report** already re-sends the whole previous week, so anything you fix within the same week comes in automatically.
 
 ---
 
@@ -155,7 +164,8 @@ Reviews written by Claude (set up in [SETUP.md Step 12](SETUP.md#step-12--weekly
 
   Reviews follow up on the previous week's focus.
 - **More swap ideas:** asks Claude for more swaps within your plan's rules.
-- **Regenerate:** rewrites a review, for example after late data arrives.
+- **Regenerate:** rewrites a review whenever you like.
+- **Automatic rewrites:** if a week's data changes after its review was written, the Coach rewrites that review by itself. That covers food added or removed for a day, a day's calories changing by **150 or more**, or a new workout. The review then says *"↻ Rewritten … because the data changed"* and lists what changed. Rewrites aren't emailed. At most 3 are written per check, and each costs about the same as a review (roughly $0.10–0.20).
 - **Incomplete weeks:** if food was logged on fewer than half the days, the week isn't graded. You can **add a note** (e.g. "On vacation") that later reviews take into account, or tap **Write a review anyway**.
 - **Previous weeks:** listed below the latest review, newest first. Tap one to expand it.
 - **On demand:** tap **Review now**, then pick dates (or a quick range), optionally ask a question, and optionally tick **Email it to me**. These are kept in the **On demand** list, and you can delete them.

@@ -7,7 +7,7 @@ The app and the docs share one version number. The script has its own (see below
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.10.1** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.12** |
 
 ### How versions are numbered (from v2.9 on)
 
@@ -19,6 +19,30 @@ The app and the docs share one version number. The script has its own (see below
 **The script has its own version**, and it only goes up when the script's code changes. **If the script's version changes in a release, paste it in.** Otherwise leave it alone.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.12 (October 26, 2026)
+
+- **New: all your Garmin data, straight from Garmin** (script v2.12, SETUP.md Step 13). Uses Garmin's free Personal API key. Every hour, the script saves everything Garmin offers into **Drive › Health Sync › Garmin**, complete and as Garmin sends it:
+  - **days:** daily summary, steps, stress (with the curve), hydration, sleep (summary and detail), HRV (summary and readings), Body Battery (with the curve), weigh-ins and body composition, wellness activities, heart rate (with the curve), Pulse Ox, food logged in Garmin, and fitness age
+  - **every workout:** summary, full detail, workout steps, and the original watch file
+  - **profile:** settings, heart rate zones and weight goals
+- **Your whole Garmin history** loads in the background, newest first, until it reaches your first Garmin day (`garminHistoryNow` speeds it up).
+- **Key expiry is tracked:** amber and a weekly email from 30 days before, red once it expires.
+- **Garmin row in Import › Data health:** last update, how far back history has loaded, and when the key expires.
+- The app doesn't display the Garmin data yet. That comes in 2.13, built and tested on your real Garmin files.
+- Regression tests: 103 app checks, plus 39 script checks that run the real script against a stand-in Google environment and a fake Garmin server built from Garmin's spec (sign-in, every endpoint, history, workouts and files, repeats, key expiry, rate limits).
+- **Script: v2.12. Paste it (SETUP.md Step 13b).**
+
+(2.11 was never uploaded. Its fixes and features ship here too.)
+
+### v2.11 (October 26, 2026)
+
+- **Fixed: hiding or showing a tile sometimes flipped other tiles.** If you made a change while the app was still saving the one before, the finishing save wiped it out. Saves now run one at a time, and anything changed meanwhile is kept and saved next. This also protects every other kind of edit, such as food, notes and settings. Tiles now merge one change at a time, so a tile hidden on one computer never gets un-hidden by another.
+- **Fixed:** clicking **Sync** could throw away unsaved Coach or Plan changes. It now saves first.
+- **New: Days to check** (Import tab). Lists days from the last 4 weeks with no food, under 800 calories, or no final Lose It report, and explains how to re-export them from loseit.com. **Looks right** hides a week.
+- **New: automatic review rewrites.** Each review remembers the data it was based on. When food is added or removed, a day's calories change by 150 or more, or a workout is added, the Coach rewrites that week by itself and says why. Reviews written before 2.11 start being tracked from now on.
+- Regression tests: 95 checks, including saves interrupted by a new change (these fail on 2.10.1), rewrites and the gap list.
+- Script: unchanged (still v2.9).
 
 ### v2.10.1 (October 26, 2026)
 
