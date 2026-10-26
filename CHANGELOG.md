@@ -1,15 +1,33 @@
 # Health Sync — Version history
 
-Every release has one version number, shared by all its files. To check you're using the same files:
+The app and the docs share one version number. The script has its own (see below). To check which files you're using:
 
 | File | Where to see its version |
 |---|---|
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.9** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.10** |
+
+### How versions are numbered (from v2.9 on)
+
+**MAJOR.MINOR.PATCH**:
+- **Major (3.0):** a big change in how Health Sync works, such as its architecture or a redesign. Rare, and agreed beforehand.
+- **Minor (2.10, 2.11…):** a new feature or screen.
+- **Patch (2.9.1…):** fixes and small tweaks to something that already exists. Bundled when possible.
+
+**The script has its own version**, and it only goes up when the script's code changes. **If the script's version changes in a release, paste it in.** Otherwise leave it alone.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.10 (October 26, 2026)
+
+- **Hide dashboard tiles** (added from your home computer on Oct 21). Hover a tile and click 🙈 to hide it, or 👁 to show it again. You can also use the checkboxes under **Settings › Dashboard tiles**. Your choice is saved with your data in Drive, so it's the same on every computer.
+- **The weekly Coach review waits until Monday at noon,** so Sunday's final Lose It report has time to arrive. After noon, it also waits for that report to show up (until Tuesday at the latest, then it writes the review anyway).
+- If the app is already open at noon, the review starts within about 10 minutes. You don't have to reopen it.
+- Script: unchanged (still v2.9). No need to paste it.
+
+(2.9.1 was never uploaded. Its Coach change ships here.)
 
 ### v2.9 (October 19, 2026)
 

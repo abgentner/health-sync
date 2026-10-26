@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.9 -->
+<!-- Health Sync app · version 2.10 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -743,7 +743,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   </div>
   <div class="card">
     <div class="card-h"><h2>Dashboard tiles</h2></div>
-    <p class="small muted" style="margin-top:0">Choose which tiles are visible on the dashboard. You can also hide or show each tile by hovering over it and clicking the eye icon.</p>
+    <p class="small muted" style="margin-top:0">Choose which tiles are visible on the dashboard. You can also hide or show each tile by hovering over it and clicking the eye icon. Your choice is saved with your data, so it's the same on every computer.</p>
     <div id="s-tiles" class="row" style="flex-wrap:wrap;gap:8px 20px"></div>
   </div>
   <div class="card">
@@ -762,7 +762,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.9';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.10';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -845,7 +845,7 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, dashCfg: d.dashCfg || null, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
@@ -853,6 +853,17 @@ let importsDirty = false;
 let planDirty = false;
 let settings = Object.assign({ units: 'imperial', theme: '', span: 7, cloudNotes: true, hiddenTiles: [] }, LS.get('hs-settings', {}));
 const saveSettings = () => LS.set('hs-settings', settings);
+// Hidden dashboard tiles are saved with your data, so every computer shows the same tiles.
+// (Older copies kept them per computer; that list is used until the first change.)
+const hiddenTiles = () => data.dashCfg?.hiddenTiles || settings.hiddenTiles || [];
+function toggleTile(kind, hide) {
+  const h = hiddenTiles().filter(x => x !== kind);
+  if (hide) h.push(kind);
+  data.dashCfg = { ...(data.dashCfg || {}), hiddenTiles: h };
+  settings.hiddenTiles = h; saveSettings();
+  planDirty = true; persist().catch(e => toast(e.message, 6000));
+  renderDash(); syncTileToggles();
+}
 
 function getDay(k) {
   const d = data.days[k];
@@ -1047,7 +1058,7 @@ async function persist() {
     const seen = new Set(remote.imports.map(i => i.id));
     for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
     remote.imports = remote.imports.slice(-500);
-    if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; remote.weightCfg = data.weightCfg; }
+    if (planDirty) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; remote.weightCfg = data.weightCfg; remote.dashCfg = data.dashCfg; }
     if (coachDirty) {
       // Reviews merge one by one; the most recently written or edited copy of each wins.
       const stamp = r => (r && (r.updatedAt || r.createdAt)) || '';
@@ -1823,7 +1834,7 @@ const ICONS = {
   sleep: '<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>',
 };
 function tile(kind, k, v, unit, sub) {
-  const hidden = (settings.hiddenTiles || []).includes(kind);
+  const hidden = hiddenTiles().includes(kind);
   const hiddenAttr = hidden ? ' data-hidden' : '';
   const hideTitle = hidden ? 'Show tile' : 'Hide tile';
   const hideIcon = hidden ? '👁' : '🙈';
@@ -2534,7 +2545,7 @@ function renderImports() {
 }
 const TILE_LABELS = { steps: 'Steps', cal: 'Calories', ex: 'Exercise', weight: 'Weight', mood: 'Mood', sleep: 'Sleep' };
 function syncTileToggles() {
-  const hidden = settings.hiddenTiles || [];
+  const hidden = hiddenTiles();
   const container = $('#s-tiles');
   if (!container.children.length) {
     container.innerHTML = Object.entries(TILE_LABELS).map(([kind, label]) =>
@@ -2542,13 +2553,7 @@ function syncTileToggles() {
     ).join('');
     container.addEventListener('change', e => {
       const cb = e.target.closest('[data-tile-toggle]'); if (!cb) return;
-      const kind = cb.dataset.tileToggle;
-      const h = settings.hiddenTiles || [];
-      if (cb.checked) { const i = h.indexOf(kind); if (i !== -1) h.splice(i, 1); }
-      else { if (!h.includes(kind)) h.push(kind); }
-      settings.hiddenTiles = h;
-      saveSettings();
-      renderDash();
+      toggleTile(cb.dataset.tileToggle, !cb.checked);
     });
   } else {
     Object.keys(TILE_LABELS).forEach(kind => {
@@ -2840,7 +2845,10 @@ async function sendReviewEmail(r) {
   r.emailedAt = new Date().toISOString(); r.updatedAt = r.emailedAt; coachDirty = true; await savePersist();
 }
 
-// On opening the app: write any missing weekly reviews (oldest first), once each week's Sunday data is in.
+// Weekly reviews are written from Monday at noon, so Sunday's final Lose It report has time to arrive.
+const COACH_HOUR = 12;
+const reviewDueAt = sun => { const d = keyToDate(addDays(sun, 1)); d.setHours(COACH_HOUR, 0, 0, 0); return d.getTime(); };
+// On opening the app (and every few minutes while it's open): write any missing weekly reviews, oldest first.
 async function autoReviews() {
   if (!coachCfg().apiKey || coachBusy) return;
   const lastMon = addDays(weekStart(todayKey()), -7);
@@ -2851,8 +2859,11 @@ async function autoReviews() {
     if (r && !r.deleted && (r.status === 'done' || r.status === 'incomplete')) continue;
     if (r?.status === 'writing' && Date.now() - Date.parse(r.createdAt) < 10 * 60e3) continue;   // another device is on it
     const sun = addDays(ws, 6), sd = getDay(sun);
-    const ready = (sd && (sd.steps != null || totals(sd).hasFood)) || todayKey() >= addDays(sun, 2);
-    if (!ready) { coachProgress = `Waiting for ${fmtDay(sun, { month: 'short', day: 'numeric' })}'s data before writing that week's review`; renderCoach(); return; }
+    if (Date.now() < reviewDueAt(sun)) { coachProgress = `Last week's review will be written today at noon, once Sunday's Lose It report is in`; renderCoach(); return; }
+    // From noon, wait for Sunday's final Lose It report, but no later than Tuesday.
+    const ready = (sd && loseItFinal(sd, sun) && totals(sd).hasFood) || todayKey() >= addDays(sun, 2);
+    if (!ready) { coachProgress = `Waiting for ${fmtDay(sun, { month: 'short', day: 'numeric' })}'s final Lose It report before writing that week's review`; renderCoach(); return; }
+    if (coachProgress.startsWith('Last week') || coachProgress.startsWith('Waiting')) coachProgress = '';
     try { await writeReview(key, { kind: 'week', start: ws, end: sun, email: ws === lastMon }); }
     catch (e) { toast(e.message, 8000); return; }
   }
@@ -3637,13 +3648,7 @@ $('#tab-dash').addEventListener('click', e => {
   if (!btn) return;
   e.stopPropagation();
   const kind = btn.dataset.hideTile;
-  const hidden = settings.hiddenTiles || [];
-  const idx = hidden.indexOf(kind);
-  if (idx === -1) hidden.push(kind); else hidden.splice(idx, 1);
-  settings.hiddenTiles = hidden;
-  saveSettings();
-  renderDash();
-  syncTileToggles();
+  toggleTile(kind, !hiddenTiles().includes(kind));
 });
 $('#m-back').onclick = backToDash;
 $('#m-range').onchange = () => {
@@ -3789,7 +3794,9 @@ async function checkForUpdate() {
     }
   } catch {}
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { checkForUpdate(); autoReviews().catch(e => toast(e.message, 8000)); } });
+// If the app is left open over Monday noon, the review still gets written.
+setInterval(() => { if (document.visibilityState === 'visible') autoReviews().catch(e => toast(e.message, 8000)); }, 10 * 60e3);
 
 /* ---- Coach wiring ---- */
 $('#coach-seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; coachView = b.dataset.v; renderCoach(); };

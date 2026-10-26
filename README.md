@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.9** · October 19, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.10** · October 26, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -16,7 +16,7 @@ It's a web page you open like an app (on your Mac via Brave, on your iPhone from
 | **Strava** (fed by Garmin) | Workouts | Your Google script asks Strava → Drive Inbox | About hourly |
 | **Apple Health** (fed by Garmin, Withings, Lose It) | Steps, sleep, resting heart rate, active calories, flights, weight, body fat, nutrition backup | Health Auto Export → its Drive folder | Daily (yesterday's totals) |
 | **You** | Mood, energy, stress, notes, anchor overrides, your plan | The app | Whenever |
-| **Claude** | Weekly review + email | The app (with your API key) → your script sends the email | Mondays, or on demand |
+| **Claude** | Weekly review + email | The app (with your API key) → your script sends the email | Mondays at noon, or on demand |
 
 ```
 Lose It ──email──┐                         ┌── Health Auto Export (iPhone)
@@ -37,7 +37,7 @@ There's nothing to do. Open the app when you like:
 1. It **syncs** on open: new files from the Drive Inbox and the Health Auto Export folder are imported.
 2. **Yesterday is complete**; today usually isn't, because most sources send a day's totals the next morning. That's why averages always end yesterday.
 3. **Log how you feel** in **Log today** (mood, energy, stress, tags, notes), and override an anchor box if the data got it wrong.
-4. **Mondays:** the Coach writes last week's review and emails it to you.
+4. **Mondays at noon:** the Coach writes last week's review and emails it to you.
 
 **Where nutrition comes from:** **Lose It's report** brings every food with calories, protein, carbs, fat, saturated fat, sugars, fiber, sodium and cholesterol. **Vitamins and minerals** (potassium, calcium, iron, magnesium, vitamins A, B, C, D, E and K, folate, zinc and more, plus caffeine) come from **Apple Health**, where Lose It writes them, via Health Auto Export. They appear under **Food card › Vitamins and minerals** and on the Calories page, as % of the daily value. Only foods with that data in Lose It count, so totals are a minimum.
 
@@ -70,6 +70,7 @@ There's nothing to do. Open the app when you like:
 
 - **Date bar:** use **‹ ›** to move between days, or **Today** to jump back.
 - **Day / 5 / 7 / 15 / 30-day average buttons:** choose what the six summary tiles show.
+- **Hide a tile:** hover over it and click 🙈 (or 👁 to bring it back), or use **Settings › Dashboard tiles**. Your choice is saved with your data, so it's the same on every computer.
   - **Day** shows just the selected day.
   - The **average** buttons always **end the day before** the selected date. Lose It and Garmin data usually arrives a day late, so today's numbers would be incomplete.
   - Days with no data for a measure are **skipped**, so they don't pull the average down. Each tile says how many days it's based on.
@@ -142,7 +143,7 @@ Open it by clicking the Weight tile or chart. Weigh-ins come in automatically fr
 
 Reviews written by Claude (set up in [SETUP.md Step 12](SETUP.md#step-12--weekly-coach-reviews-by-claude)).
 
-- **Weekly:** written automatically the first time you open the app on or after Monday, once Sunday's data has arrived. If it hasn't yet, the Coach tab says "Waiting for …'s data". A review takes about **20–40 seconds** to write, and you can keep using the app meanwhile.
+- **Weekly:** written automatically from **Monday at noon**, so Sunday's final Lose It report has time to arrive. If the app is already open, it starts within about 10 minutes; otherwise it starts the next time you open the app. If Sunday's final report still hasn't arrived, the Coach tab says "Waiting for …'s final Lose It report" (on Tuesday it writes the review anyway). A review takes about **20–40 seconds** to write, and you can keep using the app meanwhile.
 - **What's in a review:**
   - grade and why
   - narrative
@@ -290,7 +291,9 @@ Each release comes as a Desktop folder named **Health Sync vX.Y**. Upload its `i
 > - ✅ = live
 > - ❌ = something went wrong; try uploading again
 
-**When the script changes too** (the version history says so):
+**Versions:** MAJOR.MINOR.PATCH. 3.0 is reserved for a big change; new features are 2.10, 2.11 and so on; fixes are 2.9.1 and so on. The script has its own version, and **when its number changes, paste it**. Details are in [CHANGELOG.md](CHANGELOG.md).
+
+**When the script changes too:**
 1. At **script.google.com**, open **Health Sync email saver**, replace all the code with the new `email-to-drive.gs`, and click **Save**.
 2. Go to **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**, so the receiver uses the new code. If it says **"This project has not been deployed yet"**, skip this step: you haven't set up the receiver (it's only needed for the Coach email, SETUP.md Step 12c).
 3. If the release notes say so, run **`setup`** once.

@@ -480,7 +480,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 ## Step 12 — Weekly Coach reviews by Claude
 
-**What this does:** every Monday, the first time you open Health Sync, Claude writes a review of the week just finished (Mon–Sun). It also emails you a copy. The review includes:
+**What this does:** every Monday from noon (once Sunday's Lose It report is in), when Health Sync is open, Claude writes a review of the week just finished (Mon–Sun). It also emails you a copy. The review includes:
 
 - a **letter grade** and why you got it
 - a short **narrative** of the week
@@ -514,7 +514,7 @@ You can also ask for a review of **any dates** at any time (**Coach › Review n
    - Type the credit you bought (e.g. `20`) under **Bought credit** and click **Add credit**.
    - If you turned on **auto-reload** in the console, tick **Auto-reload is on in my console**, enter its numbers (e.g. when below **$5**, add **$20**), and click **Save coach settings**. The estimate then adds each automatic top-up itself, so you never need to enter them.
 
-That's it. Health Sync writes the reviews for every week since **September 7** in the background, oldest first. That takes a few minutes. After that it writes one each Monday. Only the newest week's review is emailed.
+That's it. Health Sync writes the reviews for every week since **September 7** in the background, oldest first. That takes a few minutes. After that it writes one each Monday at noon. Only the newest week's review is emailed.
 
 ### 12c. Turn on the Monday email (5 minutes)
 
