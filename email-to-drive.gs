@@ -1,6 +1,6 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 2.12
+ * Version 2.12.1
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
@@ -28,7 +28,7 @@
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '2.12';   // printed at the start of every run
+const SCRIPT_VERSION = '2.12.1';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -257,12 +257,18 @@ function stravaGet_(path, token) {
 // expires, like 2027-10-26) so you get a reminder before it stops working. Setup: SETUP.md Step 13.
 
 const GARMIN_API = 'https://personal.connectapi.garmin.com';
+// Garmin doesn't publish its limits, so the script stays gentle: a few requests at a time, with pauses,
+// a fixed allowance per hour for history, and longer pauses each time Garmin says "slow down".
 const GARMIN_RECENT_DAYS = 3;          // today and the 2 days before it are re-read every hour
-const GARMIN_CHUNK_DAYS = 28;          // the longest date range every Garmin endpoint accepts
-const GARMIN_HISTORY_SECONDS = 120;    // time each hourly run spends on history (Google allows 90 minutes of runs a day in all)
-const GARMIN_EMPTY_TO_STOP = 3;        // history is complete after this many empty 28-day stretches in a row
-const GARMIN_BATCH = 20;               // requests sent to Garmin at once
+const GARMIN_CHUNK_DAYS = 7;           // history goes back a week at a time (about 75 requests)
+const GARMIN_PARALLEL = 4;             // requests in flight at once
+const GARMIN_GAP_MS = 750;             // pause between groups of requests
+const GARMIN_HISTORY_REQUESTS = 160;   // requests each hourly run may spend on history (a year of days takes about a day)
+const GARMIN_HISTORY_SECONDS = 120;    // and at most this long (Google allows 90 minutes of runs a day in all)
+const GARMIN_EMPTY_DAYS_TO_STOP = 120; // history is complete after this many empty days in a row, once past your oldest workout
+const GARMIN_PAGE = 20;                // workouts per page of Garmin's list
 const GARMIN_KEY_WARN_DAYS = 30;       // start reminding you this many days before the key expires
+const GARMIN_WATCH_LATE_HOURS = 24;    // email you if your watch hasn't synced to Garmin Connect for this long
 
 // Endpoints that take a date range. split() turns Garmin's reply into [date, value] pairs.
 const byField_ = f => j => (Array.isArray(j) ? j : []).map(x => [garminDate_(x[f]), x]);
@@ -291,37 +297,57 @@ const GARMIN_DAY = [
   { key: 'menstrualDay', path: d => `/periodichealth-service/menstrualcycle/dayview/${d}?includeAnalysis=true` },
 ];
 
-/** Run once after adding GARMIN_KEY: checks the key and every kind of Garmin data, and saves yesterday as a sample. */
+/** Run once after adding GARMIN_KEY: checks the key and every kind of Garmin data, and updates Data health in the app. */
 function garminCheck() {
   console.log('Health Sync script v' + SCRIPT_VERSION);
   const p = props_(), key = (p.getProperty('GARMIN_KEY') || '').trim(), exp = garminKeyDaysLeft_();
   console.log('GARMIN_KEY: ' + (key ? key.length + ' characters' : 'MISSING: add it in Project Settings › Script Properties (SETUP.md Step 13)'));
   console.log('GARMIN_KEY_EXPIRES: ' + (exp == null ? 'not set (add it, like 2027-10-26, to get a reminder before the key stops working)' : `${p.getProperty('GARMIN_KEY_EXPIRES')} (${exp} days left)`));
   if (!key) return;
+  const pause = Number(p.getProperty('GARMIN_PAUSE_UNTIL'));
+  if (pause > Date.now()) { console.log(`Garmin asked to slow down earlier, so the script is pausing until ${garminTime_(pause)}. Run garminCheck again after that. Nothing is lost.`); return; }
   p.deleteProperty('GARMIN_TOKEN_EXP');
   garminToken_();
   console.log('Sign-in: OK (reply had ' + p.getProperty('GARMIN_TOKEN_SHAPE') + ')');
-  const y = garminAddDays_(garminToday_(), -1);
+  const t = garminToday_(), from = garminAddDays_(t, -13), y = garminAddDays_(t, -1), old = garminAddDays_(t, -120);
   const shape = v => v == null ? 'empty' : Array.isArray(v) ? `list of ${v.length}` : typeof v === 'object' ? `${Object.keys(v).length} fields` : typeof v;
-  const r = garminGetAll_(GARMIN_RANGE.map(e => e.path(y, y)).concat(GARMIN_DAY.map(e => e.path(y))));
-  GARMIN_RANGE.concat(GARMIN_DAY).forEach((e, i) => console.log(`${e.key}: ${r[i].code}${r[i].code < 300 ? ' · ' + shape(r[i].json) : ' · ' + r[i].text.slice(0, 120)}`));
+  // Ranges: the last 14 days up to today, to see which days come back (and whether the end date is included).
+  const rr = garminGetAll_(GARMIN_RANGE.map(e => e.path(from, t)));
+  let endIncluded = null;
+  GARMIN_RANGE.forEach((e, i) => {
+    const r = rr[i];
+    if (r.code >= 300 || r.json == null) { console.log(`${e.key} (${from} to ${t}): ${r.code}${r.text ? ' · ' + r.text.slice(0, 100) : ' · empty'}`); return; }
+    const ds = [...new Set(e.split(r.json).map(x => x[0]).filter(Boolean))].sort();
+    if (ds.length && ds[ds.length - 1] === t) endIncluded = true;
+    console.log(`${e.key} (${from} to ${t}): ${r.code} · ${ds.length} day${ds.length === 1 ? '' : 's'}${ds.length ? ` (${ds[0]} to ${ds[ds.length - 1]})` : ''}`);
+  });
+  const rs = garminGetAll_(GARMIN_DAY.map(e => e.path(y)));
+  GARMIN_DAY.forEach((e, i) => console.log(`${e.key} (${y}): ${rs[i].code} · ${rs[i].code < 300 ? shape(rs[i].json) : rs[i].text.slice(0, 100)}`));
+  const u = rs[GARMIN_DAY.findIndex(e => e.key === 'userSummary')].json || {};
+  console.log(`Yesterday: ${u.includesWellnessData ? 'Garmin has your data' : 'NO data yet. Open the Garmin Connect app on your phone so the watch syncs, then run garminCheck again'}${u.totalSteps ? ` (${u.totalSteps} steps)` : ''}.`);
+  console.log(`Watch last synced: ${u.lastSyncTimestampGMT ? garminTime_(garminParseGmt_(u.lastSyncTimestampGMT)) : 'unknown'}.`);
+  const h = garminGetAll_([GARMIN_DAY[0].path(old)])[0];
+  console.log(`History: ${h.json && h.json.includesWellnessData ? `Garmin has data for ${old}, so your history can be loaded` : `no data for ${old} (either you weren't wearing it then, or Garmin doesn't offer history on this key)`}.`);
+  if (endIncluded) console.log('Date ranges include their end date: OK.');
   const acts = garminGetAll_([`/activitylist-service/activities/search/activities?start=0&limit=5`])[0];
-  console.log(`activities: ${acts.code} · ${shape(acts.json)}`);
-  garminSaveDays_(y, y, true);
-  console.log(`Saved ${y} to Health Sync › Garmin › days. The hourly check now keeps Garmin up to date and loads your history in the background.`);
+  console.log(`Workouts: ${acts.code} · ${shape(acts.json)}`);
+  p.setProperty('GARMIN_LAST_OK', new Date().toISOString());
+  if (u.lastSyncTimestampGMT) p.setProperty('GARMIN_WATCH_SYNC', new Date(garminParseGmt_(u.lastSyncTimestampGMT)).toISOString());
+  checkSources_({});
+  console.log('Done. Data health in the app is updated (click Sync there). The hourly check keeps Garmin up to date and loads your history in the background.');
 }
 
 /** Optional: loads Garmin history for about 5 minutes right now, instead of a little each hour. Run it as often as you like. */
 function garminHistoryNow() {
   console.log('Health Sync script v' + SCRIPT_VERSION);
-  const t0 = Date.now();
-  garminHistory_(t0, 300);
+  if (Number(props_().getProperty('GARMIN_PAUSE_UNTIL')) > Date.now()) { console.log(`Garmin asked to slow down, so the script is pausing until ${garminTime_(Number(props_().getProperty('GARMIN_PAUSE_UNTIL')))}.`); return; }
+  garminHistory_(Date.now(), 300, 3 * GARMIN_HISTORY_REQUESTS);
   console.log(garminHistoryLine_());
 }
 
 /** Starts the history load again from the top (for example after Garmin adds new kinds of data). */
 function garminRestartHistory() {
-  ['GARMIN_HISTORY_TO', 'GARMIN_HISTORY_EMPTY', 'GARMIN_HISTORY_DONE', 'GARMIN_ACT_OFFSET', 'GARMIN_ACT_DONE'].forEach(k => props_().deleteProperty(k));
+  ['GARMIN_HISTORY_TO', 'GARMIN_HISTORY_EMPTY', 'GARMIN_HISTORY_DONE', 'GARMIN_ACT_OFFSET', 'GARMIN_ACT_DONE', 'GARMIN_EARLIEST'].forEach(k => props_().deleteProperty(k));
   console.log('Garmin history will be loaded again, starting with the most recent days.');
 }
 
@@ -331,43 +357,58 @@ function syncGarmin() {
   if (!(p.getProperty('GARMIN_KEY') || '').trim()) return;
   const left = garminKeyDaysLeft_();
   if (left != null && left < 0) throw new Error(`Garmin key expired on ${p.getProperty('GARMIN_KEY_EXPIRES')}. Create a new one (SETUP.md Step 13) and paste it into GARMIN_KEY and GARMIN_KEY_EXPIRES.`);
-  if (Number(p.getProperty('GARMIN_PAUSE_UNTIL')) > Date.now()) { console.log('Garmin: pausing (Garmin asked to slow down); trying again next hour.'); return; }
+  const pause = Number(p.getProperty('GARMIN_PAUSE_UNTIL'));
+  if (pause > Date.now()) { console.log(`Garmin: pausing until ${garminTime_(pause)} (Garmin asked to slow down). Nothing is lost.`); return; }
   const t0 = Date.now(), today = garminToday_();
-  garminSaveDays_(garminAddDays_(today, 1 - GARMIN_RECENT_DAYS), today, true);
+  const recent = garminSaveDays_(garminAddDays_(today, 1 - GARMIN_RECENT_DAYS), today, true);
+  if (recent.watchSync) p.setProperty('GARMIN_WATCH_SYNC', recent.watchSync);
   if (p.getProperty('GARMIN_PROFILE_DAY') !== today) { garminProfile_(); p.setProperty('GARMIN_PROFILE_DAY', today); }
   const fresh = garminRecentActivities_();
   p.setProperty('GARMIN_LAST_OK', new Date().toISOString());
+  p.deleteProperty('GARMIN_STRIKES');   // Garmin is happy again: the next pause starts back at an hour
   if (fresh) p.setProperty('GARMIN_LAST_NEW', new Date().toISOString());
-  garminHistory_(t0, GARMIN_HISTORY_SECONDS);
+  garminHistory_(t0, GARMIN_HISTORY_SECONDS, GARMIN_HISTORY_REQUESTS);
   console.log(`Garmin: up to date${fresh ? ` · ${fresh} new workout${fresh === 1 ? '' : 's'}` : ''} · ${garminHistoryLine_()}`);
 }
 
-// History: days go back 28 at a time from just before the recent window; workouts page back through the list.
-function garminHistory_(t0, seconds) {
-  const p = props_(), timeLeft = () => seconds * 1000 - (Date.now() - t0);
+// History, newest first: workouts page back through Garmin's list, and days go back a week at a time.
+// Each run shares a fixed allowance of requests between them, so history never floods Garmin.
+function garminHistory_(t0, seconds, allowance) {
+  const p = props_(), start = garminRequests_;
+  const left = () => seconds * 1000 - (Date.now() - t0) > 30e3 && garminRequests_ - start < allowance;
   const stopAt = (p.getProperty('GARMIN_HISTORY_FROM') || '').trim();   // optional: don't go further back than this date
-  while (timeLeft() > 40e3 && p.getProperty('GARMIN_HISTORY_DONE') !== 'yes') {
-    const to = p.getProperty('GARMIN_HISTORY_TO') || garminAddDays_(garminToday_(), -GARMIN_RECENT_DAYS);
-    let from = garminAddDays_(to, 1 - GARMIN_CHUNK_DAYS);
-    if (stopAt && from < stopAt) from = stopAt;
-    const { found, earliest } = garminSaveDays_(from, to, false);
-    const empty = found ? 0 : Number(p.getProperty('GARMIN_HISTORY_EMPTY') || 0) + 1;
-    const was = p.getProperty('GARMIN_EARLIEST');
-    if (earliest && (!was || earliest < was)) p.setProperty('GARMIN_EARLIEST', earliest);
-    p.setProperties({ GARMIN_HISTORY_TO: garminAddDays_(from, -1), GARMIN_HISTORY_EMPTY: String(empty) });
-    if (empty >= GARMIN_EMPTY_TO_STOP || (stopAt && from <= stopAt)) p.setProperty('GARMIN_HISTORY_DONE', 'yes');
+  while (left() && (p.getProperty('GARMIN_ACT_DONE') !== 'yes' || p.getProperty('GARMIN_HISTORY_DONE') !== 'yes')) {
+    if (p.getProperty('GARMIN_ACT_DONE') !== 'yes') {
+      const offset = Number(p.getProperty('GARMIN_ACT_OFFSET') || 0);
+      const page = garminGetAll_([`/activitylist-service/activities/search/activities?start=${offset}&limit=${GARMIN_PAGE}`])[0];
+      if (page.code >= 300) throw new Error(`Garmin workouts list failed (${page.code}): ${page.text.slice(0, 160)}`);
+      const list = Array.isArray(page.json) ? page.json : [], index = garminIndex_();
+      let done = 0;
+      for (const a of list) { if (!index.saved[a.activityId]) { if (!left()) break; garminSaveActivity_(a, true, index); } done++; }
+      garminSaveIndex_(index);
+      p.setProperty('GARMIN_ACT_OFFSET', String(offset + done));
+      if (done === list.length && list.length < GARMIN_PAGE) p.setProperty('GARMIN_ACT_DONE', 'yes');
+    }
+    if (left() && p.getProperty('GARMIN_HISTORY_DONE') !== 'yes') {
+      const to = p.getProperty('GARMIN_HISTORY_TO') || garminAddDays_(garminToday_(), -GARMIN_RECENT_DAYS);
+      let from = garminAddDays_(to, 1 - GARMIN_CHUNK_DAYS);
+      if (stopAt && from < stopAt) from = stopAt;
+      const { found, earliest } = garminSaveDays_(from, to, false);
+      const empty = found ? 0 : Number(p.getProperty('GARMIN_HISTORY_EMPTY') || 0) + GARMIN_CHUNK_DAYS;
+      const was = p.getProperty('GARMIN_EARLIEST');
+      if (earliest && (!was || earliest < was)) p.setProperty('GARMIN_EARLIEST', earliest);
+      p.setProperties({ GARMIN_HISTORY_TO: garminAddDays_(from, -1), GARMIN_HISTORY_EMPTY: String(empty) });
+      // Done once: a long empty stretch AND past your oldest workout (so a few months off the watch don't end it early),
+      // or the GARMIN_HISTORY_FROM date, or before Garmin Connect existed.
+      const oldestWorkout = p.getProperty('GARMIN_ACT_DONE') === 'yes' ? garminOldestWorkout_() : null;
+      const pastWorkouts = p.getProperty('GARMIN_ACT_DONE') === 'yes' && (!oldestWorkout || from < oldestWorkout);
+      if ((empty >= GARMIN_EMPTY_DAYS_TO_STOP && pastWorkouts) || (stopAt && from <= stopAt) || from < '2006-01-01') p.setProperty('GARMIN_HISTORY_DONE', 'yes');
+    }
   }
-  while (timeLeft() > 40e3 && p.getProperty('GARMIN_ACT_DONE') !== 'yes') {
-    const offset = Number(p.getProperty('GARMIN_ACT_OFFSET') || 0);
-    const page = garminGetAll_([`/activitylist-service/activities/search/activities?start=${offset}&limit=${GARMIN_BATCH}`])[0];
-    if (page.code >= 300) throw new Error(`Garmin workouts list failed (${page.code}): ${page.text.slice(0, 160)}`);
-    const list = Array.isArray(page.json) ? page.json : [];
-    const index = garminIndex_();
-    for (const a of list) if (!index.saved[a.activityId]) { garminSaveActivity_(a, true, index); if (timeLeft() < 20e3) break; }
-    garminSaveIndex_(index);
-    p.setProperty('GARMIN_ACT_OFFSET', String(offset + list.length));
-    if (list.length < GARMIN_BATCH) p.setProperty('GARMIN_ACT_DONE', 'yes');
-  }
+}
+function garminOldestWorkout_() {
+  const ds = Object.values(garminIndex_().saved).map(x => x.date).filter(Boolean).sort();
+  return ds[0] || null;
 }
 function garminHistoryLine_() {
   const p = props_(), days = p.getProperty('GARMIN_HISTORY_DONE') === 'yes', acts = p.getProperty('GARMIN_ACT_DONE') === 'yes';
@@ -375,7 +416,8 @@ function garminHistoryLine_() {
   return `history: days ${days ? 'complete' : 'loading'}${p.getProperty('GARMIN_EARLIEST') ? ' (back to ' + p.getProperty('GARMIN_EARLIEST') + ')' : ''}, workouts ${acts ? 'complete' : 'loading'} (${n} saved)`;
 }
 
-// Reads every kind of daily data for from..to and saves one file per day. Returns how many days had data, and the earliest.
+// Reads every kind of daily data for from..to and saves one file per day.
+// Returns how many days had data, the earliest of them, and when the watch last synced.
 function garminSaveDays_(from, to, keepEmpty) {
   const days = [];
   for (let d = from; d <= to; d = garminAddDays_(d, 1)) days.push(d);
@@ -393,23 +435,26 @@ function garminSaveDays_(from, to, keepEmpty) {
   const singles = GARMIN_DAY.filter(e => !off[e.key]), pairs = [];
   days.forEach(d => singles.forEach(e => pairs.push([d, e])));
   const codes = {};
-  for (let i = 0; i < pairs.length; i += GARMIN_BATCH) {
-    const part = pairs.slice(i, i + GARMIN_BATCH), res = garminGetAll_(part.map(([d, e]) => e.path(d)));
-    part.forEach(([d, e], j) => {
-      const r = res[j];
-      out[d].status[e.key] = r.code; (codes[e.key] = codes[e.key] || []).push(r.code);
-      if (r.code < 300 && r.json != null) out[d].data[e.key] = r.json;
-    });
-  }
-  // An endpoint that refuses every day (not offered for your account or watch) is skipped for 30 days.
-  for (const [k, cs] of Object.entries(codes)) if (cs.length >= 7 && cs.every(c => c >= 400 && c < 500 && c !== 401 && c !== 429)) { off[k] = Date.now() + 30 * 864e5; garminSetOff_(off); }
-  let found = 0, earliest = null;
+  const res = garminGetAll_(pairs.map(([d, e]) => e.path(d)));
+  pairs.forEach(([d, e], j) => {
+    const r = res[j];
+    out[d].status[e.key] = r.code;
+    if (r.code < 300 && r.json != null) out[d].data[e.key] = r.json;
+  });
+  const has = {};
+  days.forEach(d => { has[d] = garminHasData_(out[d].data); });
+  // A kind of data that's empty or refused on 7+ days that DO have other data isn't offered for your account or
+  // watch, so it's skipped for 30 days. (Days you weren't wearing the watch don't count.)
+  pairs.forEach(([d, e]) => { if (has[d]) (codes[e.key] = codes[e.key] || []).push(out[d].status[e.key]); });
+  for (const [k, cs] of Object.entries(codes)) if (cs.length >= 7 && cs.every(c => c === 204 || (c >= 400 && c < 500 && c !== 401 && c !== 429))) { off[k] = Date.now() + 30 * 864e5; garminSetOff_(off); }
+  let found = 0, earliest = null, watchSync = null;
   for (const d of days) {
-    const has = garminHasData_(out[d].data);
-    if (has) { found++; if (!earliest || d < earliest) earliest = d; }
-    if (has || keepEmpty) saveJson_(garminFolder_('days', d.slice(0, 4)), `garmin-${d}.json`, out[d]);
+    if (has[d]) { found++; if (!earliest || d < earliest) earliest = d; }
+    const ls = out[d].data.userSummary && out[d].data.userSummary.lastSyncTimestampGMT;
+    if (ls) { const iso = new Date(garminParseGmt_(ls)).toISOString(); if (!watchSync || iso > watchSync) watchSync = iso; }
+    if (has[d] || keepEmpty) saveJson_(garminFolder_('days', d.slice(0, 4)), `garmin-${d}.json`, out[d]);
   }
-  return { found, earliest };
+  return { found, earliest, watchSync };
 }
 function garminHasData_(x) {
   const s = x.dailySummary || {}, u = x.userSummary || {};
@@ -442,7 +487,9 @@ function garminSaveActivity_(a, withFile, index) {
   const doc = { source: 'garmin', version: 1, fetchedAt: new Date().toISOString(), activityId: id, date: d, summary: a,
     detail: det.code < 300 ? det.json : null, workouts: wo.code < 300 ? wo.json : null, status: { detail: det.code, workouts: wo.code } };
   if (withFile) {
+    garminRequests_++; Utilities.sleep(GARMIN_GAP_MS);
     const f = UrlFetchApp.fetch(GARMIN_API + `/download-service/files/activity/${id}`, { headers: { Authorization: 'Bearer ' + garminToken_() }, muteHttpExceptions: true });
+    if (f.getResponseCode() === 429) garminSlowDown_();
     doc.status.file = f.getResponseCode();
     if (f.getResponseCode() < 300) { const name = `garmin-${d}-${id}.zip`; replaceFile_(garminFolder_('fit', d.slice(0, 4)), name, f.getBlob().setName(name)); doc.file = name; }
   } else if (index.saved[id] && index.saved[id].file) doc.file = index.saved[id].file;
@@ -479,18 +526,17 @@ function garminToken_() {
   p.setProperties({ GARMIN_TOKEN: token, GARMIN_TOKEN_EXP: String(Date.now() + (ttl ? ttl * 1000 : 24 * 36e5)), GARMIN_TOKEN_SHAPE: shape });
   return token;
 }
-// Sends requests GARMIN_BATCH at a time. Returns [{ code, json, text }] in the same order.
+// Sends requests GARMIN_PARALLEL at a time with a short pause between groups. Returns [{ code, json, text }] in order.
+let garminRequests_ = 0;   // requests sent this run
 function garminGetAll_(paths) {
   const out = [];
-  for (let i = 0; i < paths.length; i += GARMIN_BATCH) {
-    const part = paths.slice(i, i + GARMIN_BATCH);
-    const send = () => UrlFetchApp.fetchAll(part.map(path => ({ url: GARMIN_API + path, headers: { Authorization: 'Bearer ' + garminToken_(), Accept: 'application/json' }, muteHttpExceptions: true })));
+  for (let i = 0; i < paths.length; i += GARMIN_PARALLEL) {
+    const part = paths.slice(i, i + GARMIN_PARALLEL);
+    if (garminRequests_) Utilities.sleep(GARMIN_GAP_MS);
+    const send = () => { garminRequests_ += part.length; return UrlFetchApp.fetchAll(part.map(path => ({ url: GARMIN_API + path, headers: { Authorization: 'Bearer ' + garminToken_(), Accept: 'application/json' }, muteHttpExceptions: true }))); };
     let res = send();
     if (res.some(r => r.getResponseCode() === 401)) { props_().deleteProperty('GARMIN_TOKEN_EXP'); res = send(); }
-    if (res.some(r => r.getResponseCode() === 429)) {
-      props_().setProperty('GARMIN_PAUSE_UNTIL', String(Date.now() + 60 * 60e3));
-      throw new Error('Garmin asked to slow down (429). Pausing for an hour; nothing is lost.');
-    }
+    if (res.some(r => r.getResponseCode() === 429)) garminSlowDown_();
     res.forEach(r => {
       const code = r.getResponseCode(), text = code === 204 ? '' : r.getContentText();
       let json = null; try { json = text ? JSON.parse(text) : null; } catch (e) {}
@@ -499,6 +545,15 @@ function garminGetAll_(paths) {
   }
   return out;
 }
+// Garmin said "slow down": pause 1 hour, then 2, 4, up to 8 if it keeps happening. A good run resets it.
+function garminSlowDown_() {
+  const p = props_(), strikes = Number(p.getProperty('GARMIN_STRIKES') || 0), hours = Math.min(8, Math.pow(2, strikes));
+  const until = Date.now() + hours * 36e5;
+  p.setProperties({ GARMIN_PAUSE_UNTIL: String(until), GARMIN_STRIKES: String(strikes + 1) });
+  throw new Error(`Garmin asked to slow down (429). Pausing until ${garminTime_(until)}; nothing is lost.`);
+}
+const garminTime_ = ms => Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), "EEE h:mm a");
+const garminParseGmt_ = s => Date.parse(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : String(s).replace(' ', 'T') + 'Z');
 const garminOff_ = () => { const o = JSON.parse(props_().getProperty('GARMIN_OFF') || '{}'); for (const k of Object.keys(o)) if (o[k] < Date.now()) delete o[k]; return o; };
 const garminSetOff_ = o => props_().setProperty('GARMIN_OFF', JSON.stringify(o));
 function garminKeyDaysLeft_() {
@@ -591,7 +646,9 @@ function checkSources_(errors) {
       const on = !!(p.getProperty('GARMIN_KEY') || '').trim();
       if (!on) return { connected: false };
       let saved = null; try { saved = Object.keys(garminIndex_().saved).length; } catch (e) {}
+      const ws = p.getProperty('GARMIN_WATCH_SYNC') || null, pause = Number(p.getProperty('GARMIN_PAUSE_UNTIL')) || 0;
       return { connected: true, lastOkAt: p.getProperty('GARMIN_LAST_OK') || null, lastNewAt: p.getProperty('GARMIN_LAST_NEW') || null, error: errors.garmin || null,
+        watchSyncedAt: ws, watchHoursAgo: ws ? hours(Date.parse(ws)) : null, pausedUntil: pause > now ? new Date(pause).toISOString() : null,
         keyExpires: p.getProperty('GARMIN_KEY_EXPIRES') || null, keyDaysLeft: garminKeyDaysLeft_(),
         history: { daysDone: p.getProperty('GARMIN_HISTORY_DONE') === 'yes', workoutsDone: p.getProperty('GARMIN_ACT_DONE') === 'yes',
           backTo: p.getProperty('GARMIN_EARLIEST') || null, workouts: saved } };
@@ -609,6 +666,7 @@ function checkSources_(errors) {
   if (status.strava.error) problems.push(['strava', `Strava sync failed: ${status.strava.error}. Run stravaCheck in the script for details.`]);
   const gm = status.garmin;
   if (gm.connected && gm.error && !/slow down/.test(gm.error)) problems.push(['garmin', `Garmin sync failed: ${gm.error} Run garminCheck in the script for details.`]);
+  if (gm.connected && gm.watchHoursAgo != null && gm.watchHoursAgo > GARMIN_WATCH_LATE_HOURS) problems.push(['garminwatch', `Your watch hasn't synced to Garmin Connect for ${gm.watchHoursAgo} hours. Open the Garmin Connect app on your phone (with Bluetooth on) so it syncs.`]);
   if (gm.connected && gm.keyDaysLeft != null && gm.keyDaysLeft >= 0 && gm.keyDaysLeft <= GARMIN_KEY_WARN_DAYS)
     problems.push(['garminkey', `Your Garmin key expires on ${gm.keyExpires} (${gm.keyDaysLeft} days). Create a new one on Garmin Connect and paste it into the script's GARMIN_KEY and GARMIN_KEY_EXPIRES (SETUP.md Step 13). It takes 2 minutes.`, 7]);
   for (const [k, msg, everyDays = 1] of problems) {

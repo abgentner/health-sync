@@ -7,7 +7,7 @@ The app and the docs share one version number. The script has its own (see below
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.12** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.12.1** |
 
 ### How versions are numbered (from v2.9 on)
 
@@ -19,6 +19,16 @@ The app and the docs share one version number. The script has its own (see below
 **The script has its own version**, and it only goes up when the script's code changes. **If the script's version changes in a release, paste it in.** Otherwise leave it alone.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.12.1 (October 26, 2026)
+
+- **Gentler with Garmin.** 2.12 sent 20 requests at once, and Garmin asked it to slow down within minutes. Now it sends 4 at a time with pauses in between, and history gets a fixed allowance each hour (about 2 weeks of days plus some workouts, so roughly a year a day). If Garmin still pushes back, the pauses grow: 1 hour, 2, 4, then up to 8.
+- **History doesn't stop early** after months without the watch. It keeps going until it's past your oldest Garmin workout.
+- **Fixed:** weeks without the watch could make the script decide a kind of data (such as HRV) "isn't offered" and skip it for older days. Now only days that have other data count.
+- **Watch sync alert:** the Garmin row shows when your watch last synced to Garmin Connect. It turns amber after 12 hours, and you get an email after a day.
+- **`garminCheck` is more useful:** it checks 14 days, reports which days came back for each kind of data, and says whether yesterday has data, when the watch last synced, and whether history is available. It also updates Data health straight away, and it waits instead of adding to Garmin's load when a pause is on.
+- Regression tests: 106 app checks and 56 script checks. The fake Garmin account now has 5 months off the watch, and checks pacing and longer pauses.
+- **Script: v2.12.1. Paste it (SETUP.md Step 13b), then run `setup`.**
 
 ### v2.12 (October 26, 2026)
 

@@ -577,7 +577,7 @@ You need **Step 9 done first** (the script).
 
 1. Open your project at **https://script.google.com** (**Health Sync email saver**).
 2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
-3. Paste in the new **`email-to-drive.gs`** (v2.12). Click **💾 Save**.
+3. Paste in the new **`email-to-drive.gs`** (v2.12.1 or later). Click **💾 Save**.
 
 ### 13c. Add your key (privately)
 
@@ -597,15 +597,19 @@ You need **Step 9 done first** (the script).
    - If Google asks for permission again, allow it the same way as before.
 2. The **Execution log** should show:
    - **Sign-in: OK**
-   - one line per kind of Garmin data, mostly **200**. A **404** only means Garmin doesn't offer that for your account; the script then stops asking.
-   - **Saved *yesterday's date*** to Health Sync › Garmin › days.
+   - one line per kind of Garmin data, mostly **200** with a number of days. **204** or **404** only means there's nothing of that kind (for example, no HRV on your watch, or period tracking you don't use). If it stays that way, the script stops asking.
+   - **Yesterday: Garmin has your data.** If it says **NO data yet**, your watch hasn't synced: open the **Garmin Connect** app on your phone, let it sync, and run `garminCheck` again.
+   - **Watch last synced:** a recent time.
+   - **History:** whether Garmin has data for a day 120 days ago.
 3. Choose **`setup`** and click **▶ Run**. This restarts the hourly timer with the new version.
+4. In Health Sync, click **Sync**. **Import › Data health** now shows a **Garmin** row.
 
-**That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then spends 2 minutes loading your history, newest first, until it reaches your first day on Garmin. Import › Data health shows how far back it has got.
+**That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then loads a slice of your history, newest first: about 2 weeks of days plus some workouts each hour, so roughly **a year of history a day**. It keeps going until it's past your oldest Garmin workout, so months without the watch don't stop it early. Import › Data health shows how far back it has got.
 
 - **Faster history:** run **`garminHistoryNow`** as often as you like; each run loads about 5 minutes' worth.
 - **Don't need all of it?** Add a script property `GARMIN_HISTORY_FROM` with the earliest date you want, like `2024-01-01`.
-- **Garmin busy?** If Garmin asks the script to slow down, it pauses for an hour and carries on. Nothing is lost, and that doesn't send you an alert.
+- **Garmin busy?** Garmin doesn't publish its limits, so the script sends only a few requests at a time, with pauses in between. If Garmin still asks it to slow down, it pauses for 1 hour, then 2, 4 and up to 8 hours if it keeps happening, and carries on after that. Nothing is lost, the Garmin row shows when it resumes, and no alert email is sent.
+- **Watch not syncing?** If your watch hasn't synced to Garmin Connect for 12 hours, the Garmin row turns amber. After a day, you also get an email. Opening the Garmin Connect app on your phone fixes it.
 
 ### 13e. When the key expires
 

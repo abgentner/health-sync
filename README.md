@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.12** · October 26, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.12.1** · October 26, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -57,7 +57,7 @@ There's nothing to do. Open the app when you like:
 | **Lose It report** | An email arrived in the last 36 h | No email for 36 h (amber) or 72 h (red), or saving failed |
 | **Apple Health** | Health Auto Export updated in the last 36 h | Late, or it's sending **minute-by-minute** data (set Time Grouping to **Day**) |
 | **Strava** | Connected, no errors | The sync failed (run `stravaCheck`) |
-| **Garmin** | Updated in the last few hours; shows how far back history has loaded and when the key expires | Key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber, no email) |
+| **Garmin** | Updated in the last few hours; shows when your watch last synced, how far back history has loaded, and when the key expires | Watch not synced for 12 h (amber; email after a day), key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber with the time it resumes, no email) |
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
 
 - When anything is amber or red, a **⚠ data issue** chip appears at the top of every screen. Tap it to open this panel.

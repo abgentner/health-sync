@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.12 -->
+<!-- Health Sync app · version 2.12.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -767,7 +767,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.12';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.12.1';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -3105,9 +3105,13 @@ function garminRow(g, H, since) {
   const day = iso => fmtDay(iso, { month: 'short', day: 'numeric', year: 'numeric' }), h = g.history || {}, late = since(g.lastOkAt);
   const done = h.daysDone && h.workoutsDone;
   const parts = [h.backTo ? `back to ${day(h.backTo)}${done ? '' : ' so far'}` : '', h.workouts != null ? plural(h.workouts, 'workout') : ''].filter(Boolean).join(', ');
-  const line = `${g.lastOkAt ? 'Updated ' + H(late) : 'Not synced yet'} · ${done ? 'history complete' : 'loading history'}${parts ? ` (${parts})` : ''}${g.keyExpires ? ` · key expires ${day(g.keyExpires)}` : ''}`;
+  const watch = g.watchSyncedAt ? ` · watch synced ${H(g.watchHoursAgo)}` : '';
+  const line = `${g.lastOkAt ? 'Updated ' + H(late) : 'Not synced yet'}${watch} · ${done ? 'history complete' : 'loading history'}${parts ? ` (${parts})` : ''}${g.keyExpires ? ` · key expires ${day(g.keyExpires)}` : ''}`;
+  const at = iso => new Date(iso).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
   if (g.keyDaysLeft != null && g.keyDaysLeft < 0) return ['bad', 'Garmin', `Key expired on ${day(g.keyExpires)}`, 'Create a new key on Garmin Connect and paste it into the script’s GARMIN_KEY and GARMIN_KEY_EXPIRES (SETUP.md Step 13). Takes 2 minutes.'];
+  if (g.pausedUntil) return ['warn', 'Garmin', line, `Garmin asked the script to slow down, so it's pausing until ${at(g.pausedUntil)} and then carries on. Nothing is lost, and there's nothing to do.`];
   if (g.error) return [/slow down/.test(g.error) ? 'warn' : 'bad', 'Garmin', line, `${g.error}${/slow down/.test(g.error) ? '' : ' — run garminCheck in the script.'}`];
+  if (g.watchHoursAgo != null && g.watchHoursAgo > 12) return ['warn', 'Garmin', line, `Your watch last synced to Garmin Connect ${H(g.watchHoursAgo)}. Open the Garmin Connect app on your phone (with Bluetooth on) so it syncs.`];
   if (g.keyDaysLeft != null && g.keyDaysLeft <= 30) return ['warn', 'Garmin', line, `Your Garmin key expires in ${plural(g.keyDaysLeft, 'day')}. Create a new one and paste it into the script (SETUP.md Step 13).`];
   if (late == null || late > 3) return ['warn', 'Garmin', line, 'Garmin should update every hour. Run garminCheck in the script to see why it hasn’t.'];
   if (g.keyDaysLeft == null) return ['warn', 'Garmin', line, 'Add GARMIN_KEY_EXPIRES (the date your key expires, like 2027-10-26) to the script’s properties so you get a reminder before it stops working.'];
