@@ -7,7 +7,7 @@ The app and the docs share one version number. The script has its own (see below
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
 | **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.12.1** |
+| **Your copies** | The Desktop folder name, like **Health Sync v2.13** |
 
 ### How versions are numbered (from v2.9 on)
 
@@ -19,6 +19,18 @@ The app and the docs share one version number. The script has its own (see below
 **The script has its own version**, and it only goes up when the script's code changes. **If the script's version changes in a release, paste it in.** Otherwise leave it alone.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v2.13 (October 30, 2026)
+
+- **New daily anchor: Steps.** A fourth box ticks itself at **7,500 steps or more**, using Apple Health's merged iPhone + Garmin count. While today is still going it shows your progress ("5,200 of 7,500 steps so far") rather than a miss. You can change the number in Settings › Daily anchors, which also has a new **Auto: steps** rule for any box.
+- **Weekly goal is now 23 of 28** (about 80%, as 17 of 21 was). Your saved three-box settings get the Steps box added automatically. A custom goal is kept.
+- **New: steps by time of day.** A **Time of day** chart on the Steps page shows average steps per hour across the range, plus the latest day, and the split before noon / noon–5 pm / after 5 pm. The Coach sees that split too.
+  - It uses hourly (or minute) Health Auto Export files, scaled to the real daily total, so step counts never change.
+  - It needs one extra Health Auto Export automation (README › Steps by time of day).
+- **Fixed:** Lose It reports with no food in them, such as days you didn't log, said "didn't recognize the columns" or "found no dated rows". They now say **"no food logged on *day* in this Lose It report"**. As before, they stay in the Inbox and are checked again each time, and they don't change anything.
+- **Removed a risky old repair:** it deleted a step total that exactly matched the sum of an hourly file. With good hourly data, that sum *is* the real total.
+- Regression tests: 131 app checks (Steps box, the move from 3 boxes to 4, steps by hour on your real hourly sample, scaling, the chart, and empty Lose It reports, including Garmin-exercise-only ones).
+- Script: unchanged (still v2.12.1).
 
 ### v2.12.1 (October 26, 2026)
 

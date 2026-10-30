@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.12.1** · October 26, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 2.13** · October 30, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -86,8 +86,8 @@ There's nothing to do. Open the app when you like:
   - **Exercise** is minutes per day across all days that have any data, so a day without a workout counts as 0.
   - The app remembers which button you picked.
 - **Tabs along the top:** Dashboard · **Coach** · **Plan** · Log today · History · Import · Settings.
-- **Daily anchors** (top of the Trends card): this week's habit boxes, for example **12 of 21 · goal 17**.
-  - A bar of 21 boxes fills in as you go. The dashed boxes after the goal are your **weekly buffer** for real life.
+- **Daily anchors** (top of the Trends card): this week's habit boxes, for example **15 of 28 · goal 23**.
+  - A bar of 28 boxes fills in as you go. The dashed boxes after the goal are your **weekly buffer** for real life.
   - Next to it, a little grid shows how many boxes you got each day (Mon–Sun).
   - Under it, a message tells you how many more you need and how many days are left.
   - The **Daily anchors per week** chart shows each week's total against a dashed **goal line**. The current week is shown lighter, because it isn't finished yet.
@@ -119,6 +119,7 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
   - **trend** (how much it's going up or down per week)
 - **Day by day chart:** each day, plus a smooth **7-day average** line. Click a day on the chart to open it on the Dashboard.
 - **By day of the week:** your average for each weekday, Monday to Sunday.
+- **Time of day** (Steps only): your average steps for each hour of the day across the period, as bars, plus a line for the latest day. Underneath, it shows how your steps split between before noon, noon–5 pm and after 5 pm. See **Steps by time of day** below for the one-time setup.
 - **Breakdown**, different for each metric:
 
   | Metric | Breakdown |
@@ -209,13 +210,17 @@ Your plan is saved in your Google Drive data file, alongside everything else, an
 
 ### Daily anchors (habit boxes)
 
-Your plan's **3 daily anchor boxes**, with a weekly goal of **17 out of 21** (about 80%):
+Your plan's **4 daily anchor boxes**, with a weekly goal of **23 out of 28** (about 80%, the same as the old 17 of 21 with three boxes):
 
 | Box | Checks itself automatically when… |
 |---|---|
 | **Day Pack** | Your **daytime calories** (breakfast + lunch + snacks, everything except dinner) are **1,200 or less** |
 | **Dinner Boundary** | Your Lose It **Dinner** adds up to **750 calories or less** |
 | **Movement** | You have **at least 10 minutes** of workouts that day (from Garmin, Lose It or typed in) |
+| **Steps** | You have **7,500 steps or more** (Apple Health's count, which merges your iPhone and Garmin) |
+
+- **Steps today:** until you reach 7,500, the box shows your progress, like **… 5,200 of 7,500 steps so far**, rather than a miss. It ticks itself as soon as you get there.
+- **Changing the number:** **Settings › Daily anchors**, Box 4: *Auto: steps*, at least ___ steps. The weekly goal is there too.
 
 **Overriding a box:**
 
@@ -233,6 +238,27 @@ Your plan's **3 daily anchor boxes**, with a weekly goal of **17 out of 21** (ab
 - **Check by hand only**
 
 Click **Save anchors**. The changes sync to all your computers.
+
+### Steps by time of day
+
+Your step **total** always comes from Apple Health's daily count, which is the only one that merges iPhone and Garmin without counting steps twice. To see **when** you walked, Health Sync also needs your steps **by the hour**. That takes one extra automation in Health Auto Export, set up once:
+
+1. On your iPhone, open **Health Auto Export → Automations** and tap **+**.
+2. Choose the same destination as your existing automation (**Google Drive**, same folder).
+3. Set:
+   - **Name:** `Health Sync steps by hour`
+   - **Data type:** Health Metrics → select **Step Count** only
+   - **Export format:** JSON
+   - **Date range:** Today
+   - **Aggregation / Time Grouping:** **Hour**
+   - **Sync cadence:** every hour
+4. Save it. Leave your existing **Day** automation exactly as it is.
+
+Health Sync picks the new files up by itself.
+- They only show the shape of your day, scaled to the real daily total, so they never change your step count.
+- The Steps page gets its **Time of day** chart.
+- The Coach sees how your steps split across the day (before noon, noon–5 pm, after 5 pm).
+- Any hourly or minute files already in that folder are read again once, so recent days may show up straight away.
 
 ### Log today
 

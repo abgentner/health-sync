@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.12.1 -->
+<!-- Health Sync app · version 2.13 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -495,6 +495,11 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div class="card-h"><h2 id="m-chart-t">Day by day</h2><div class="legend" id="m-legend"></div></div>
     <div class="chart-box" style="height:300px"><canvas id="m-chart"></canvas></div>
   </div>
+  <div class="card" id="m-hours-card" hidden>
+    <div class="card-h"><h2>Time of day</h2><div class="legend" id="m-hours-legend"></div></div>
+    <div class="chart-box" style="height:220px"><canvas id="m-hours"></canvas></div>
+    <p class="muted small" id="m-hours-note" style="margin:8px 0 0"></p>
+  </div>
   <div class="cols">
     <div class="card"><div class="card-h"><h2>By day of the week</h2><span class="muted small">average</span></div><div class="chart-box"><canvas id="m-dow"></canvas></div></div>
     <div class="card" id="m-extra-card"><div class="card-h"><h2 id="m-extra-t">Breakdown</h2></div><div id="m-extra"></div></div>
@@ -767,7 +772,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.12.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '2.13';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -884,7 +889,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !(d.health && Object.keys(d.health).length)) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length)) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -1246,8 +1251,9 @@ const HAE_METRICS = {
   dietary_energy: 'n:calories', protein: 'n:protein', carbohydrates: 'n:carbs', total_fat: 'n:fat', saturated_fat: 'n:satFat',
   fiber: 'n:fiber', dietary_sugar: 'n:sugar', sodium: 'n:sodium', cholesterol: 'n:cholesterol',
 };
-// Steps, active calories and flights come from both the iPhone and Garmin. Only Apple's daily totals remove that
-// overlap; Health Auto Export's hourly/minute buckets add the two together, so those are not used.
+// Steps, active calories and flights come from both the iPhone and Garmin. Only Apple's daily totals reliably remove
+// that overlap, so hourly/minute buckets never set the totals. Hourly/minute steps are kept only as the SHAPE of the
+// day (d.stepsHours, 24 raw counts), and shown scaled to the day's real total.
 const DEDUPE_KEYS = new Set(['steps', 'activeCal', 'flights']);
 const SUM_KEYS = new Set(['steps', 'activeCal', 'flights', 'water', 'mindful']);
 // Convert to the units the app shows: calories, fl oz, %, minutes.
@@ -1261,21 +1267,23 @@ function haeConvert(key, v, unit) {
   return v;
 }
 function impHaeJson(name, j) {
-  const days = {}, notDaily = new Set(), repaired = new Set();
+  const days = {}, notDaily = new Set(), stepHours = new Set();
   const add = (k, key, v) => { if (!k || v == null || isNaN(v)) return; const e = (days[k] ||= {})[key] ||= []; e.push(v); };
   for (const m of j.data?.metrics || j.metrics || []) {
     const mname = String(m.name || '').toLowerCase(), micro = MICRO_BY[mname.replace(/^dietary_/, '')];
     const key = HAE_METRICS[mname] || (micro ? 'x:' + micro.key : null);
     if (!key) continue;
     if (DEDUPE_KEYS.has(key) && (m.data || []).some(r => !/ 00:00(:00)?( |$)/.test(String(r.date || '')))) {
-      notDaily.add(HEALTH_METRICS[key]?.name.toLowerCase() || key);
-      // Earlier versions saved these inflated sums. If a day still holds exactly that number, clear it.
-      const sums = {};
-      for (const r of m.data || []) { const k = haeDay(r.date); const v = num(r.qty); if (k && v != null) sums[k] = (sums[k] || 0) + haeConvert(key, v, m.units); }
-      for (const [k, v] of Object.entries(sums)) {
-        const d = getDay(k); if (!d) continue;
-        if (key === 'steps' && d.stepsSource === 'health' && d.steps === Math.round(v)) { delete d.steps; delete d.stepsSource; touch(k); repaired.add(k); }
-        if (key !== 'steps' && d.health?.[key] != null && Math.abs(d.health[key] - Math.round(v * 10) / 10) < 0.11) { delete d.health[key]; touch(k); repaired.add(k); }
+      if (key !== 'steps') { notDaily.add(HEALTH_METRICS[key]?.name.toLowerCase() || key); continue; }
+      const hours = {};
+      for (const r of m.data || []) {
+        const t = String(r.date || r.startDate || '').match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):/), v = num(r.qty);
+        if (t && v != null) (hours[t[1]] ||= Array(24).fill(0))[+t[2]] += v;
+      }
+      // A later export of the same day has at least as many steps; never replace a fuller day with a partial one.
+      for (const [k, h] of Object.entries(hours)) {
+        const sum = h.reduce((a, b) => a + b, 0), old = getDay(k)?.stepsHours;
+        if (sum > 0 && (!old || sum >= old.reduce((a, b) => a + b, 0))) { day(k).stepsHours = h.map(Math.round); touch(k); stepHours.add(k); }
       }
       continue;
     }
@@ -1298,8 +1306,11 @@ function impHaeJson(name, j) {
       if (key === 'weight') (days[haeDay(r.date || r.startDate)] ||= {}).weightUnit = /kg/i.test(m.units || '') ? 'kg' : 'lb';
     }
   }
+  if (stepHours.size) importsDirty = true;
+  const hrs = stepHours.size ? `steps by time of day for ${plural(stepHours.size, 'day')} (${rangeText(stepHours)})` : '';
+  if (!Object.keys(days).length && hrs) return `${name}: Apple Health (Health Auto Export) — ${hrs}`;
   const res = applyHae(name, days, notDaily);
-  return repaired.size ? `${res} · removed double-counted values saved earlier on ${rangeText(repaired)}` : res;
+  return hrs ? `${res} · ${hrs}` : res;
 }
 // Vitamins and minerals come from Apple Health (Lose It writes them there; its emailed report doesn't include them).
 // dv = FDA daily value for adults; null = no daily value (shown as an amount only).
@@ -1422,6 +1433,12 @@ function importCsv(name, text, parent) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
   if (rows.some(r => /^total activity time$/i.test(String(r[0]).trim())) && rows.some(r => /^average step count$/i.test(String(r[0]).trim())))
     return [`${label}: skipped (this is Garmin's Progress Summary — totals only, with no dates. Export Activities › All Activities › Export CSV instead)`];
+  // A Lose It daily report for a day with nothing logged is just the header row (or nothing at all). Say so plainly;
+  // the file stays in the Inbox and is checked again each time, like any other skipped file.
+  const loseItDay = name.match(/daily report.*?(\d{4})(\d{2})(\d{2})\.csv$/i);
+  const loseItHeader = r => { const h = r.map(x => String(x).trim().toLowerCase()); return h.includes('name') && h.some(x => /^calories/.test(x)) && (h.includes('type') || h.includes('meal')); };
+  if (loseItDay && (rows.length === 0 || (rows.length === 1 && loseItHeader(rows[0]))))
+    return [`${label}: skipped (${LOSEIT_EMPTY(`${loseItDay[1]}-${loseItDay[2]}-${loseItDay[3]}`)})`];
   const KEY = /date|time|activity type|steps|weight|name|calories|score|duration|day/i;
   const hi = rows.findIndex(r => r.length >= 2 && r.some(c => KEY.test(c)) && rows.indexOf(r) < rows.length - 1);
   if (hi < 0) return [`${label}: skipped (didn't recognize the columns)`];
@@ -1452,6 +1469,7 @@ function importCsv(name, text, parent) {
   else if (find(/steps/) || /step/.test(fn)) res = impSteps(body, headers, find);
   else return [`${label}: skipped (not a file type Health Sync knows yet — columns: ${headers.slice(0, 6).join(', ')}…)`];
 
+  if (res.empty) return [`${label}: skipped (${res.empty})`];
   if (!res.count) return [`${label}: skipped (found no dated rows to import)`];
   importsDirty = true;
   data.imports.push({ id: uid(), at: new Date().toISOString(), name: label, what: res.what, count: res.count, range: rangeText(res.dates) });
@@ -1585,6 +1603,12 @@ function impLoseItFood(rows, find, name) {
     });
     count++;
   });
+  // Nothing but skipped rows (such as Garmin's automatic exercise entries): no food was logged. Change nothing and say so.
+  const nEx0 = Object.values(exByDay).reduce((n, a) => n + a.length, 0);
+  if (!count && !nEx0 && dates.size) {
+    const ks = [...dates].sort();
+    return { count: 0, dates, empty: ks.length === 1 ? LOSEIT_EMPTY(ks[0], exSkipped) : `this Lose It report has no food logged for ${rangeText(dates)}${exSkipped ? ` (only ${plural(exSkipped, 'Garmin/Strava exercise row')}, which come in from Garmin and Strava already)` : ''}. It stays in the Inbox and is checked again each time. If you log those days later, export them from loseit.com and drop the file in the Inbox` };
+  }
   // A Lose It export is the full log for each day it covers, so it replaces that day's Lose It entries.
   const sent = reportSentAt(name);
   let older = 0;
@@ -1601,6 +1625,8 @@ function impLoseItFood(rows, find, name) {
   return { what: 'Lose It food entries', count, dates, note: [nEx && plural(nEx, 'Lose It workout'), exSkipped && `skipped ${exSkipped} exercise rows already covered by Garmin/Strava`, older && `kept newer reports for ${plural(older, 'day')}`, partial.length && `${fmtDay(partial[0], { month: 'short', day: 'numeric' })} is partial (sent before the day ended)`].filter(Boolean).join(', ') };
 }
 
+// Why a Lose It report with no food in it is skipped.
+const LOSEIT_EMPTY = (k, exSkipped = 0) => `no food logged on ${fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric' })} in this Lose It report${exSkipped ? ` (only ${plural(exSkipped, 'Garmin/Strava exercise row')}, which come in from Garmin and Strava already)` : ''}. It stays in the Inbox and is checked again each time. If you log that day later, export it from loseit.com and drop the file in the Inbox`;
 function impLoseItExercise(rows, find) {
   const c = { date: find(/^date/), name: find(/^name/), qty: find(/^quantity/), units: find(/^units?$/), cal: find(/calories/), del: find(/^deleted/), min: find(/minutes|duration/) };
   const byDay = {}; let count = 0, skipped = 0;
@@ -1801,7 +1827,7 @@ async function importPdf(name, buf) {
   return [`${name}: ${keys.length} day${keys.length > 1 ? 's' : ''}, ${foods} food entries (${rangeText(dates)})`];
 }
 
-const WATCH_PARSER = 2;   // bump when Health Auto Export parsing changes, so existing files are re-read once
+const WATCH_PARSER = 3;   // v2.13: re-read for steps by hour · bump when Health Auto Export parsing changes, so existing files are re-read once
 const withTimeout = (p, ms, why) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(why)), ms))]);
 
 async function checkInbox(quiet = false) {
@@ -2177,19 +2203,29 @@ async function saveLogDay() {
 
 
 /* ---- Daily anchors (habit boxes) ---- */
+const STEPS_BOX = { name: 'Steps', hint: '7,500 steps or more', rule: { type: 'steps', min: 7500 } };
 const ANCHOR_DEFAULTS = {
-  names: ['Day Pack', 'Dinner Boundary', 'Movement'],
-  hints: ['Shakes at 7, 11 & 3 · daytime calorie budget', '8 oz protein · 2 cups veggies · 1 cup starch · one plate', '25–30 min workout, 30-min walk, or the 10-min minimum'],
+  names: ['Day Pack', 'Dinner Boundary', 'Movement', STEPS_BOX.name],
+  hints: ['Shakes at 7, 11 & 3 · daytime calorie budget', '8 oz protein · 2 cups veggies · 1 cup starch · one plate', '25–30 min workout, 30-min walk, or the 10-min minimum', STEPS_BOX.hint],
   // How each box can be checked automatically from imported data.
   rules: [
     { type: 'budget', meals: 'daytime', max: 1200 },
     { type: 'meal', meal: 'Dinner', max: 750 },
     { type: 'workout', min: 10 },
+    STEPS_BOX.rule,
   ],
-  target: 17,
+  target: 23,   // of 28 (about 80%, as 17 of 21 was with three boxes)
+  v: 2,
 };
 const anchorCfg = () => {
   const c = { ...ANCHOR_DEFAULTS, ...(data.anchorCfg || {}) };
+  // v2.13: a fourth box for steps. Saved three-box settings get it added once, and the old 17-of-21 goal becomes 23 of 28.
+  if (data.anchorCfg && !(data.anchorCfg.v >= 2)) {
+    c.names = [...c.names]; c.hints = [...(c.hints || [])]; c.rules = [...(c.rules || [])];
+    if (!c.rules.some(r => r?.type === 'steps')) { c.names.push(STEPS_BOX.name); c.hints[c.names.length - 1] = STEPS_BOX.hint; c.rules[c.names.length - 1] = { ...STEPS_BOX.rule }; }
+    if (c.target === 17) c.target = 23;
+    c.v = 2;
+  }
   c.rules = c.names.map((_, i) => c.rules?.[i] || ANCHOR_DEFAULTS.rules[i] || { type: 'none' });
   // v1.3: Day Pack moved from "3 shakes" to a daytime calorie budget — upgrade the old default if it was never customised.
   const r0 = c.rules[0];
@@ -2207,6 +2243,13 @@ function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
     const t = todayKey();
     if (k >= t) return { ok: false, pending: true, why: 'Waiting for Lose It — today isn’t over yet' };
     if (k === addDays(t, -1) && !loseItFinal(d, k)) return { ok: false, pending: true, why: 'Waiting for yesterday’s Lose It report' };
+  }
+  if (r.type === 'steps') {
+    const s = d?.steps, goal = r.min || 0, today = k && k >= todayKey();
+    if (s != null && s >= goal) return { ok: true, why: `${fmtN(s)} steps` };
+    // Today can still get there: show progress instead of a miss.
+    if (today) return { ok: false, pending: true, why: s != null ? `${fmtN(s)} of ${fmtN(goal)} steps so far` : 'no steps yet today' };
+    return { ok: false, why: s != null ? `${fmtN(s)} of ${fmtN(goal)} steps` : 'no steps recorded' };
   }
   if (r.type === 'workout') {
     const mins = (d?.workouts || []).reduce((s, w) => s + (w.durationMin || 0), 0);
@@ -2325,12 +2368,13 @@ function drawAnchorChart() {
 
 function renderAnchorSettings() {
   const c = anchorCfg();
-  const sel = (i, t) => `<select data-an-type="${i}" style="margin-top:6px">${[['none', 'Check by hand only'], ['budget', 'Auto: calorie budget'], ['workout', 'Auto: workout minutes'], ['food', 'Auto: matching foods'], ['meal', 'Auto: a meal\'s calories']].map(([v, l]) => `<option value="${v}"${v === t ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+  const sel = (i, t) => `<select data-an-type="${i}" style="margin-top:6px">${[['none', 'Check by hand only'], ['budget', 'Auto: calorie budget'], ['workout', 'Auto: workout minutes'], ['steps', 'Auto: steps'], ['food', 'Auto: matching foods'], ['meal', 'Auto: a meal\'s calories']].map(([v, l]) => `<option value="${v}"${v === t ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
   $('#s-anchors').innerHTML = c.names.map((n, i) => {
     const r = c.rules[i];
     return `<div><label>Box ${i + 1}</label><input type="text" data-an-name="${i}" value="${esc(n)}" placeholder="Name"><input type="text" data-an-hint="${i}" value="${esc(c.hints[i] || '')}" placeholder="Short reminder (optional)" style="margin-top:6px">${sel(i, r.type)}
       <div class="small muted rule-f" data-rule="${i}" style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span data-show="budget"><select data-an-bmeals="${i}" style="width:auto">${[['daytime', 'Daytime (all but dinner)'], ['all', 'Whole day']].map(([v, l]) => `<option value="${v}"${(r.type === 'budget' ? r.meals : 'daytime') === v ? ' selected' : ''}>${l}</option>`).join('')}</select> at most <input type="number" data-an-bmax="${i}" value="${r.type === 'budget' ? r.max : 1200}" min="0" style="width:90px"> calories</span>
+        <span data-show="steps">At least <input type="number" data-an-smin="${i}" value="${r.type === 'steps' ? r.min : 7500}" min="0" step="500" style="width:90px"> steps that day</span>
         <span data-show="workout">At least <input type="number" data-an-wmin="${i}" value="${r.type === 'workout' ? r.min : 10}" min="0" style="width:70px"> min of workouts that day</span>
         <span data-show="food">At least <input type="number" data-an-fmin="${i}" value="${r.type === 'food' ? r.min : 3}" min="1" style="width:60px"> foods containing <input type="text" data-an-words="${i}" value="${esc(r.type === 'food' ? r.words : '')}" placeholder="words, separated by commas"></span>
         <span data-show="meal"><input type="text" data-an-meal="${i}" value="${esc(r.type === 'meal' ? r.meal : 'Dinner')}" style="width:110px"> at most <input type="number" data-an-max="${i}" value="${r.type === 'meal' ? r.max : 750}" min="0" style="width:80px"> calories</span>
@@ -2348,12 +2392,13 @@ async function saveAnchorSettings() {
     const t = $(`[data-an-type="${i}"]`).value, v = sel => num($(sel).value);
     if (t === 'budget') return { type: t, meals: $(`[data-an-bmeals="${i}"]`).value, max: v(`[data-an-bmax="${i}"]`) ?? 1200 };
     if (t === 'workout') return { type: t, min: v(`[data-an-wmin="${i}"]`) ?? 10 };
+    if (t === 'steps') return { type: t, min: v(`[data-an-smin="${i}"]`) ?? 7500 };
     if (t === 'food') return { type: t, min: v(`[data-an-fmin="${i}"]`) ?? 1, words: $(`[data-an-words="${i}"]`).value };
     if (t === 'meal') return { type: t, meal: $(`[data-an-meal="${i}"]`).value.trim() || 'Dinner', max: v(`[data-an-max="${i}"]`) ?? 750 };
     return { type: 'none' };
   });
   const target = Math.max(1, Math.min(names.length * 7, Math.round(num($('#s-an-goal').value) || ANCHOR_DEFAULTS.target)));
-  data.anchorCfg = { names, hints, rules, target };
+  data.anchorCfg = { names, hints, rules, target, v: 2 };
   planDirty = true;
   await runTask(persist);
   if (!planDirty) { toast('Anchors saved.'); render(); }
@@ -2665,7 +2710,9 @@ function dayDigest(k) {
     calories_by_meal: Object.keys(meals).length ? meals : null,
     vitamins_minerals: d?.micros ? Object.fromEntries(MICROS.filter(m => d.micros[m.key] != null).map(m => [m.name, `${Math.round(d.micros[m.key] * 10) / 10} ${m.u}${m.dv ? ` (${Math.round(d.micros[m.key] / m.dv * 100)}% DV)` : ''}`])) : null,
     foods: foods.length ? foods : null,
-    steps: d?.steps ?? null, sleep_h: sleepHours(d), resting_hr: healthValue(d, 'restingHR'), active_cal: healthValue(d, 'activeCal'),
+    steps: d?.steps ?? null,
+    steps_by_time: (() => { const h = stepsByHour(k); if (!h) return null; const s = (a, b) => Math.round(h.slice(a, b).reduce((x, y) => x + y, 0)); return { before_noon: s(0, 12), noon_to_5pm: s(12, 17), after_5pm: s(17, 24) }; })(),
+    sleep_h: sleepHours(d), resting_hr: healthValue(d, 'restingHR'), active_cal: healthValue(d, 'activeCal'),
     weight: d?.weight != null ? `${d.weight} ${d.weightUnit || 'lb'}` : null,
     workouts: (d?.workouts || []).map(w => ({ type: w.type || w.title, minutes: Math.round(w.durationMin || 0), calories: w.calories ?? null, distance: w.distance ?? null })),
     anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
@@ -3475,6 +3522,7 @@ function renderMetric() {
   });
 
   renderWeightExtras();
+  renderStepHours(key, keys, color, grid, muted);
 
   // ---- by day of week (Mon–Sun)
   const dow = [[], [], [], [], [], [], []];
@@ -3523,6 +3571,42 @@ function hbars(rows, color, fmt) {
   return `<div class="hbars" style="--c:${color}">${rows.map(([l, v, extra]) => `<div class="hb"><span class="l" title="${esc(l)}">${esc(l)}</span><span class="t"><i style="width:${Math.max(2, v / max * 100)}%"></i></span><span class="x">${fmt(v)}${extra ? ' · ' + extra : ''}</span></div>`).join('')}</div>`;
 }
 
+// Steps across the day, scaled so each day's hours add up to its real total (Apple's de-duplicated count).
+function stepsByHour(k) {
+  const d = getDay(k), h = d?.stepsHours, sum = h ? h.reduce((a, b) => a + b, 0) : 0;
+  if (!sum) return null;
+  const total = d.steps ?? sum;
+  return h.map(v => v / sum * total);
+}
+const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p');
+function renderStepHours(key, keys, color, grid, muted) {
+  const card = $('#m-hours-card');
+  charts['m-hours']?.destroy();
+  card.hidden = key !== 'steps';
+  if (key !== 'steps') return;
+  const per = keys.map(stepsByHour).filter(Boolean);
+  const focusKey = [...keys].reverse().find(k => stepsByHour(k)), focus = focusKey ? stepsByHour(focusKey) : null;
+  if (!per.length) {
+    $('#m-hours-legend').innerHTML = '';
+    $('#m-hours-note').innerHTML = 'No steps-by-hour data in this range yet. To get it, add a second automation in Health Auto Export that sends <b>Step Count</b> by the <b>hour</b> (README › Steps by time of day).';
+    return;
+  }
+  const avgH = Array.from({ length: 24 }, (_, h) => Math.round(per.reduce((s, a) => s + a[h], 0) / per.length));
+  const share = (a, from, to) => Math.round(a.slice(from, to).reduce((x, y) => x + y, 0) / a.reduce((x, y) => x + y, 0) * 100);
+  $('#m-hours-legend').innerHTML = `<span><i class="bx" style="--c:${color};display:inline-block"></i>Average (${plural(per.length, 'day')})</span><span><i class="ln" style="--c:${color};display:inline-block"></i>${esc(fmtDay(focusKey))}</span>`;
+  $('#m-hours-note').textContent = `On average: ${share(avgH, 5, 12)}% before noon · ${share(avgH, 12, 17)}% noon–5 pm · ${share(avgH, 17, 24)}% after 5 pm. Each day is scaled to its real step total.`;
+  charts['m-hours'] = new Chart($('#m-hours'), {
+    data: { labels: HOUR_LABELS, datasets: [
+      { type: 'bar', label: 'Average', data: avgH, backgroundColor: hexA(color, 0.4), borderRadius: 3, borderSkipped: 'start', categoryPercentage: 0.9, barPercentage: 0.9, order: 2 },
+      { type: 'line', label: fmtDay(focusKey), data: focus.map(Math.round), borderColor: color, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, order: 1 },
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: i => { const h = i[0].dataIndex; return `${HOUR_LABELS[h]}–${HOUR_LABELS[(h + 1) % 24]}`; }, label: c => `${c.dataset.label}: ${fmtN(c.parsed.y)} steps` } } },
+      scales: { x: { grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }, y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 5 } } },
+    },
+  });
+}
 function metricExtra(key, keys, vals, color, unit) {
   const D = keys.map(getDay).filter(Boolean);
   const none = '<p class="muted small" style="margin:0">Not enough data in this period yet.</p>';
