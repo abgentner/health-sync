@@ -8,7 +8,7 @@
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
 | **README / SETUP / ALTERNATIVES** | The line at the top of each file |
 | **CHANGELOG** | Its newest entry |
-| **Your copies** | The Desktop folder name, like **Health Sync v3.1** |
+| **Your copies** | The Desktop folder name, like **Health Sync v3.2** |
 
 ### How versions are numbered
 
@@ -20,6 +20,36 @@
 **Paste the script every release**, even if only its number changed, so everything stays on one version (README › Updating the app). Before v3.0 the script had its own number, which is why older entries below mention script versions such as 2.12.1.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v3.2 (October 31, 2026)
+
+- **New: report cards, weekly, monthly, quarterly and yearly.** Every period gets a grade for each subject and a GPA, like school (README › Coach):
+  - **Subjects:** Daily anchors (3 credits), Nutrition (3), Training (2), Sleep habits (2), Logging (1) and Assignments (1).
+  - **Results that aren't graded:** weight, HRV, resting heart rate, mood and pain are tracked next to the grades.
+- **The app works out the grades; Claude only writes the words.** Before, Claude chose the letter, so the same week could get a B one time and a B+ the next. Now every grade comes from fixed rules against your targets, so grades can be compared across weeks, months and years, and each card shows the parts behind each grade. The one exception is Assignments, which Claude marks done, partly or missed, citing the data.
+- **Each subject gets praise, criticism and a suggestion.** Praise is left empty when nothing went well, and the Coach is told not to pad or flatter.
+- **Assignments carry forward with a limit.** Each card marks last period's assignments and sets 1–3 new ones. An unfinished one can carry over twice. After that it needs a stated reason, or it has to be retired with one.
+- **A Logging subject closes a loophole:** skipping the log on bad days would otherwise raise the Nutrition grade.
+- **Nutrition grades food quality,** not calories: protein, fiber, sodium, saturated fat, sugars and a 1,500-calorie safety floor. Calories against your budgets are already graded under the anchors.
+- **Monthly, quarterly and yearly cards** are written on the 1st of each, from noon. Claude gets the grades, the summaries of the shorter cards inside them, and the foods behind each nutrition problem (per serving and in total), rather than every day, so they cost about the same as a weekly one. Quarterly and yearly cards compare with the same period last year. Each card rewrites itself if one of its grades changes later.
+- **New: Coach › Report cards is a nested history:** years › quarters › months › weeks, each row showing its grade, GPA and headline, and opening to its full card and the level below. Periods still running show their grades so far, worked out live. Past periods without a written card show their grades too, with a **Write report** button. The grades work even without an API key.
+- **New: Settings › Coach › Report card targets.**
+  - Targets: protein **100 g** (your plan gives about 86–150 g a day), calorie floor **1,500**, **4 workouts a week** of 10+ min (anything in Garmin or Strava counts), **2 strength sessions**, **7 h** asleep, in bed by **10:00 pm**.
+  - The credits for each subject are set there too.
+- **Bedtime is now recorded** from Garmin and Health Auto Export, for the Sleep habits grade.
+- Weekly reviews written before v3.2 keep their old layout until they're regenerated or their data changes.
+- Tests: 29 new checks: grade parts and scale, credit-weighted GPA, the same data getting the same grade, the logging loophole, bedtimes across midnight, period dates, assignments marked and carried (including the third-carry rule), weekly and monthly digests, quarterly and yearly digests, and the history tree. Claude was replaced by a stand-in for these, so no real report was written. **The real-file suite on the home Mac wasn't run.**
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `index.html` | Everything above |
+  | `README.md` | Coach section rewritten for report cards, with the full rubric; setup table; Every day; regression note |
+  | `SETUP.md` | Step 12 rewritten: report cards at every level, cost, where to get the API key, report card targets; version line |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.1 → 3.2), no code changes. **Paste it** so Data health shows the same version. |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `config.js` | Not changed (it has no version) |
 
 ### v3.1 (October 31, 2026)
 

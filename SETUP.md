@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.2** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -441,7 +441,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 **First, let the script receive data (one time, about 5 minutes, on your computer):**
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.1, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.2, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
 2. Click **Deploy** (blue, top right) → **New deployment**.
 3. Click the **⚙ gear** next to "Select type" → **Web app**.
 4. Fill in:
@@ -485,31 +485,31 @@ Once set up, this runs on its own in the background. You never export anything b
 
 ---
 
-## Step 12 — Weekly Coach reviews by Claude
+## Step 12 — Report cards by Claude: weekly, monthly, quarterly, yearly
 
-**What this does:** every Monday from noon (once Sunday's Lose It report is in), when Health Sync is open, Claude writes a review of the week just finished (Mon–Sun). It also emails you a copy. The review includes:
+**What this does:** Health Sync grades each week, month, quarter and year like a school report card (README › Coach). **The app works out the grades and GPA itself, from your data, with fixed rules.** Claude writes the words: a summary, and praise, criticism and a suggestion for each subject. It also marks last period's assignments and sets the next ones.
 
-- a **letter grade** and why you got it
-- a short **narrative** of the week
-- **went well / fell short / what's working / what isn't**
-- a **nutrition mix** check, with **swaps that fit your plan**
-- up to 3 things to **focus** on next week
+- **Weekly:** every Monday from noon, once Sunday's Lose It report is in.
+- **Monthly:** on the 1st, from noon. **Quarterly:** on the first day of each quarter. **Yearly:** on January 1.
+- Each one is emailed to you, and all of them stay in **Coach › Report cards** as a tree (years › quarters › months › weeks).
+- You can also ask for a report card for **any dates** at any time (**Coach › Review now**), with an optional question such as "How am I doing on sodium?".
 
-You can also ask for a review of **any dates** at any time (**Coach › Review now**), with an optional question such as "How am I doing on sodium?".
+**The grades work without a key.** They're shown in the tree, worked out live from your data. The key adds the written report cards and emails.
 
-**Cost:** Claude is paid for through Anthropic's API, separately from any Claude.ai subscription.
-- A weekly review costs about **10–15¢**, so roughly **$6–8 a year**.
-- On-demand reviews cost about the same for a week, and up to about $1 for a whole year.
+**Cost:** Claude is paid for through Anthropic's API, separately from any Claude.ai subscription. **A Claude.ai Pro or Max subscription doesn't include API use.**
+- A weekly report card costs about **10–15¢**. Monthly, quarterly and yearly ones cost about the same, because Claude gets the grades and summaries rather than every day. That's roughly **$8–10 a year** in all.
+- On-demand report cards cost about the same for a week, and up to about $1 for a whole year.
 - **More swap ideas** costs about 2¢.
 
 **Privacy:** to write a review, a summary of that period's data (your food log, nutrients, steps, sleep, workouts, anchors, mood notes and your plan) is sent to Anthropic's API. Your API key is stored in your Google Drive data file, never on GitHub, and is left out of backups.
 
 ### 12a. Get an Anthropic API key (5 minutes)
 
-1. Go to **https://console.anthropic.com** and sign up. Your personal Gmail is fine.
-2. Open **Billing** (or **Plans & billing**) and add credit. **$10** covers more than a year of weekly reviews.
+1. Go to **https://console.anthropic.com** and sign up. Your personal Gmail is fine. (This is Anthropic's developer console. It's separate from claude.ai, even with the same email.)
+2. Open **Billing** (or **Plans & billing**) and add credit. **$10–20** covers about a year of report cards. Optional: turn on **auto-reload** so it never runs out.
 3. Open **API Keys** → **Create Key**, name it `Health Sync`, and **copy the key** (it starts with `sk-ant-`).
    - It's only shown once. If you lose it, create a new one.
+   - Treat it like a password. Paste it only into Health Sync's Settings, never into GitHub, an email or a chat.
 
 ### 12b. Turn on the Coach
 
@@ -521,13 +521,13 @@ You can also ask for a review of **any dates** at any time (**Coach › Review n
    - Type the credit you bought (e.g. `20`) under **Bought credit** and click **Add credit**.
    - If you turned on **auto-reload** in the console, tick **Auto-reload is on in my console**, enter its numbers (e.g. when below **$5**, add **$20**), and click **Save coach settings**. The estimate then adds each automatic top-up itself, so you never need to enter them.
 
-That's it. Health Sync writes the reviews for every week since **September 7** in the background, oldest first. That takes a few minutes. After that it writes one each Monday at noon. Only the newest week's review is emailed.
+That's it. Health Sync writes the report cards for every week, month and quarter since your data starts, in the background, oldest first. That takes a few minutes. After that it writes each one when its period ends. Only report cards for periods that ended in the last week are emailed, so the catch-up doesn't flood your inbox. Weekly reports written before v3.2 keep their old layout until you **Regenerate** them, or until their data changes.
 
 ### 12c. Turn on the Monday email (5 minutes)
 
 The email comes from your own Google script, so it needs the script's v2.0 code or later:
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.1, the same version as the app) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.2, the same version as the app) and click **💾 Save**.
 2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
    - Google asks for permission again, this time to **send email as you**. Allow it.
    - Check that you received a test email.
@@ -535,7 +535,7 @@ The email comes from your own Google script, so it needs the script's v2.0 code 
    - **First time** (Manage deployments says *"This project has not been deployed yet"*): click **Deploy → New deployment**, click the **⚙ gear** next to "Select type" → **Web app**, set **Execute as: Me** and **Who has access: Anyone**, then click **Deploy**. Allow permissions if asked.
    - **Already deployed before:** click **Deploy → Manage deployments → ✏️ (edit) → Version: New version → Deploy**. This puts the new code live at the same address.
 4. Choose **`healthAddress`** and click **▶ Run**, then copy the full address from the log (it ends in `?key=…`).
-5. In Health Sync, open **Settings › Coach**, paste it into **Script address**, make sure **Email me each weekly review** is ticked, and click **Save coach settings**.
+5. In Health Sync, open **Settings › Coach**, paste it into **Script address**, make sure **Email me each report card** is ticked, and click **Save coach settings**.
 
 ### Usage and balance
 
@@ -553,6 +553,8 @@ Anthropic doesn't let an API key read the account balance, so Health Sync tracks
 - **Your daily food plan:** 2–3 Kate Farms shakes, plus 1 bag of salad, plus 8–12 oz of cooked protein.
 - **Plan foods:** your shakes, salad kits and proteins, with their nutrition. One per line: name | per | cal | protein | fat | sat fat | carbs | fiber | sugar | sodium. Swaps come from this list first.
 - **Nutrition targets:** fiber at least 25 g, sodium under 2,300 mg, saturated fat under 10% of calories, sugars under 50 g.
+- **Report card targets:** protein at least **100 g** (your plan gives about 86–150 g a day), calories at least **1,500** (a safety floor, not a goal), **4 workouts a week** of 10+ minutes (anything recorded in Garmin or Strava counts), **2 strength sessions a week**, **7 h** asleep, and in bed by **10:00 pm**.
+- **Credits:** Daily anchors 3, Nutrition 3, Training 2, Sleep habits 2, Logging 1, Assignments 1. Set a credit to 0 to leave a subject out of the GPA.
 
 ---
 
@@ -595,7 +597,7 @@ You need **Step 9 done first** (the script).
 
 1. Open your project at **https://script.google.com** (**Health Sync email saver**).
 2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
-3. Paste in the new **`email-to-drive.gs`** (v3.1, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
+3. Paste in the new **`email-to-drive.gs`** (v3.2, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
 
 ### 13c. Add your key (privately)
 
@@ -633,7 +635,7 @@ You need **Step 9 done first** (the script).
 - **A run takes 1–3 minutes,** because the script pauses between requests to stay gentle with Garmin. The Execution log shows each step as it goes, for example:
 
   ```
-  Health Sync script v3.1
+  Health Sync script v3.2
   Email: looking for new Lose It and Garmin report emails…
   Email: saved 0 attachment(s) from 0 email(s).
   Strava: checking for new workouts…

@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.1** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.2** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -17,7 +17,7 @@ It's a web page you open like an app (on your Mac via Brave, on your iPhone from
 | **Apple Health** (fed by Garmin, Withings, Lose It) | Steps, sleep, resting heart rate, active calories, flights, weight, body fat, nutrition backup | Health Auto Export → its Drive folder | Daily (yesterday's totals) |
 | **Garmin** (straight from Garmin) | Sleep with sleep score, overnight HRV, Body Battery, stress, resting heart rate; **every workout with heart-rate zones, training load, training effect and strength sets**; steps and weight for days Apple Health misses | Your Google script asks Garmin → Drive › Health Sync › Garmin | Hourly |
 | **You** | Mood, energy, stress, notes, **soreness and pain (body log)**, anchor overrides, your plan | The app | Whenever |
-| **Claude** | Weekly review + email | The app (with your API key) → your script sends the email | Mondays at noon, or on demand |
+| **Claude** | Report cards (weekly, monthly, quarterly, yearly) + email | The app (with your API key) → your script sends the email | When each period ends, or on demand |
 
 ```
 Lose It ──email──┐                         ┌── Health Auto Export (iPhone)
@@ -38,7 +38,7 @@ There's nothing to do. Open the app when you like:
 1. It **syncs** on open: new files from the Drive Inbox, the Health Auto Export folder and the Garmin folder are imported. The first time after v3.0, it reads your whole Garmin history, which can take a few minutes. The status at the top counts the days as it goes.
 2. **Yesterday is complete**; today usually isn't, because most sources send a day's totals the next morning. That's why averages always end yesterday.
 3. **Log how you feel** in **Log today** (mood, energy, stress, tags, notes), and override an anchor box if the data got it wrong.
-4. **Mondays at noon:** the Coach writes last week's review and emails it to you.
+4. **Mondays at noon:** the Coach writes last week's report card and emails it to you. Monthly, quarterly and yearly report cards follow on the 1st of each.
 
 **Where nutrition comes from:** **Lose It's report** brings every food with calories, protein, carbs, fat, saturated fat, sugars, fiber, sodium and cholesterol. **Vitamins and minerals** (potassium, calcium, iron, magnesium, vitamins A, B, C, D, E and K, folate, zinc and more, plus caffeine) come from **Apple Health**, where Lose It writes them, via Health Auto Export. They appear under **Food card › Vitamins and minerals** and on the Calories page, as % of the daily value. Only foods with that data in Lose It count, so totals are a minimum.
 
@@ -194,26 +194,50 @@ How hard to train, and whether your training is building sensibly. It uses the d
 
 ### Coach
 
-Reviews written by Claude (set up in [SETUP.md Step 12](SETUP.md#step-12--weekly-coach-reviews-by-claude)).
+**Report cards**, like school: every week, month, quarter and year gets a grade for each subject, and a GPA. Set up in [SETUP.md Step 12](SETUP.md#step-12--report-cards-by-claude-weekly-monthly-quarterly-yearly).
 
-- **Weekly:** written automatically from **Monday at noon**, so Sunday's final Lose It report has time to arrive. If the app is already open, it starts within about 10 minutes; otherwise it starts the next time you open the app. If Sunday's final report still hasn't arrived, the Coach tab says "Waiting for …'s final Lose It report" (on Tuesday it writes the review anyway). A review takes about **20–40 seconds** to write, and you can keep using the app meanwhile.
-- **What's in a review:**
-  - grade and why
-  - narrative
-  - went well, fell short, what's working, what isn't
-  - nutrition mix, with the problem foods named
-  - swaps that fit your plan
-  - **training and recovery:** how the week's load, intensity mix and strength work went, how you recovered, any pain to watch, and one or two training suggestions for next week
-  - focus for next week
-  - the week's key numbers
+**The app works out every grade from your data with fixed rules, and Claude only writes the words.** So the same data always gets the same grade, a B means the same thing in a week as in a year, and you can see exactly why you got it. The one exception is Assignments, which Claude marks from the data.
 
-  Reviews follow up on the previous week's focus.
+**What's graded, and how** (all targets editable in **Settings › Coach › Report card targets**):
+
+| Subject | Credits | Score |
+|---|---|---|
+| **Daily anchors** | 3 | Boxes ticked ÷ your weekly goal (23 of 28), scaled to the period, up to 100% |
+| **Nutrition** | 3 | Food *quality* on fully logged days: protein ≥ 100 g (25%), fiber ≥ 25 g (20%), sodium ≤ 2,300 mg (20%), saturated fat ≤ 10% of calories (15%), sugars ≤ 50 g (10%), calories ≥ 1,500 (10%). Each part is the share of days that hit it, with half credit within 10% of the target. Calories against your budgets are already graded under anchors, so they aren't counted twice. Needs 4 fully logged days a week, otherwise **I** |
+| **Logging** | 1 | Days fully logged in Lose It. **This closes a loophole:** without it, skipping the log on a bad day would raise your Nutrition grade |
+| **Training** | 2 | Workouts of 10+ minutes from Garmin or Strava against 4 a week (35%), strength against 2 a week (30%), load against your usual week, 0.8–1.3× (20%), hard share of zone minutes ≤ 25% (15%) |
+| **Sleep habits** | 2 | Average sleep against 7 h, with zero at 6 h (50%), nights of 7 h or more (25%), in bed within 30 minutes of 10:00 pm, with zero at 90+ minutes off (25%) |
+| **Assignments** | 1 | Last period's assignments, marked by Claude as done (1), partly (½) or missed (0), with the evidence |
+
+- **Grade scale:** 97+ A+, 93 A, 90 A−, 87 B+, 83 B, 80 B−, 77 C+, 73 C, 70 C−, 67 D+, 63 D, 60 D−, below 60 F.
+- **GPA:** points of A = 4.0, A− = 3.7, B+ = 3.3 … F = 0, averaged by credits. A subject without enough data gets **I** (incomplete) and is left out, and the card says how many credits were graded.
+- **Not graded, but tracked:** weight trend (and whether it's on pace), HRV, resting heart rate, mood, energy, stress and pain flags. These are results, not choices. Claude connects them to the grades in words (for example "short-sleep weeks were your low-HRV weeks").
+- **Parts that have no data** drop out and the rest are re-weighted. For example, load needs 4 weeks of workouts, and the hard share needs heart-rate zones.
+
+**What's in each report card:**
+- a headline and a summary: 3–4 sentences for a week, a paragraph for a month, two or three paragraphs for a quarter, about a page for a year
+- for each subject: grade, trend against last time, **praise** (left empty if nothing went well, never padding), **criticism** (the biggest shortfall and its cost), one **suggestion**, and the parts behind the grade
+- results (not graded), swaps that fit your plan, and attendance (days logged)
+- **assignments:** last period's marked done, partly or missed, and 1–3 new ones (3 goals for next year on a yearly card). An unfinished assignment can carry over, and the card shows **carried 2×**. **After two carries, it can only carry again with a stated reason; otherwise it must be retired with one.** Nothing is dropped quietly.
+- the **GPA**, the change from last time, and your **year-to-date GPA**
+
+**When they're written:**
+- **Weekly:** from **Monday at noon**, once Sunday's final Lose It report is in (on Tuesday it writes anyway). If the app is already open, it starts within about 10 minutes; otherwise it starts the next time you open the app. A report card takes about **20–40 seconds**, and you can keep using the app meanwhile.
+- **Monthly:** on the 1st. **Quarterly:** on the first day of each quarter. **Yearly:** on January 1. Each is written from noon, once the last day's Lose It report is in.
+- **Monthly and longer report cards** are written from the grades, from the weekly (or monthly, or quarterly) report cards inside them, and from the foods behind each nutrition problem, not from every day. So they cost about the same as a weekly one. Quarterly and yearly cards also compare with the same period a year earlier, once there is one.
+- A quarter or year that began before your data starts is graded from the day it starts, and the card says so.
+
+**Coach › Report cards** shows every report card ever written, nested: **years › quarters › months › weeks**. A week sits under the month its Thursday is in. Each row shows its grade, headline and GPA. Open a row to see its full report card and the level below.
+- **A period that's still running** shows its grades so far, worked out live (the dashed badge).
+- **A past period without a written card** still shows its grades from the data, with a **Write report** button.
+- **Weekly reviews written before v3.2** keep their old layout until you Regenerate them, or until their data changes.
+
+**Other controls:**
 - **More swap ideas:** asks Claude for more swaps within your plan's rules.
-- **Regenerate:** rewrites a review whenever you like.
-- **Automatic rewrites:** if a week's data changes after its review was written, the Coach rewrites that review by itself. That covers food added or removed for a day, a day's calories changing by **150 or more**, or a new workout. The review then says *"↻ Rewritten … because the data changed"* and lists what changed. Rewrites aren't emailed. At most 3 are written per check, and each costs about the same as a review (roughly $0.10–0.20).
-- **Incomplete weeks:** if food was logged on fewer than half the days, the week isn't graded. You can **add a note** (e.g. "On vacation") that later reviews take into account, or tap **Write a review anyway**.
-- **Previous weeks:** listed below the latest review, newest first. Tap one to expand it.
-- **On demand:** tap **Review now**, then pick dates (or a quick range), optionally ask a question, and optionally tick **Email it to me**. These are kept in the **On demand** list, and you can delete them.
+- **Regenerate:** rewrites a report card whenever you like.
+- **Automatic rewrites:** a weekly card rewrites itself if its week's data changes (food added or removed for a day, a day's calories changing by **150 or more**, or a new workout). A monthly, quarterly or yearly card rewrites itself when one of its grades changes. The card then says *"↻ Rewritten … because the data changed"* and lists what changed. Rewrites aren't emailed. At most 3 are written per check, and each costs about the same as a report card.
+- **Incomplete weeks:** if food was logged on fewer than half the days, the week isn't written up. You can **add a note** (e.g. "On vacation") that later report cards take into account, or tap **Write a review anyway**. Months and longer are always graded; missing days show up in Logging.
+- **On demand:** tap **Review now**, then pick dates (or a quick range), optionally ask a question, and optionally tick **Email it to me**. These are kept under **On demand**, and you can delete them.
 - It's coaching, not medical advice. If something looks risky, it says so and suggests checking with a doctor or dietitian.
 
 ### Plan
@@ -484,4 +508,4 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 ## Regression tests (for releases)
 
-Before each release, the importers are checked against **your real sample files** (Lose It PDF and CSV, Health Auto Export ZIP, daily, minute, hourly and weekly files, and Garmin files): 131 app checks and 56 script checks as of v2.13, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". **v3.0 and v3.1** were made on the work Mac. Their new checks (31 in v3.0, 25 in v3.1) ran against sample files built in each format, but they aren't in the home suite yet, and the suite wasn't run for these versions. The test page and your files live **only on your Mac** (Desktop › **Health Sync tests**). They're never uploaded to GitHub, because they contain your health data.
+Before each release, the importers are checked against **your real sample files** (Lose It PDF and CSV, Health Auto Export ZIP, daily, minute, hourly and weekly files, and Garmin files): 131 app checks and 56 script checks as of v2.13, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". **v3.0, v3.1 and v3.2** were made on the work Mac. Their new checks (31 in v3.0, 25 in v3.1, 29 in v3.2) ran against sample files built in each format, but they aren't in the home suite yet, and the suite wasn't run for these versions. The test page and your files live **only on your Mac** (Desktop › **Health Sync tests**). They're never uploaded to GitHub, because they contain your health data.

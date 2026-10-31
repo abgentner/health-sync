@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.1 -->
+<!-- Health Sync app · version 3.2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -364,6 +364,34 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .zbar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:5px;max-width:220px;background:var(--surface-2)}
 .zbar i{display:block;height:100%}
 .z1,.hb .t i.z1{background:var(--muted)} .z2,.hb .t i.z2{background:var(--c-steps)} .z3,.hb .t i.z3{background:var(--c-ex)} .z4,.hb .t i.z4{background:var(--c-sleep)} .z5,.hb .t i.z5{background:var(--c-hr)}
+.rt-tree{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden}
+.rt>summary{display:grid;grid-template-columns:40px minmax(90px,170px) minmax(0,1fr) 44px;gap:10px;align-items:center;padding:9px 12px;cursor:pointer;list-style:none;border-top:1px solid var(--border);font-size:14px}
+.rt>summary::-webkit-details-marker{display:none}
+.rt>summary:hover{background:var(--surface-2)}
+.rt-tree>.rt:first-child>summary{border-top:0}
+.rt-quarter>summary{padding-left:28px} .rt-month>summary{padding-left:44px} .rt-week>summary{padding-left:60px;font-size:13.5px}
+.rt-l{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .rt-week .rt-l{font-weight:550}
+.rt-h{color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .rt-g{text-align:right;font-variant-numeric:tabular-nums;color:var(--text-2)}
+.rt>summary .rt-l::before{content:'▸';display:inline-block;width:14px;color:var(--muted);transition:transform .15s} .rt[open]>summary .rt-l::before{transform:rotate(90deg)}
+.rt-card{padding:4px 14px 14px;border-top:1px dashed var(--border);background:var(--surface)}
+.rt-quarter .rt-card{padding-left:28px} .rt-month .rt-card{padding-left:44px} .rt-week .rt-card{padding-left:60px}
+.rv-badge.live{background:transparent;border:1.5px dashed var(--border);color:var(--text-2)}
+@media (max-width:560px){.rt>summary{grid-template-columns:36px minmax(0,1fr) 40px}.rt-h{display:none}.rt-quarter>summary{padding-left:18px}.rt-month>summary{padding-left:26px}.rt-week>summary{padding-left:34px}.rt-card{padding-left:12px!important}}
+.rc-top{display:flex;gap:10px;margin:0 0 6px;flex-wrap:wrap}
+.rc-top>div{background:var(--surface-2);border-radius:12px;padding:8px 14px;min-width:110px}
+.rc-k{font-size:12px;color:var(--muted)} .rc-v{font-size:24px;font-weight:750;font-variant-numeric:tabular-nums} .rc-s{font-size:12px;color:var(--text-2)}
+.rc-list{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.rc-row{border-top:1px solid var(--border)} .rc-row:first-child{border-top:0}
+.rc-row summary{display:grid;grid-template-columns:minmax(0,1fr) 44px 64px;gap:8px;align-items:center;padding:9px 12px;cursor:pointer;list-style:none}
+.rc-row summary::-webkit-details-marker{display:none}
+.rc-n{font-weight:650;font-size:14.5px} .rc-g{font-weight:750;text-align:center;border-radius:7px;padding:2px 0}
+.rc-g.good{background:color-mix(in oklab,var(--good) 15%,var(--surface));color:var(--good)} .rc-g.mid{background:var(--warn-bg);color:var(--warn-ink)} .rc-g.bad{background:color-mix(in oklab,var(--bad) 14%,var(--surface));color:var(--bad)} .rc-g.none{background:var(--surface-2);color:var(--muted)}
+.rc-t{font-size:12.5px;color:var(--muted)} .rc-t .up{color:var(--good)} .rc-t .down{color:var(--bad)}
+.rc-body{padding:0 12px 12px;font-size:14px} .rc-body p{margin:4px 0}
+.rc-body b.good{color:var(--good)} .rc-body b.bad{color:var(--bad)}
+.rc-parts{width:100%;font-size:12.5px;margin-top:6px;border-collapse:collapse} .rc-parts td{padding:3px 6px;border-bottom:1px dashed var(--border);text-align:left;white-space:normal} .rc-parts td:nth-child(3),.rc-parts td:nth-child(4){text-align:right;white-space:nowrap}
+.rc-parts tr{cursor:default} .rc-parts tr:hover{background:none}
+.rc-marks{margin:6px 0 0;padding-left:18px}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -557,7 +585,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <!-- Coach -->
 <section class="tab" id="tab-coach" hidden>
   <div class="row">
-    <div class="seg" id="coach-seg"><button data-v="week" class="on">Weekly</button><button data-v="adhoc">On demand</button></div>
+    <div class="seg" id="coach-seg"><button data-v="cards" class="on">Report cards</button><button data-v="adhoc">On demand</button></div>
     <button class="btn" id="coach-now-btn" style="margin-left:auto">Review now</button>
   </div>
   <div class="card" id="coach-now" hidden>
@@ -572,7 +600,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   <div class="span-lbl" id="coach-progress" hidden></div>
   <div class="card" id="coach-setup" hidden>
     <div class="card-h"><h2>Set up the coach</h2></div>
-    <p class="small" style="margin-top:0">Weekly reviews are written by Claude. Add your Anthropic API key in <b>Settings › Coach</b> (SETUP.md Step 12). Reviews then appear here every Monday, and the weeks since September are filled in automatically.</p>
+    <p class="small" style="margin-top:0">Your grades below are worked out from your data already. To get written report cards (summary, praise, criticism and assignments for each week, month, quarter and year), add your Anthropic API key in <b>Settings › Coach</b>. Get one at console.anthropic.com (SETUP.md Step 12).</p>
     <button class="btn small" id="coach-gosettings">Open Settings</button>
   </div>
   <div id="coach-latest"></div>
@@ -741,12 +769,12 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <section class="tab" id="tab-set" hidden>
   <div class="card">
     <div class="card-h"><h2>Coach</h2></div>
-    <p class="small muted" style="margin-top:0">Weekly reviews by Claude. Your key is kept in your Google Drive data, never on GitHub, and is left out of backups.</p>
+    <p class="small muted" style="margin-top:0">Report cards by Claude. Your key is kept in your Google Drive data, never on GitHub, and is left out of backups.</p>
     <div class="form-grid">
       <div><label for="cs-key">Anthropic API key</label><input type="text" id="cs-key" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"></div>
       <div><label for="cs-script">Script address (for the Monday email)</label><input type="text" id="cs-script" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec?key=…"></div>
     </div>
-    <label style="margin:10px 0 0;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cs-email"> Email me each weekly review</label>
+    <label style="margin:10px 0 0;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cs-email"> Email me each report card</label>
     <div class="sub-h" style="margin-top:16px">Usage and balance</div>
     <div class="rv-nums" id="cu-nums" style="margin-top:0"></div>
     <div class="row" style="margin-top:10px">
@@ -771,6 +799,18 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
       <label style="margin:0">Saturated fat under <input type="number" id="cs-satfat" style="width:60px"> % of calories</label>
       <label style="margin:0">Sugars under <input type="number" id="cs-sugar" style="width:60px"> g</label>
     </div>
+    <div class="sub-h" style="margin-top:16px">Report card targets</div>
+    <p class="small muted" style="margin:0 0 8px">The app grades each subject from these with fixed rules; Claude only writes the words. Calories are graded under the anchors, so Nutrition grades food quality.</p>
+    <div class="row">
+      <label style="margin:0">Protein at least <input type="number" id="rb-protein" style="width:70px"> g</label>
+      <label style="margin:0">Calories at least <input type="number" id="rb-floor" style="width:80px"></label>
+      <label style="margin:0">Workouts <input type="number" id="rb-sessions" style="width:60px"> a week, of <input type="number" id="rb-minmin" style="width:60px"> min or more</label>
+      <label style="margin:0">Strength <input type="number" id="rb-strength" style="width:60px"> a week</label>
+      <label style="margin:0">Sleep <input type="number" id="rb-sleep" step="0.25" style="width:70px"> h asleep</label>
+      <label style="margin:0">In bed by <input type="time" id="rb-bed" style="width:auto"></label>
+    </div>
+    <div class="sub-h" style="margin-top:12px">Credits (how much each subject counts in the GPA)</div>
+    <div class="row" id="rb-credits"></div>
     <div class="row" style="margin-top:14px"><button class="btn primary small" id="cs-save" style="margin-left:auto">Save coach settings</button></div>
   </div>
   <div class="card">
@@ -827,7 +867,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '3.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.2';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1373,10 +1413,10 @@ function impHaeJson(name, j) {
         const skip = /awake|in ?bed/i.test(r.value || '');
         if (hrs == null && r.startDate && r.endDate && !skip) {
           const a = haeTime(r.startDate), b = haeTime(r.endDate);
-          if (a && b && b > a) { const k = haeDay(r.endDate); add(k, 'sleepRaw', (b - a) / 36e5); via(k, 'sleep', r.source); continue; }
+          if (a && b && b > a) { const k = haeDay(r.endDate); add(k, 'sleepRaw', (b - a) / 36e5); via(k, 'sleep', r.source); const bt = String(r.startDate).match(/[ T](\d{2}:\d{2})/), e = (days[k] ||= {}); if (bt && (!e.sleepStartAt || a < e.sleepStartAt)) { e.sleepStartAt = a; e.sleepStart = bt[1]; } continue; }
         }
         if (/min/i.test(m.units || '') && hrs) hrs /= 60;
-        if (hrs) { const k = haeDay(r.sleepEnd || r.date); add(k, 'sleep', hrs); via(k, 'sleep', r.source || r.sleepSource); }
+        if (hrs) { const k = haeDay(r.sleepEnd || r.date); add(k, 'sleep', hrs); via(k, 'sleep', r.source || r.sleepSource); const bt = String(r.sleepStart || r.inBedStart || '').match(/[ T](\d{2}:\d{2})/); if (bt) (days[k] ||= {}).sleepStart = bt[1]; }
         else if (!skip) sleepUnread.push(r);
         continue;
       }
@@ -1446,7 +1486,8 @@ function applyHae(name, days, notDaily = new Set()) {
     if (e.steps && canSet(d, 'steps', 'health')) { d.steps = Math.round(val('steps')); d.stepsSource = 'health'; setVia(d, 'stepsVia', v.steps); got.add('steps'); }
     // Several sleep totals for one night (one per source) → the longest; stages or raw samples → added up.
     const sl = Math.max(e.sleep ? Math.max(...e.sleep) : 0, e.sleepStage ? sumOf(e.sleepStage) : 0, e.sleepRaw ? sumOf(e.sleepRaw) : 0) || null;
-    if (sl && canSet(d, 'sleep', 'health')) { d.sleep = { hours: Math.round(sl * 10) / 10, score: d.sleep?.score ?? null, source: 'health', ...(v.sleep ? { via: v.sleep } : {}) }; got.add('sleep'); }
+    if (sl && canSet(d, 'sleep', 'health')) { d.sleep = { hours: Math.round(sl * 10) / 10, score: d.sleep?.score ?? null, source: 'health', ...(v.sleep ? { via: v.sleep } : {}), ...(e.sleepStart ? { start: e.sleepStart } : {}) }; got.add('sleep'); }
+    else if (e.sleepStart && d.sleep && !d.sleep.start) d.sleep.start = e.sleepStart;   // a better source has the hours, but no bedtime
     if (e.weight && canSet(d, 'weight', 'health')) { d.weight = Math.round(e.weight[e.weight.length - 1] * 10) / 10; d.weightUnit = e.weightUnit || 'lb'; d.weightSource = 'health'; setVia(d, 'weightVia', v.weight); got.add('weight'); }
     for (const key of Object.keys(HEALTH_METRICS)) if (e[key]) { (d.health ||= {})[key] = Math.round(val(key) * 10) / 10; got.add(HEALTH_METRICS[key].name.toLowerCase()); }
     // Nutrition that Lose It wrote into Apple Health: a backup for days with no Lose It report (never mixed with food entries).
@@ -1520,7 +1561,8 @@ function readGarminDay(j, tally) {
   const secs = gPos(sl.sleepTimeSeconds, sd.sleepTimeSeconds, (sd.deepSleepSeconds || 0) + (sd.lightSleepSeconds || 0) + (sd.remSleepSeconds || 0));
   if (secs && canSet(d, 'sleep', 'garmin')) {
     const score = gPos(sl.sleepScores?.overall?.value, sl.sleepScores?.overallScore, sd.sleepScores?.overall?.value, sl.overallSleepScore?.value, sl.sleepScore);
-    d.sleep = { hours: Math.round(secs / 360) / 10, score, source: 'garmin' }; tally.sleep.add(k);
+    const st = gPos(sl.sleepStartTimestampLocal, sd.sleepStartTimestampLocal);
+    d.sleep = { hours: Math.round(secs / 360) / 10, score, source: 'garmin', ...(st ? { start: new Date(st).toISOString().slice(11, 16) } : {}) }; tally.sleep.add(k);
   }
   const w = x.weightDay?.latestWeight || [].concat(x.weighIns || []).pop(), grams = gPos(w?.weight);
   if (grams && canSet(d, 'weight', 'garmin')) { d.weight = Math.round((grams > 1000 ? grams / 1000 : grams) * 22.0462) / 10; d.weightUnit = 'lb'; d.weightSource = 'garmin'; delete d.weightVia; tally.weight.add(k); }
@@ -3007,6 +3049,98 @@ const REVIEW_SCHEMA = {
   },
 };
 
+/* ---- Report cards: weekly, monthly, quarterly, yearly (and on demand) ---- */
+const REPORT_SYSTEM = `You are the coach inside Health Sync, a personal health app. You write a report card the user reads in the app and by email. The data is their own: food logged in Lose It, steps, sleep, heart rate and HRV from Garmin and Apple Health, workouts from Garmin and Strava (heart-rate zones, training load, strength sets), a body log of soreness and pain, mood notes, and the daily "anchor" habit boxes from their plan.
+
+THE GRADES ARE ALREADY DECIDED. The app worked out every subject's grade and the GPA from the data with fixed rules (card.subjects, each with its parts, scores and details). Never change, question, soften or restate a different grade. Explain each grade with the numbers in its parts. The one thing you judge is assignments (see below).
+
+Voice: matter-of-fact, specific, unvarnished. No flattery, no cheerleading, no filler, no "great job". The user has asked not to be glazed. Write to them as "you". Every sentence should carry a number, a named food, a day or a concrete action.
+
+For each subject in card.subjects, write:
+- praise: what genuinely went well, with the number. If nothing did, return an empty string. Never invent praise to balance criticism.
+- criticism: the biggest specific shortfall and its cost, with the number (for example the day, food or habit that did it). Empty only if the subject was close to perfect.
+- suggestion: one concrete, doable change for next period that fits their plan.
+For a subject graded I (incomplete), say in criticism what data is missing, and leave praise empty.
+
+summary: the period in plain prose. A week: 3-4 sentences. A month: one paragraph. A quarter: two or three paragraphs, including the best and worst month. A year: four to six paragraphs, including most improved subject, biggest slide, and how it compares with last year if that's given. Lead with what matters most, not with the GPA.
+
+outcomes_comment: weight, HRV, resting heart rate and mood are results, not graded. Connect them to the graded habits (for example "the weeks you slept under 6.5 h were the weeks HRV dropped"). Judge weight by the trend and its weekly rate against committed_rate_per_week, never by one weigh-in. Mention pain_flags plainly: ease off what aggravates it, see a physical therapist or doctor if it doesn't settle; never diagnose.
+
+Nutrition detail (nutrition.summary, flags, swaps): name the logged foods driving any problem, and suggest swaps within the plan (daily food plan, anchor rules, plan foods first, then foods they already log), with approximate numbers. Empty swaps if nothing is off. Vitamins and minerals from Apple Health are a minimum; mention only clear, consistent shortfalls. Not medical advice: if something looks risky (very low calories several days running, a weight-loss rate well over 1% of body weight a week, rising pain), say so and suggest a doctor or dietitian.
+
+Assignments: previous_assignments are what the last report at this level set. Mark each one done, partly or missed in assignments_review, with the evidence from the data (numbers, days). Be strict: "partly" means real but incomplete progress. Then set next_assignments: 1-3 concrete, checkable actions for the next period (a year: 3 goals for next year). You may carry an unfinished one forward: set carries to its index in previous_assignments (0-based), otherwise -1. An assignment whose carried count is already 2 may only be carried again with a reason (why it's still the most important thing); otherwise retire it in retired with a reason. Never silently drop one: every previous assignment that isn't done must be either carried or retired.
+
+If question is present, answer it directly in question_answer with the data; otherwise return an empty string. headline: one line, under 12 words, the most important thing about the period.`;
+const SUBJECT_TEXT = { type: 'object', additionalProperties: false, required: ['praise', 'criticism', 'suggestion'], properties: { praise: { type: 'string' }, criticism: { type: 'string' }, suggestion: { type: 'string' } } };
+// Built when used: SUBJECTS is defined further down the file.
+const reportSchema = () => ({
+  type: 'object', additionalProperties: false,
+  required: ['headline', 'summary', 'subjects', 'outcomes_comment', 'nutrition', 'assignments_review', 'next_assignments', 'retired', 'question_answer'],
+  properties: {
+    headline: { type: 'string' }, summary: { type: 'string' },
+    subjects: { type: 'object', additionalProperties: false, required: SUBJECTS.map(s => s[0]), properties: Object.fromEntries(SUBJECTS.map(s => [s[0], SUBJECT_TEXT])) },
+    outcomes_comment: { type: 'string' },
+    nutrition: REVIEW_SCHEMA.properties.nutrition,
+    assignments_review: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['assignment', 'status', 'evidence'], properties: { assignment: { type: 'string' }, status: { type: 'string', enum: ['done', 'partly', 'missed'] }, evidence: { type: 'string' } } } },
+    next_assignments: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['text', 'carries', 'reason'], properties: { text: { type: 'string' }, carries: { type: 'integer' }, reason: { type: 'string' } } } },
+    retired: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['assignment', 'reason'], properties: { assignment: { type: 'string' }, reason: { type: 'string' } } } },
+    question_answer: { type: 'string' },
+  },
+});
+const LEVELS = { week: 'Weekly', month: 'Monthly', quarter: 'Quarterly', year: 'Yearly', adhoc: 'On demand' };
+const lastOfMonth = (y, m) => dateKey(new Date(y, m, 0));   // m is 1-12
+// The period of a kind that contains day k: [start, end, key].
+function periodOf(kind, k) {
+  const [y, m] = k.split('-').map(Number);
+  if (kind === 'week') { const s = weekStart(k); return [s, addDays(s, 6), 'week:' + s]; }
+  if (kind === 'month') return [`${k.slice(0, 7)}-01`, lastOfMonth(y, m), 'month:' + k.slice(0, 7)];
+  if (kind === 'quarter') { const q = Math.ceil(m / 3), sm = (q - 1) * 3 + 1; return [`${y}-${String(sm).padStart(2, '0')}-01`, lastOfMonth(y, sm + 2), `quarter:${y}-Q${q}`]; }
+  return [`${y}-01-01`, `${y}-12-31`, 'year:' + y];
+}
+const prevPeriod = (kind, start) => periodOf(kind, addDays(start, -1));
+const periodLabel = (kind, start, end) => kind === 'month' ? keyToDate(start).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  : kind === 'quarter' ? `Q${Math.ceil(+start.slice(5, 7) / 3)} ${start.slice(0, 4)}` : kind === 'year' ? start.slice(0, 4) : fmtRange(start, end);
+// Data starts when the logs do, so a quarter or year that began before then is graded from that day.
+const dataStart = () => { const ks = Object.keys(data.days).filter(k => data.days[k].food?.length || data.days[k].healthFood).sort(); return ks[0] && ks[0] > COACH_BACKFILL_FROM ? ks[0] : COACH_BACKFILL_FROM; };
+const gradedFrom = start => start < dataStart() ? dataStart() : start;
+const reportOf = (kind, start) => { const r = reviews()[periodOf(kind, start)[2]]; return r && !r.deleted && r.status === 'done' ? r : null; };
+// The cards are rules-based, so any period's card can be worked out on the spot (without assignments).
+const quickCard = (start, end) => finishCard(gradeSubjects(gradedFrom(start), end), null);
+// Foods behind each nutrition problem over a period, for months and longer (days are too many to send).
+function foodDrivers(ks) {
+  const by = {};
+  for (const k of ks) for (const f of getDay(k)?.food || []) { const e = (by[f.name] ||= { n: 0, cal: 0, sodium: 0, satFat: 0, sugar: 0, protein: 0, fiber: 0 }); e.n++; for (const x of ['sodium', 'satFat', 'sugar', 'protein', 'fiber']) e[x] += f[x] || 0; e.cal += f.calories || 0; }
+  // Ranked by total (what drove the period), with the per-serving figure so a rare but heavy food stands out too.
+  const top = (x, n = 6) => Object.entries(by).filter(([, e]) => e[x] > 0).sort((a, b) => b[1][x] - a[1][x]).slice(0, n).map(([name, e]) => `${name}: ${fmtN(e[x] / e.n)} per serving × ${e.n} = ${fmtN(e[x])}`);
+  return { most_sodium_mg: top('sodium'), most_sat_fat_g: top('satFat'), most_sugar_g: top('sugar'), most_protein_g: top('protein'), most_fiber_g: top('fiber'), most_logged: Object.entries(by).sort((a, b) => b[1].n - a[1].n).slice(0, 10).map(([n, e]) => `${n} (${e.n}×)`) };
+}
+function reportDigest(kind, start, end, subjects, opts) {
+  const from = gradedFrom(start), ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(from)) / 864e5) + 1).filter(k => k < todayKey());
+  const prevAll = reportOf(kind, prevPeriod(kind, start)[0]);
+  const prevCard = prevAll?.card || (kind !== 'adhoc' ? (() => { const [a, b] = prevPeriod(kind, start); return b >= dataStart() ? quickCard(a, b) : null; })() : null);
+  const base = buildDigest(from, end, { kind: kind === 'adhoc' ? 'adhoc' : kind, question: opts.question });
+  const card = finishCard(JSON.parse(JSON.stringify(subjects)), null);
+  const d = { level: LEVELS[kind], period: { start, end, label: periodLabel(kind, start, end), graded_from: from !== start ? from : undefined, days: ks.length },
+    card: { gpa_before_assignments: card.gpa, subjects: card.subjects.filter(s => s.key !== 'assignments').map(s => ({ subject: s.name, grade: s.grade, score: s.score, credits: s.credits, incomplete: s.incomplete || undefined, parts: s.parts })) },
+    previous_period: prevCard ? { gpa: prevCard.gpa, grades: Object.fromEntries(prevCard.subjects.map(s => [s.name, s.grade])) } : null,
+    outcomes: periodOutcomes(from, end), plan: base.plan, training: base.training, totals: base.this_period,
+    previous_assignments: opts.prevAssignments.map((a, i) => ({ index: i, text: a.text, times_carried_already: a.carried || 0 })),
+    question: opts.question || null };
+  if (kind === 'week' || kind === 'adhoc') d.days = base.days;
+  else {
+    d.food_drivers = foodDrivers(ks);
+    const sub = { month: 'week', quarter: 'month', year: 'quarter' }[kind];
+    const parts = []; for (let s = periodOf(sub, start)[0]; s <= end; s = addDays(periodOf(sub, s)[1], 1)) { const [a, b] = periodOf(sub, s), r = reportOf(sub, a), c = r?.card || quickCard(a, b > end ? end : b);
+      parts.push({ period: periodLabel(sub, a, b), gpa: c.gpa, grades: Object.fromEntries(c.subjects.map(x => [x.name, x.grade])), headline: r?.headline || null, summary: r?.summary || r?.grade_reason || null }); }
+    d[`${sub}s`] = parts;
+    if (kind === 'year') d.months_gpa = Array.from({ length: 12 }, (_, i) => { const [a, b] = periodOf('month', `${start.slice(0, 4)}-${String(i + 1).padStart(2, '0')}-01`); return b < from ? null : { month: periodLabel('month', a, b), gpa: (reportOf('month', a)?.card || quickCard(a, b)).gpa }; }).filter(Boolean);
+    if (kind !== 'month') { const ly = `${+start.slice(0, 4) - 1}${start.slice(4)}`, [a, b] = periodOf(kind, ly); if (b >= dataStart()) { const c = quickCard(a, b); d.same_period_last_year = { gpa: c.gpa, grades: Object.fromEntries(c.subjects.map(x => [x.name, x.grade])) }; } }
+  }
+  return d;
+}
+// Assignments set by the last report at the same level (weeks follow weeks, months follow months…).
+const prevAssignmentsFor = (kind, start) => kind === 'adhoc' ? [] : (reportOf(kind, prevPeriod(kind, start)[0])?.assignments || []);
+
 // Streams the answer so long reviews never time out; onText receives the length written so far.
 async function callClaude({ system, user, schema, effort = 'medium', maxTokens = 16000, onText, what = 'Coach' }) {
   const key = coachCfg().apiKey;
@@ -3093,30 +3227,41 @@ async function addCredit(type) {
 /* ---- writing a review ---- */
 const loggedDays = ks => ks.filter(k => totals(getDay(k)).hasFood).length;
 async function writeReview(key, { kind, start, end, question = '', email = true, force = false, rewrite = '' }) {
-  const ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1);
+  const from = gradedFrom(start);
+  const ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(from)) / 864e5) + 1);
   const old = reviews()[key];
   const now = new Date().toISOString();
-  const base = { key, kind, start, end, question, createdAt: now, note: old?.note || '', basis: reviewBasis(start, end),
+  const base = { key, kind, start, end, question, createdAt: now, note: old?.note || '', basis: reviewBasis(from, end),
     ...(force ? { forced: true } : {}), ...(rewrite ? { rewroteWhy: rewrite, rewroteAt: now } : {}) };
   const logged = loggedDays(ks);
-  if (!force && logged < Math.ceil(ks.length / 2)) {
+  // A week (or a range) with food logged on under half its days isn't graded unless asked; longer periods always are.
+  if (!force && (kind === 'week' || kind === 'adhoc') && logged < Math.ceil(ks.length / 2)) {
     reviews()[key] = { ...base, status: 'incomplete', logged, days: ks.length };
     coachDirty = true; await savePersist(); renderCoach(); return;
   }
-  coachBusy = key; coachProgress = 'Reading your data…'; renderCoach();
+  coachBusy = key; coachProgress = `Grading ${LEVELS[kind].toLowerCase()} · ${periodLabel(kind, start, end)}…`; renderCoach();
   // Tell other computers this one is writing it (only for a first write; a regenerate keeps the old review visible).
   if (!old || old.status !== 'done') { reviews()[key] = { ...base, status: 'writing' }; coachDirty = true; savePersist(); }
   try {
-    const digest = buildDigest(start, end, { kind, question });
-    const out = await callClaude({ system: COACH_SYSTEM, schema: REVIEW_SCHEMA, what: `${kind === 'week' ? 'Weekly' : 'On-demand'} review · ${fmtRange(start, end)}`,
-      user: `Write the ${kind === 'week' ? 'weekly' : 'on-demand'} review for ${fmtRange(start, end)}.${old?.note ? `\nThe user's note about this period: ${old.note}` : ''}\n\nData (JSON):\n${JSON.stringify(digest)}`,
-      onText: n => { coachProgress = `Writing your review… ${Math.round(n / 5)} words`; const el = $('#coach-progress'); if (el) el.textContent = coachProgress; } });
-    const r = { ...base, ...out, status: 'done', logged, days: ks.length, stats: digest.this_period, cost: Math.round((old?.status === 'done' ? (old.cost || 0) : 0) * 10000 + out._cost * 10000) / 10000 };
+    const subjects = gradeSubjects(from, end), prevAssignments = prevAssignmentsFor(kind, start);
+    const digest = reportDigest(kind, start, end, subjects, { question, prevAssignments });
+    const out = await callClaude({ system: REPORT_SYSTEM, schema: reportSchema(), what: `${LEVELS[kind]} report · ${periodLabel(kind, start, end)}`,
+      user: `Write the ${LEVELS[kind].toLowerCase()} report card for ${periodLabel(kind, start, end)}.${old?.note ? `\nThe user's note about this period: ${old.note}` : ''}\n\nData (JSON):\n${JSON.stringify(digest)}`,
+      onText: n => { coachProgress = `Writing your ${LEVELS[kind].toLowerCase()} report… ${Math.round(n / 5)} words`; const el = $('#coach-progress'); if (el) el.textContent = coachProgress; } });
+    // Assignments: Claude's marks become the graded subject; carried ones count how many times they've moved.
+    const marks = prevAssignments.length ? prevAssignments.map((a, i) => out.assignments_review?.[i] ? { ...out.assignments_review[i], assignment: a.text } : { assignment: a.text, status: 'missed', evidence: 'not marked' }) : [];
+    const card = finishCard(subjects, marks);
+    const assignments = (out.next_assignments || []).slice(0, 3).map(a => { const p = prevAssignments[a.carries]; const carried = p ? (p.carried || 0) + 1 : 0;
+      return { text: a.text, carried, reason: a.reason || (carried > 2 ? '(carried again without a stated reason)' : '') }; });
+    const { next_assignments, assignments_review, ...words } = out;
+    const r = { ...base, ...words, status: 'done', logged, days: ks.length, gradedFrom: from !== start ? from : undefined, card, grade: card.grade, gpa: card.gpa,
+      marks, assignments, focus: assignments.map(a => a.text), stats: periodStats(ks),
+      cost: Math.round((old?.status === 'done' ? (old.cost || 0) : 0) * 10000 + out._cost * 10000) / 10000 };
     reviews()[key] = r;
     coachDirty = true;
     await savePersist();
-    if (email && coachCfg().email && coachCfg().scriptUrl) sendReviewEmail(r).catch(e => toast('Review saved, but the email failed: ' + e.message, 7000));
-    toast(`${kind === 'week' ? 'Weekly' : 'On-demand'} review ready: ${r.grade}`);
+    if (email && coachCfg().email && coachCfg().scriptUrl) sendReviewEmail(r).catch(e => toast('Report saved, but the email failed: ' + e.message, 7000));
+    toast(`${LEVELS[kind]} report ready: ${card.grade}${card.gpa != null ? ` (GPA ${card.gpa.toFixed(2)})` : ''}`);
   } catch (e) {
     if (reviews()[key]?.status === 'writing') { delete reviews()[key]; coachDirty = true; savePersist(); }
     throw e;
@@ -3127,6 +3272,24 @@ const savePersist = () => persist().catch(e => toast(e.message, 6000));
 async function sendReviewEmail(r) {
   const cc = coachCfg();
   const li = a => a?.length ? `<ul>${a.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+  if (r.card) {
+    const w = r.subjects || {}, label = r.kind === 'week' || r.kind === 'adhoc' ? fmtRange(r.start, r.end) : periodLabel(r.kind, r.start, r.end);
+    const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:640px;line-height:1.55;color:#14161c">
+      <div style="color:#666;font-size:13px">${esc(LEVELS[r.kind])} report card · ${esc(label)}</div>
+      <h2 style="margin:2px 0 4px">${esc(r.grade)}${r.gpa != null ? ` · GPA ${r.gpa.toFixed(2)}` : ''} · ${esc(r.headline)}</h2>
+      ${r.question_answer ? `<p><b>Your question:</b> ${esc(r.question)}<br>${esc(r.question_answer)}</p>` : ''}
+      ${(r.summary || '').split(/\n\s*\n/).map(p => `<p style="font-family:Georgia,serif">${esc(p)}</p>`).join('')}
+      <table style="border-collapse:collapse;width:100%;font-size:14px">${r.card.subjects.map(sub => { const t = w[sub.key] || {};
+        return `<tr><td style="padding:8px 6px;border-top:1px solid #e6e7ec;vertical-align:top;width:120px"><b>${esc(sub.name)}</b><br><span style="font-size:20px;font-weight:700">${esc(sub.grade)}</span></td><td style="padding:8px 6px;border-top:1px solid #e6e7ec">${sub.incomplete ? `<i>Incomplete: ${esc(sub.incomplete)}</i><br>` : ''}${t.praise ? `<b style="color:#0f7a3a">Praise:</b> ${esc(t.praise)}<br>` : ''}${t.criticism ? `<b style="color:#c23a39">Criticism:</b> ${esc(t.criticism)}<br>` : ''}${t.suggestion ? `<b>Next:</b> ${esc(t.suggestion)}` : ''}</td></tr>`; }).join('')}</table>
+      ${r.outcomes_comment ? `<p><b>Results (not graded):</b> ${esc(r.outcomes_comment)}</p>` : ''}
+      ${r.nutrition?.swaps?.length ? `<p><b>Swaps that fit your plan</b></p>${li(r.nutrition.swaps.map(x => `${x.instead_of} → ${x.try} (${x.why})`))}` : ''}
+      <p><b>Assignments</b></p>${li(r.assignments.map(a => a.text + (a.carried ? ` (carried ${a.carried}×)` : '')))}
+      <p style="font-size:13px"><a href="${esc(location.origin + location.pathname)}#coach">Open the full report card in Health Sync</a></p></div>`;
+    await fetch(cc.scriptUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'email', subject: `Health Sync: ${LEVELS[r.kind].toLowerCase()} report · ${label} — ${r.grade}${r.gpa != null ? ` (${r.gpa.toFixed(2)})` : ''}`, html }) });
+    r.emailedAt = new Date().toISOString(); r.updatedAt = r.emailedAt; coachDirty = true; await savePersist();
+    return;
+  }
   const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:640px;line-height:1.55;color:#14161c">
     <h2 style="margin:0 0 4px">${esc(r.grade)} · ${esc(r.headline)}</h2><div style="color:#666;font-size:13px">${esc(fmtRange(r.start, r.end))}</div>
     ${r.question_answer ? `<p><b>Your question:</b> ${esc(r.question)}<br>${esc(r.question_answer)}</p>` : ''}
@@ -3187,19 +3350,67 @@ async function autoReviews() {
     }
     if (r?.status === 'writing' && Date.now() - Date.parse(r.createdAt) < 10 * 60e3) continue;   // another device is on it
     const sun = addDays(ws, 6), sd = getDay(sun);
-    if (Date.now() < reviewDueAt(sun)) { coachProgress = `Last week's review will be written today at noon, once Sunday's Lose It report is in`; renderCoach(); return; }
+    if (Date.now() < reviewDueAt(sun)) { coachProgress = `Last week's review will be written today at noon, once Sunday's Lose It report is in`; renderCoach(); break; }
     // From noon, wait for Sunday's final Lose It report, but no later than Tuesday.
     const ready = (sd && loseItFinal(sd, sun) && totals(sd).hasFood) || todayKey() >= addDays(sun, 2);
-    if (!ready) { coachProgress = `Waiting for ${fmtDay(sun, { month: 'short', day: 'numeric' })}'s final Lose It report before writing that week's review`; renderCoach(); return; }
+    if (!ready) { coachProgress = `Waiting for ${fmtDay(sun, { month: 'short', day: 'numeric' })}'s final Lose It report before writing that week's review`; renderCoach(); break; }
     if (coachProgress.startsWith('Last week') || coachProgress.startsWith('Waiting')) coachProgress = '';
     try { await writeReview(key, { kind: 'week', start: ws, end: sun, email: ws === lastMon }); }
     catch (e) { toast(e.message, 8000); return; }
   }
+  // Then months, quarters and years, once each period is over and its last day's Lose It report is final.
+  for (const kind of ['month', 'quarter', 'year']) {
+    for (let [a, b, key] = periodOf(kind, dataStart()); b < todayKey(); [a, b, key] = periodOf(kind, addDays(b, 1))) {
+      const r = reviews()[key];
+      if (r?.deleted) continue;
+      if (r?.status === 'writing' && Date.now() - Date.parse(r.createdAt) < 10 * 60e3) continue;
+      if (r?.status === 'done') {
+        // Rewrite when a grade has changed since (late food logs, Garmin history arriving…).
+        if (!r.card || rewrites >= REWRITES_PER_RUN) continue;
+        const now = quickCard(a, b), was = Object.fromEntries(r.card.subjects.map(x => [x.key, x.grade]));
+        const why = now.subjects.filter(x => x.key !== 'assignments' && was[x.key] && was[x.key] !== x.grade).map(x => `${x.name} ${was[x.key]} → ${x.grade}`).join(' · ');
+        if (!why) continue;
+        rewrites++;
+        try { await writeReview(key, { kind, start: a, end: b, email: false, rewrite: why }); } catch (e) { toast(e.message, 8000); return; }
+        continue;
+      }
+      const dueAt = keyToDate(addDays(b, 1)).setHours(COACH_HOUR, 0, 0, 0), lastDay = getDay(b);
+      if (Date.now() < dueAt) break;
+      if (!((lastDay && loseItFinal(lastDay, b) && totals(lastDay).hasFood) || todayKey() >= addDays(b, 2))) break;
+      try { await writeReview(key, { kind, start: a, end: b, email: b >= addDays(todayKey(), -7) }); }
+      catch (e) { toast(e.message, 8000); return; }
+    }
+  }
 }
 
 /* ---- Coach tab ---- */
-let coachView = 'week';
+let coachView = 'cards';
+function reportHtml(r, compact) {
+  const c = r.card, w = r.subjects || {}, prev = r.kind !== 'adhoc' ? reportOf(r.kind, prevPeriod(r.kind, r.start)[0]) : null;
+  const was = prev?.card ? Object.fromEntries(prev.card.subjects.map(x => [x.key, x])) : {};
+  const ytd = r.kind !== 'adhoc' && r.kind !== 'year' ? quickCard(`${r.end.slice(0, 4)}-01-01`, r.end) : null;
+  const trend = s => { const p = was[s.key]; if (!p || p.points == null || s.points == null) return ''; const d = s.points - p.points;
+    return `<span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}" title="Last time: ${esc(p.grade)}">${d > 0 ? '↑' : d < 0 ? '↓' : '→'} ${esc(p.grade)}</span>`; };
+  const o = r.outcomes_comment, n = r.nutrition || {};
+  return `${r.rewroteWhy ? `<div class="muted small" style="margin-bottom:8px">↻ Rewritten ${esc(new Date(r.rewroteAt).toLocaleDateString([], { month: 'short', day: 'numeric' }))} because the data changed: ${esc(r.rewroteWhy)}</div>` : ''}
+    ${r.question ? `<div class="rv-q"><b>You asked:</b> ${esc(r.question)}<p>${esc(r.question_answer || '')}</p></div>` : ''}
+    <div class="rc-top"><div><div class="rc-k">GPA</div><div class="rc-v">${c.gpa == null ? '—' : c.gpa.toFixed(2)}</div><div class="rc-s">${prev?.card?.gpa != null && c.gpa != null ? `${c.gpa >= prev.card.gpa ? '+' : '−'}${Math.abs(c.gpa - prev.card.gpa).toFixed(2)} vs last` : `${c.credits} of ${c.creditsAll} credits graded`}</div></div>
+      ${ytd?.gpa != null ? `<div><div class="rc-k">Year to date</div><div class="rc-v">${ytd.gpa.toFixed(2)}</div><div class="rc-s">before assignments</div></div>` : ''}</div>
+    <div class="rv-story">${(r.summary || '').split(/\n\s*\n/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
+    <div class="rc-list">${c.subjects.map(s => { const t = w[s.key] || {};
+      return `<details class="rc-row"${compact ? '' : ' open'}><summary><span class="rc-n">${esc(s.name)}<span class="muted small"> · ${s.credits} credit${s.credits === 1 ? '' : 's'}</span></span><span class="rc-g ${s.grade === 'I' ? 'none' : gradeTone(s.grade)}">${esc(s.grade)}</span><span class="rc-t">${trend(s)}</span></summary>
+        <div class="rc-body">${s.incomplete ? `<p class="muted small" style="margin:0 0 4px">Incomplete: ${esc(s.incomplete)}. Not counted in the GPA.</p>` : ''}
+          ${t.praise ? `<p><b class="good">Praise:</b> ${esc(t.praise)}</p>` : ''}${t.criticism ? `<p><b class="bad">Criticism:</b> ${esc(t.criticism)}</p>` : ''}${t.suggestion ? `<p><b>Next:</b> ${esc(t.suggestion)}</p>` : ''}
+          ${s.parts.length ? `<table class="rc-parts">${s.parts.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.detail)}</td><td>${p.score == null ? 'no data' : p.score + '%'}</td><td class="muted">${s.parts.length > 1 ? (p.weight + (p.weight > 1 ? '%' : '')) : ''}</td></tr>`).join('')}</table>` : ''}
+          ${s.key === 'assignments' && r.marks?.length ? `<ul class="rc-marks">${r.marks.map(m => `<li><b class="${m.status === 'done' ? 'good' : m.status === 'missed' ? 'bad' : ''}">${esc(m.status)}</b> · ${esc(m.assignment)}<div class="muted small">${esc(m.evidence)}</div></li>`).join('')}</ul>` : ''}</div></details>`; }).join('')}</div>
+    ${o ? `<div class="rv-box" style="margin-top:12px"><div class="rv-h">Results (tracked, not graded)</div><p style="margin:0">${esc(o)}</p></div>` : ''}
+    ${n.swaps?.length ? `<div class="rv-box" style="margin-top:12px"><div class="rv-h">Swaps that fit your plan</div><ul>${n.swaps.map(x => `<li><b>${esc(x.instead_of)}</b> → ${esc(x.try)}. <span class="muted">${esc(x.why)}</span></li>`).join('')}</ul>${!compact ? `<button class="btn small" data-swaps="${esc(r.key)}">More swap ideas</button>` : ''}</div>` : ''}
+    ${r.assignments?.length ? `<div class="rv-focus"><div class="rv-h">Assignments for next ${r.kind === 'adhoc' ? 'time' : r.kind}</div><ol>${r.assignments.map(a => `<li>${esc(a.text)}${a.carried ? ` <span class="tag">carried ${a.carried}×</span>` : ''}${a.reason ? `<div class="muted small">${esc(a.reason)}</div>` : ''}</li>`).join('')}</ol></div>` : ''}
+    ${r.retired?.length ? `<div class="muted small" style="margin-top:8px"><b>Retired:</b> ${r.retired.map(x => `${esc(x.assignment)} (${esc(x.reason)})`).join(' · ')}</div>` : ''}
+    <div class="muted small" style="margin-top:10px">Attendance: food fully logged ${r.card.subjects.find(x => x.key === 'logging')?.parts[0]?.detail || '—'}${r.gradedFrom ? ` · graded from ${esc(fmtDay(r.gradedFrom, { month: 'short', day: 'numeric' }))}, when your data starts` : ''}</div>`;
+}
 function reviewHtml(r, compact) {
+  if (r.card && r.status === 'done') return reportHtml(r, compact);
   if (r.status === 'incomplete') return `<div class="rv-inc"><p class="small" style="margin:0 0 8px">Incomplete · food logged on ${r.logged} of ${r.days} days, so this period isn't graded.</p>
     <label for="note-${esc(r.key)}">Your note about this period</label><textarea id="note-${esc(r.key)}" data-note="${esc(r.key)}" style="min-height:60px" placeholder="On vacation, not tracking">${esc(r.note || '')}</textarea>
     <div class="row" style="margin-top:8px"><button class="btn small" data-savenote="${esc(r.key)}">Save note</button><button class="btn small ghost" data-force="${esc(r.key)}">Write a review anyway</button></div></div>`;
@@ -3222,12 +3433,44 @@ function badge(r) {
   if (r.status === 'incomplete') return '<span class="rv-badge none">…</span>';
   return `<span class="rv-badge ${gradeTone(r.grade)}">${esc(r.grade || '?')}</span>`;
 }
+// The history tree: years › quarters › months › weeks (a week belongs to the month its Thursday is in).
+// Children are drawn when a row is opened, so a long history stays quick.
+const TREE_CHILD = { root: 'year', year: 'quarter', quarter: 'month', month: 'week' };
+function treeKids(kind, a, b) {
+  const sub = TREE_CHILD[kind]; if (!sub) return '';
+  const from = dataStart(), today = todayKey(), rows = [];
+  if (sub === 'year') for (let y = +today.slice(0, 4); y >= +from.slice(0, 4); y--) rows.push(periodOf('year', `${y}-01-01`));
+  else if (sub === 'week') { for (let ws = weekStart(b); ws >= addDays(weekStart(a), -7); ws = addDays(ws, -7)) { const th = addDays(ws, 3); if (th >= a && th <= b && ws <= today && addDays(ws, 6) >= from) rows.push(periodOf('week', ws)); } }
+  else for (let k = b; k >= a; ) { const p = periodOf(sub, k); if (p[0] <= today && p[1] >= from) rows.push(p); k = addDays(p[0], -1); }
+  return rows.map(([s, e, key]) => treeRow(sub, s, e, key)).join('');
+}
+function treeRow(kind, a, b, key) {
+  const r = reviews()[key], done = r && !r.deleted && r.status === 'done', live = !done ? quickCard(a, b > todayKey() ? addDays(todayKey(), -1) : b) : null;
+  const open = b >= todayKey() && a <= todayKey();
+  const g = done ? r.grade : live.grade, gpa = done ? r.gpa : live.gpa;
+  const label = kind === 'week' ? `Week of ${fmtRange(a, b)}` : periodLabel(kind, a, b);
+  const note = done ? (r.headline || r.grade_reason || '') : r?.status === 'incomplete' ? `Incomplete · food logged ${r.logged} of ${r.days} days` : open ? 'In progress · grades so far' : 'Not written yet · grades from your data';
+  return `<details class="rt rt-${kind}" data-tk="${kind}" data-ta="${a}" data-tb="${b}" data-key="${esc(key)}"><summary><span class="rv-badge ${done ? gradeTone(g) : 'none'}${done ? '' : ' live'}">${esc(g)}</span><span class="rt-l">${esc(label)}</span><span class="rt-h">${esc(note)}</span><span class="rt-g">${gpa != null ? gpa.toFixed(2) : '—'}</span></summary><div class="rt-body"></div></details>`;
+}
+function fillTreeRow(el) {
+  const { tk, ta, tb, key } = el.dataset, body = el.querySelector(':scope > .rt-body');
+  if (body.dataset.filled) return;
+  body.dataset.filled = '1';
+  const r = reviews()[key], done = r && !r.deleted && r.status === 'done', open = tb >= todayKey();
+  const own = done ? `<div class="rt-card">${reviewHtml(r, true)}<div style="margin-top:10px"><button class="btn small" data-regen="${esc(key)}">Regenerate</button></div></div>`
+    : `<div class="rt-card">${liveCardHtml(quickCard(ta, open ? addDays(todayKey(), -1) : tb))}${!open && coachCfg().apiKey ? `<div style="margin-top:10px"><button class="btn small" data-write="${tk}|${ta}|${tb}|${esc(key)}">Write report</button> <span class="muted small">Claude writes the words for these grades (one Coach call)</span></div>` : ''}</div>`;
+  body.innerHTML = own + treeKids(tk, ta, tb);
+}
+function liveCardHtml(c) {
+  return `<div class="rc-list">${c.subjects.filter(s => s.key !== 'assignments').map(s => `<details class="rc-row"><summary><span class="rc-n">${esc(s.name)}<span class="muted small"> · ${s.credits} credit${s.credits === 1 ? '' : 's'}</span></span><span class="rc-g ${s.grade === 'I' ? 'none' : gradeTone(s.grade)}">${esc(s.grade)}</span><span class="rc-t"></span></summary><div class="rc-body">${s.incomplete ? `<p class="muted small" style="margin:0 0 4px">Incomplete: ${esc(s.incomplete)}.</p>` : ''}${s.parts.length ? `<table class="rc-parts">${s.parts.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.detail)}</td><td>${p.score == null ? 'no data' : p.score + '%'}</td></tr>`).join('')}</table>` : ''}</div></details>`).join('')}</div>`;
+}
 function renderCoach() {
   if (!$('#coach-latest')) return;
   const cc = coachCfg();
   $$('#coach-seg button').forEach(b => b.classList.toggle('on', b.dataset.v === coachView));
   $('#coach-setup').hidden = !!cc.apiKey;
-  const list = Object.values(reviews()).filter(r => !r.deleted && (coachView === 'week' ? r.kind === 'week' : r.kind === 'adhoc') && r.status !== 'writing').sort((a, b) => (b.end + b.createdAt).localeCompare(a.end + a.createdAt));
+  const LV = { year: 4, quarter: 3, month: 2, week: 1 };
+  const list = Object.values(reviews()).filter(r => !r.deleted && r.status !== 'writing' && (coachView === 'adhoc' ? r.kind === 'adhoc' : LV[r.kind])).sort((a, b) => (b.end + (LV[b.kind] || 0) + b.createdAt).localeCompare(a.end + (LV[a.kind] || 0) + a.createdAt));
   const latest = list[0];
   const us = usageSummary();
   const low = us.balance != null && !us.autoReload.on && us.balance < 2;
@@ -3237,13 +3480,15 @@ function renderCoach() {
   $('#coach-progress').textContent = coachProgress;
   $('#coach-progress').hidden = !coachProgress;
   $('#coach-latest').innerHTML = latest ? `<div class="card rv">
-      <div class="rv-top">${badge(latest).replace('rv-badge', 'rv-badge big')}<div style="min-width:0;flex:1"><div class="muted small">${esc(coachView === 'week' ? 'Week of ' : 'On demand · ')}${esc(fmtRange(latest.start, latest.end))}</div>
+      <div class="rv-top">${badge(latest).replace('rv-badge', 'rv-badge big')}<div style="min-width:0;flex:1"><div class="muted small">Latest · ${esc(latest.kind === 'week' ? 'Week of ' + fmtRange(latest.start, latest.end) : latest.kind === 'adhoc' ? 'On demand · ' + fmtRange(latest.start, latest.end) : LEVELS[latest.kind] + ' · ' + periodLabel(latest.kind, latest.start, latest.end))}</div>
         <h2 style="margin:2px 0 4px">${esc(latest.status === 'incomplete' ? 'Not enough data to grade' : latest.headline)}</h2>
         <div class="muted small">${latest.stats ? `${esc(latest.stats.anchors)} anchors · ` : ''}food logged ${latest.logged} of ${latest.days} days${latest.cost ? ` · cost ${money(latest.cost)}` : ''} · written ${esc(new Date(latest.createdAt).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}${latest.emailedAt ? ' · emailed' : ''}</div></div>
         <button class="btn small" data-regen="${esc(latest.key)}" title="Write this review again">Regenerate</button></div>
       ${reviewHtml(latest)}</div>`
-    : `<div class="card"><p class="muted" style="margin:0">${coachView === 'week' ? (cc.apiKey ? 'Your first weekly reviews will appear here shortly.' : 'Set up the coach below to get weekly reviews.') : 'Tap Review now to get a review of any dates you choose.'}</p></div>`;
-  $('#coach-history').innerHTML = list.length > 1 ? `<div class="sub-h" style="margin:6px 2px 8px">Previous ${coachView === 'week' ? 'weeks' : 'reviews'}</div><div class="rv-list">${list.slice(1).map(r => `<details class="rv-row"><summary>${badge(r)}<span class="muted small" style="width:110px;flex:none">${esc(fmtRange(r.start, r.end))}</span><span class="grow">${esc(r.status === 'incomplete' ? `Incomplete · ${r.logged} of ${r.days} days logged${r.note ? ' — ' + r.note : ''}` : r.headline)}</span><span class="muted small">${r.stats ? esc(r.stats.anchors.replace(' of ', '/')) : ''}</span>${coachView === 'adhoc' ? `<button class="del" data-delrev="${esc(r.key)}" aria-label="Delete review">×</button>` : ''}</summary><div class="rv-body">${reviewHtml(r, true)}<div style="margin-top:10px"><button class="btn small" data-regen="${esc(r.key)}">Regenerate</button></div></div></details>`).join('')}</div>` : '';
+    : `<div class="card"><p class="muted" style="margin:0">${coachView === 'adhoc' ? 'Tap Review now to get a report card for any dates you choose.' : cc.apiKey ? 'Your first report cards will appear here shortly. Until then, the grades below are worked out live from your data.' : 'Add your Anthropic API key in Settings › Coach to get written report cards. The grades below are worked out from your data either way.'}</p></div>`;
+  $('#coach-history').innerHTML = coachView === 'adhoc'
+    ? (list.length > 1 ? `<div class="sub-h" style="margin:6px 2px 8px">Previous reports</div><div class="rv-list">${list.slice(1).map(r => `<details class="rv-row"><summary>${badge(r)}<span class="muted small" style="width:110px;flex:none">${esc(fmtRange(r.start, r.end))}</span><span class="grow">${esc(r.status === 'incomplete' ? `Incomplete · ${r.logged} of ${r.days} days logged` : r.headline)}</span><span class="muted small">${r.gpa != null ? 'GPA ' + r.gpa.toFixed(2) : ''}</span><button class="del" data-delrev="${esc(r.key)}" aria-label="Delete review">×</button></summary><div class="rv-body">${reviewHtml(r, true)}<div style="margin-top:10px"><button class="btn small" data-regen="${esc(r.key)}">Regenerate</button></div></div></details>`).join('')}</div>` : '')
+    : `<div class="sub-h" style="margin:6px 2px 8px">All report cards</div><div class="rt-tree">${treeKids('root', null, null)}</div>`;
 }
 
 async function moreSwaps(key) {
@@ -3288,6 +3533,9 @@ function renderCoachSettings() {
   $('#cs-key').value = cc.apiKey ? '••••••••' + cc.apiKey.slice(-4) : '';
   $('#cs-script').value = cc.scriptUrl; $('#cs-email').checked = cc.email;
   $('#cs-planday').value = cc.planDay; $('#cs-foods').value = cc.planFoods;
+  const R = rubric();
+  $('#rb-protein').value = R.proteinG; $('#rb-floor').value = R.calorieFloor; $('#rb-sessions').value = R.sessionsPerWeek; $('#rb-minmin').value = R.sessionMinMinutes; $('#rb-strength').value = R.strengthPerWeek; $('#rb-sleep').value = R.sleepHours; $('#rb-bed').value = R.bedtime;
+  $('#rb-credits').innerHTML = SUBJECTS.map(([k, n]) => `<label style="margin:0">${esc(n)} <input type="number" min="0" step="1" data-credit="${k}" value="${R.credits[k]}" style="width:56px"></label>`).join('');
   $('#cs-fiber').value = cc.targets.fiberMin; $('#cs-sodium').value = cc.targets.sodiumMax; $('#cs-satfat').value = cc.targets.satFatPctMax; $('#cs-sugar').value = cc.targets.sugarMax;
 }
 async function saveCoachSettings() {
@@ -3298,7 +3546,10 @@ async function saveCoachSettings() {
     scriptUrl: $('#cs-script').value.trim(), email: $('#cs-email').checked,
     autoReload: { on: $('#cs-ar').checked, below: num($('#cs-ar-below').value) ?? 5, amount: num($('#cs-ar-amt').value) ?? 20 },
     planDay: $('#cs-planday').value.trim(), planFoods: $('#cs-foods').value.trim(),
-    targets: { fiberMin: num($('#cs-fiber').value) ?? 25, sodiumMax: num($('#cs-sodium').value) ?? 2300, satFatPctMax: num($('#cs-satfat').value) ?? 10, sugarMax: num($('#cs-sugar').value) ?? 50 } };
+    targets: { fiberMin: num($('#cs-fiber').value) ?? 25, sodiumMax: num($('#cs-sodium').value) ?? 2300, satFatPctMax: num($('#cs-satfat').value) ?? 10, sugarMax: num($('#cs-sugar').value) ?? 50 },
+    rubric: { proteinG: num($('#rb-protein').value) ?? RUBRIC_DEFAULT.proteinG, calorieFloor: num($('#rb-floor').value) ?? RUBRIC_DEFAULT.calorieFloor, sessionsPerWeek: num($('#rb-sessions').value) ?? RUBRIC_DEFAULT.sessionsPerWeek,
+      sessionMinMinutes: num($('#rb-minmin').value) ?? RUBRIC_DEFAULT.sessionMinMinutes, strengthPerWeek: num($('#rb-strength').value) ?? RUBRIC_DEFAULT.strengthPerWeek, sleepHours: num($('#rb-sleep').value) ?? RUBRIC_DEFAULT.sleepHours,
+      bedtime: $('#rb-bed').value || RUBRIC_DEFAULT.bedtime, credits: Object.fromEntries($$('[data-credit]').map(i => [i.dataset.credit, Math.max(0, num(i.value) ?? RUBRIC_DEFAULT.credits[i.dataset.credit])])) } };
   coachDirty = true;
   await savePersist();
   if (!coachDirty) { toast('Coach settings saved.'); renderCoachSettings(); renderCoach(); autoReviews(); }
@@ -3477,6 +3728,111 @@ function renderReadinessCard() {
   el.hidden = !r;
   if (r) $('#rd-body').innerHTML = `<div class="rd rd-${r.verdict}" style="margin:0"><div class="rd-v">${esc(r.title)}</div><div class="rd-h">${esc([...r.parts.filter(p => p.score < 0).map(p => p.text), r.painNote, ...r.flags.map(f => f.text)].filter(Boolean).slice(0, 2).join(' · ') || r.hint)}</div></div>`;
   $('#rd-date').textContent = dashDate === todayKey() ? 'today' : fmtDay(dashDate, { month: 'short', day: 'numeric' });
+}
+
+/* ================= report cards: grades worked out from the data by fixed rules ================= */
+// The app grades; Claude only writes the words. So the same data always gets the same grade, and a GPA means the same
+// thing in a week as in a year. Every number below is editable in Settings › Coach › Report card.
+const RUBRIC_DEFAULT = { proteinG: 100, calorieFloor: 1500, sessionsPerWeek: 4, sessionMinMinutes: 10, strengthPerWeek: 2, sleepHours: 7, bedtime: '22:00',
+  credits: { anchors: 3, nutrition: 3, logging: 1, training: 2, sleep: 2, assignments: 1 } };
+const rubric = () => { const r = data.coachCfg?.rubric || {}; return { ...RUBRIC_DEFAULT, ...r, credits: { ...RUBRIC_DEFAULT.credits, ...(r.credits || {}) } }; };
+const SUBJECTS = [['anchors', 'Daily anchors'], ['nutrition', 'Nutrition'], ['logging', 'Logging'], ['training', 'Training'], ['sleep', 'Sleep habits'], ['assignments', 'Assignments']];
+const GRADE_STEPS = [[97, 'A+', 4], [93, 'A', 4], [90, 'A-', 3.7], [87, 'B+', 3.3], [83, 'B', 3], [80, 'B-', 2.7], [77, 'C+', 2.3], [73, 'C', 2], [70, 'C-', 1.7], [67, 'D+', 1.3], [63, 'D', 1], [60, 'D-', 0.7], [0, 'F', 0]];
+const toGrade = score => { const g = GRADE_STEPS.find(([min]) => score >= min - 1e-9); return { grade: g[1], points: g[2] }; };
+const GPA_STEPS = [[3.85, 'A'], [3.5, 'A-'], [3.15, 'B+'], [2.85, 'B'], [2.5, 'B-'], [2.15, 'C+'], [1.85, 'C'], [1.5, 'C-'], [1.15, 'D+'], [0.85, 'D'], [0.5, 'D-'], [0, 'F']];
+const gpaLetter = gpa => GPA_STEPS.find(([min]) => gpa >= min - 1e-9)[1];
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const pct = x => Math.round(x * 100);
+// Full credit at or past the target; half credit within 10% of it; nothing beyond that.
+const atLeast = (v, t) => v >= t ? 1 : v >= t * 0.9 ? 0.5 : 0;
+const atMost = (v, t) => v <= t ? 1 : v <= t * 1.1 ? 0.5 : 0;
+const hhmm = s => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+// Minutes from the target bedtime, either way, across midnight.
+const bedOff = (start, target) => { const a = hhmm(start), b = hhmm(target); return a == null || b == null ? null : Math.abs(((a - b + 720) % 1440 + 1440) % 1440 - 720); };
+
+// A subject's score from weighted parts; parts without data (score null) drop out and the rest are re-weighted.
+function scoreParts(parts) {
+  const live = parts.filter(p => p.score != null), w = live.reduce((s, p) => s + p.weight, 0);
+  return w ? Math.round(live.reduce((s, p) => s + p.score * p.weight, 0) / w * 1000) / 10 : null;
+}
+function gradeSubjects(start, end) {
+  const R = rubric(), ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey());
+  const n = ks.length, weeks = n / 7, D = ks.map(k => [k, getDay(k)]), out = {};
+  if (!n) return out;
+  // Daily anchors: boxes ticked against the weekly goal, scaled to the period.
+  { const c = anchorCfg(), got = D.reduce((s, [, d]) => s + anchorCount(d), 0), goal = c.target * weeks;
+    out.anchors = { parts: [{ name: 'Boxes ticked vs goal', weight: 1, score: clamp01(got / goal), detail: `${got} of a goal of ${Math.round(goal)} (${c.target} a week)` }] }; }
+  // Nutrition: food quality on fully logged days. Calories are graded under the anchors (Day Pack, Dinner Boundary).
+  { const t = coachCfg().targets, full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).map(([k, d]) => totals(d));
+    const share = f => full.length ? full.reduce((s, x) => s + f(x), 0) / full.length : null;
+    const hit = f => `${full.filter(x => f(x) === 1).length} of ${full.length} days`;
+    const pr = x => atLeast(x.protein, R.proteinG), fi = x => atLeast(x.fiber, t.fiberMin), so = x => atMost(x.sodium, t.sodiumMax);
+    const sf = x => x.calIn ? atMost(x.satFat * 9 / x.calIn * 100, t.satFatPctMax) : 0, su = x => atMost(x.sugar, t.sugarMax), fl = x => atLeast(x.calIn, R.calorieFloor);
+    const enough = full.length >= Math.max(3, Math.ceil(n * 4 / 7));
+    out.nutrition = enough ? { parts: [
+      { name: `Protein ≥ ${R.proteinG} g`, weight: 25, score: share(pr), detail: hit(pr) },
+      { name: `Fiber ≥ ${t.fiberMin} g`, weight: 20, score: share(fi), detail: hit(fi) },
+      { name: `Sodium ≤ ${fmtN(t.sodiumMax)} mg`, weight: 20, score: share(so), detail: hit(so) },
+      { name: `Saturated fat ≤ ${t.satFatPctMax}% of calories`, weight: 15, score: share(sf), detail: hit(sf) },
+      { name: `Sugars ≤ ${t.sugarMax} g`, weight: 10, score: share(su), detail: hit(su) },
+      { name: `Calories ≥ ${fmtN(R.calorieFloor)} (safety floor)`, weight: 10, score: share(fl), detail: hit(fl) }] }
+      : { incomplete: `only ${full.length} fully logged day${full.length === 1 ? '' : 's'} (needs ${Math.max(3, Math.ceil(n * 4 / 7))})` }; }
+  // Logging: without it, skipping the log on bad days would raise the Nutrition grade.
+  { const full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).length;
+    out.logging = { parts: [{ name: 'Days fully logged in Lose It', weight: 1, score: full / n, detail: `${full} of ${n} days` }] }; }
+  // Training: anything from Garmin or Strava of at least the minimum length is a session.
+  { const ws = D.flatMap(([k, d]) => (d?.workouts || []).filter(w => ['garmin', 'strava'].includes(w.source) && (w.durationMin || 0) >= R.sessionMinMinutes).map(w => ({ k, w })));
+    const goal = R.sessionsPerWeek * weeks, sGoal = R.strengthPerWeek * weeks, strength = ws.filter(x => isStrength(x.w)).length;
+    // Load: share of the period's 7-day blocks that sat in the steady range (half credit for building fast or a bit light).
+    const blocks = []; for (let e = end; e >= addDays(start, 6); e = addDays(e, -7)) { const ls = loadStatus(e); if (ls.ratio != null) blocks.push(ls); }
+    const loadScore = blocks.length ? blocks.reduce((s, b) => s + (b.ratio >= 0.8 && b.ratio <= 1.3 ? 1 : (b.ratio >= 0.6 && b.ratio < 0.8) || (b.ratio > 1.3 && b.ratio <= 1.5) ? 0.5 : 0), 0) / blocks.length : null;
+    const mix = intensityMix(ks), hard = mix.hardPct;
+    out.training = { parts: [
+      { name: `Sessions (${R.sessionsPerWeek} a week, ${R.sessionMinMinutes}+ min)`, weight: 35, score: clamp01(ws.length / goal), detail: `${ws.length} of ${Math.round(goal)}` },
+      { name: `Strength (${R.strengthPerWeek} a week)`, weight: 30, score: clamp01(strength / sGoal), detail: `${strength} of ${Math.round(sGoal)}` },
+      { name: 'Load vs usual week (0.8–1.3×)', weight: 20, score: loadScore, detail: blocks.length ? blocks.map(b => b.ratio + '×').reverse().join(', ') : 'needs 4 weeks of history' },
+      { name: 'Hard share of zone minutes (≤ 25%)', weight: 15, score: hard == null ? null : hard <= 25 ? 1 : hard <= 35 ? 0.5 : 0, detail: hard == null ? 'no heart-rate zones' : `${hard}% hard` }] }; }
+  // Sleep habits: hours asleep and going to bed on time. Needs data for half the nights.
+  { const nights = D.filter(([, d]) => sleepHours(d) != null).map(([, d]) => d.sleep), T = R.sleepHours;
+    if (nights.length < Math.ceil(n / 2)) out.sleep = { incomplete: `sleep recorded on ${nights.length} of ${n} nights` };
+    else {
+      const avgH = avg(nights.map(s => s.hours)), offs = nights.map(s => bedOff(s.start, R.bedtime)).filter(x => x != null);
+      out.sleep = { parts: [
+        { name: `Average sleep (target ${T} h)`, weight: 50, score: clamp01((avgH - (T - 1)) / 1), detail: `${fmtN(avgH, 1)} h` },
+        { name: `Nights of ${T} h or more`, weight: 25, score: nights.filter(s => s.hours >= T).length / nights.length, detail: `${nights.filter(s => s.hours >= T).length} of ${nights.length}` },
+        { name: `In bed near ${R.bedtime} (±30 min)`, weight: 25, score: offs.length >= Math.ceil(nights.length / 2) ? avg(offs.map(o => clamp01((90 - o) / 60))) : null, detail: offs.length ? `typically ${Math.round(avg(offs))} min off; ${offs.filter(o => o <= 30).length} of ${offs.length} nights within 30 min` : 'no bedtimes recorded' }] };
+    }
+  }
+  for (const [key, name] of SUBJECTS) if (out[key]) out[key].name = name;
+  return out;
+}
+// Finish a card: grade each subject, add the assignments Claude marked, and work out the GPA.
+function finishCard(subjects, marks) {
+  const R = rubric(), card = { subjects: [], credits: 0, creditsAll: 0 };
+  if (marks) subjects.assignments = marks.length ? { name: 'Assignments', parts: [{ name: 'Last period’s assignments', weight: 1, score: marks.reduce((s, m) => s + (m.status === 'done' ? 1 : m.status === 'partly' ? 0.5 : 0), 0) / marks.length, detail: `${marks.filter(m => m.status === 'done').length} done, ${marks.filter(m => m.status === 'partly').length} partly, ${marks.filter(m => m.status === 'missed').length} missed` }] }
+    : { name: 'Assignments', incomplete: 'no assignments were set for this period' };
+  let pts = 0;
+  for (const [key, name] of SUBJECTS) {
+    const s = subjects[key]; if (!s) continue;
+    const credits = R.credits[key] || 0, score = s.incomplete ? null : scoreParts(s.parts);
+    card.creditsAll += credits;
+    const g = score == null ? null : toGrade(score);
+    card.subjects.push({ key, name, credits, score, grade: g ? g.grade : 'I', points: g?.points ?? null, incomplete: s.incomplete || (score == null ? 'no data' : ''), parts: (s.parts || []).map(p => ({ ...p, score: p.score == null ? null : pct(p.score) })) });
+    if (g && credits) { pts += g.points * credits; card.credits += credits; }
+  }
+  card.gpa = card.credits ? Math.round(pts / card.credits * 100) / 100 : null;
+  card.grade = card.gpa == null ? 'I' : gpaLetter(card.gpa);
+  return card;
+}
+// Results, not choices: tracked next to the grades, never graded.
+function periodOutcomes(start, end) {
+  const ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey()), D = ks.map(getDay);
+  const S = weightSeries(), a = trendOn(S, addDays(start, -1)) ?? trendOn(S, start), b = trendOn(S, ks[ks.length - 1] || end), w = weightCfg();
+  const av = f => { const v = D.map(f).filter(x => x != null); return v.length ? Math.round(avg(v) * 10) / 10 : null; };
+  const perWeek = a != null && b != null && ks.length ? Math.round((b - a) / ks.length * 7 * 100) / 100 : null;
+  return { weight_change: a != null && b != null ? Math.round((b - a) * 10) / 10 : null, weight_unit: S.unit, weight_rate_per_week: perWeek, committed_rate_per_week: w.rate ?? null,
+    hrv_overnight_garmin: av(d => d?.garmin?.hrvNight), hrv_apple: av(d => d?.health?.hrv), resting_hr: av(d => healthValue(d, 'restingHR')),
+    mood: av(d => d?.feel?.mood), energy: av(d => d?.feel?.energy), stress: av(d => d?.feel?.stress), pain_flags: ks.length ? bodyFlags(ks[ks.length - 1]).map(f => f.text) : [] };
 }
 
 /* ================= data health ================= */
@@ -4422,6 +4778,7 @@ setInterval(() => { if (document.visibilityState === 'visible') autoReviews().ca
 
 /* ---- Coach wiring ---- */
 $('#coach-seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; coachView = b.dataset.v; renderCoach(); };
+$('#coach-history').addEventListener('toggle', e => { const el = e.target; if (el.matches?.('details.rt') && el.open) fillTreeRow(el); }, true);
 $('#coach-now-btn').onclick = openReviewNow;
 $('#coach-now').querySelector('.chips').onclick = e => { const b = e.target.closest('[data-q]'); if (b) quickRange(b.dataset.q); };
 $('#cn-go').onclick = runReviewNow;
@@ -4430,12 +4787,13 @@ $('#cs-save').onclick = saveCoachSettings;
 $('#cu-add-go').onclick = () => addCredit('credit');
 $('#cu-set-go').onclick = () => addCredit('set');
 $('#tab-coach').addEventListener('click', async e => {
-  const t = e.target.closest('[data-regen],[data-swaps],[data-savenote],[data-force],[data-delrev]');
+  const t = e.target.closest('[data-regen],[data-swaps],[data-savenote],[data-force],[data-delrev],[data-write]');
   if (!t) return;
   e.preventDefault(); e.stopPropagation();
   if (coachBusy && !t.dataset.savenote && !t.dataset.delrev) { toast('A review is being written — one moment.'); return; }
   try {
     if (t.dataset.regen) { const r = reviews()[t.dataset.regen]; await writeReview(r.key, { kind: r.kind, start: r.start, end: r.end, question: r.question, email: false, force: true }); }
+    else if (t.dataset.write) { const [kind, a, b, key] = t.dataset.write.split('|'); await writeReview(key, { kind, start: a, end: b, email: false, force: true }); }
     else if (t.dataset.swaps) await moreSwaps(t.dataset.swaps);
     else if (t.dataset.force) { const r = reviews()[t.dataset.force]; await writeReview(r.key, { kind: r.kind, start: r.start, end: r.end, email: false, force: true }); }
     else if (t.dataset.savenote) { const r = reviews()[t.dataset.savenote]; r.note = $(`[data-note="${CSS.escape(r.key)}"]`).value.trim(); r.updatedAt = new Date().toISOString(); coachDirty = true; await savePersist(); toast('Note saved.'); renderCoach(); }
