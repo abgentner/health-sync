@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.0** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.0.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -287,7 +287,7 @@ The script can only see the Gmail account it's set up in, so **Lose It's emails 
 5. Google says **"Google hasn't verified this app."** That's expected, because this is your own script.
    - Click **Advanced** → **Go to Health Sync email saver (unsafe)**.
 6. Tick **Select all**, or tick each box, so the script can read your Gmail and add files to your Drive. Then click **Continue** (or **Allow**).
-7. At the bottom, the **Execution log** shows something like `Saved 1 attachment(s) from 1 email(s).`
+7. At the bottom, the **Execution log** shows each step as it runs. Every line starts with the step's name (`Email:`, `Strava:`, `Garmin:`, `Data health:`), and the run ends with `Done in … s.` For this step, look for something like `Email: saved 1 attachment(s) from 1 email(s).` Strava and Garmin say `not connected, skipped` until you set them up in Steps 10 and 13.
 
 🎉 Done. From now on, every hour, new Lose It report emails land in your Inbox folder automatically.
 
@@ -379,7 +379,7 @@ The script can only see the Gmail account it's set up in, so **Lose It's emails 
 
 - In **Google Drive → Health Sync → Inbox**, you'll see a file like `2026-10-15 1300 strava.json`. A new one appears only when there are new workouts.
 - Open Health Sync. Your workouts appear with a **Strava** tag, and the **Movement** box ticks itself.
-- In the script, **☰ Executions** shows a run every hour. The log says `Strava: saved 1 new activity.` or `Strava: nothing new.`
+- In the script, **☰ Executions** shows a run every hour. Its log says `Strava: checking for new workouts…`, then `Strava: saved 1 new activity.` or `Strava: nothing new.` If you see `Strava: not connected, skipped.`, Step 10d isn't finished.
 
 ### 10f. Bring in your whole Strava history (one time)
 
@@ -441,7 +441,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 **First, let the script receive data (one time, about 5 minutes, on your computer):**
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.0, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.0.1, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
 2. Click **Deploy** (blue, top right) → **New deployment**.
 3. Click the **⚙ gear** next to "Select type" → **Web app**.
 4. Fill in:
@@ -527,7 +527,7 @@ That's it. Health Sync writes the reviews for every week since **September 7** i
 
 The email comes from your own Google script, so it needs the script's v2.0 code or later:
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.0, the same version as the app) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.0.1, the same version as the app) and click **💾 Save**.
 2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
    - Google asks for permission again, this time to **send email as you**. Allow it.
    - Check that you received a test email.
@@ -566,7 +566,7 @@ Anthropic doesn't let an API key read the account balance, so Health Sync tracks
 
 What it doesn't include: Garmin doesn't offer **training readiness, training status or VO2 max** through this API.
 
-**What the app shows from it (v3.0):** every time it syncs, Health Sync reads the new and updated day files in **Garmin › days** and uses:
+**What the app shows from it (since v3.0):** every time it syncs, Health Sync reads the new and updated day files in **Garmin › days** and uses:
 
 | From Garmin | Where it shows |
 |---|---|
@@ -593,7 +593,7 @@ You need **Step 9 done first** (the script).
 
 1. Open your project at **https://script.google.com** (**Health Sync email saver**).
 2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
-3. Paste in the new **`email-to-drive.gs`** (v3.0, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
+3. Paste in the new **`email-to-drive.gs`** (v3.0.1, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
 
 ### 13c. Add your key (privately)
 
@@ -627,6 +627,25 @@ You need **Step 9 done first** (the script).
 
 **That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then loads a slice of your history, newest first: about 2 weeks of days plus some workouts each hour, so roughly **a year of history a day**. It keeps going until it's past your oldest Garmin workout, so months without the watch don't stop it early. Import › Data health shows how far back it has got.
 
+- **A run takes 1–3 minutes,** because the script pauses between requests to stay gentle with Garmin. The Execution log shows each step as it goes, for example:
+
+  ```
+  Health Sync script v3.0.1
+  Email: looking for new Lose It and Garmin report emails…
+  Email: saved 0 attachment(s) from 0 email(s).
+  Strava: checking for new workouts…
+  Strava: nothing new.
+  Garmin: reading the last 3 days and new workouts…
+  Garmin: last 3 days saved (35 s). Loading history for up to 2 minutes…
+  Garmin history: workouts 1–20 checked
+  Garmin history: 2026-09-22 to 2026-09-28 saved (7 days with data)
+  Garmin: up to date · history: days loading (back to 2026-09-22), workouts loading (46 saved)
+  Data health: checking each source…
+  Data health: status saved for the app · no problems.
+  Done in 104 s.
+  ```
+
+  A gap of up to a minute between lines is normal while Garmin is working. If a run stops without `Done in …`, open it in **☰ Executions** to see the error.
 - **Faster history:** run **`garminHistoryNow`** as often as you like; each run loads about 5 minutes' worth.
 - **Don't need all of it?** Add a script property `GARMIN_HISTORY_FROM` with the earliest date you want, like `2024-01-01`.
 - **Garmin busy?** Garmin doesn't publish its limits, so the script sends only a few requests at a time, with pauses in between. If Garmin still asks it to slow down, it pauses for 1 hour, then 2, 4 and up to 8 hours if it keeps happening, and carries on after that. Nothing is lost, the Garmin row shows when it resumes, and no alert email is sent.

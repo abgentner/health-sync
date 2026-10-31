@@ -8,7 +8,7 @@
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
 | **README / SETUP / ALTERNATIVES** | The line at the top of each file |
 | **CHANGELOG** | Its newest entry |
-| **Your copies** | The Desktop folder name, like **Health Sync v3.0** |
+| **Your copies** | The Desktop folder name, like **Health Sync v3.0.1** |
 
 ### How versions are numbered
 
@@ -20,6 +20,29 @@
 **Paste the script every release**, even if only its number changed, so everything stays on one version (README › Updating the app). Before v3.0 the script had its own number, which is why older entries below mention script versions such as 2.12.1.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v3.0.1 (October 31, 2026)
+
+- **The script shows its progress, step by step.** The Garmin step takes 1–3 minutes, because it pauses between requests to stay gentle with Garmin. It used to print nothing until the end, so a normal run looked stuck after "Strava: nothing new." Now every step logs as it starts and as it finishes:
+  - **Email:** what it's looking for, how many new emails it found, and what it saved
+  - **Strava:** checking, how many new workouts, then saved or nothing new. It now says "not connected, skipped" instead of saying nothing.
+  - **Garmin:** the last 3 days (with how long they took), then history week by week and workouts page by page. It says "not connected, skipped" without a key.
+  - **Data health:** checking, then how many problems there are, named, and which ones it emailed you about
+  - **The end of the run:** `Done in … s`, and which steps failed, if any
+  - **`stravaBackfill`, `garminHistoryNow` and the Apple Health receiver** log their progress too.
+
+  Example in SETUP.md Step 13d.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `email-to-drive.gs` | The progress lines above. Nothing else changes in what it does. **Paste it** (README › Updating the app). No need to run `setup`. If you use the Health Auto Export receiver or the Coach email, also make a **New version** deployment so the receiver logs too. |
+  | `SETUP.md` | Step 9c, 10e and 13d: what the log looks like now, with a full example run; version line |
+  | `CHANGELOG.md` | This entry |
+  | `index.html` | **Version number only** (3.0 → 3.0.1) |
+  | `README.md` | **Version number only** |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `config.js` | Not changed (it has no version) |
 
 ### v3.0 (October 31, 2026)
 

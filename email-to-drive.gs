@@ -1,6 +1,6 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 3.0
+ * Version 3.0.1
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
@@ -28,7 +28,7 @@
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '3.0';   // printed at the start of every run
+const SCRIPT_VERSION = '3.0.1';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -50,12 +50,14 @@ function setup() {
 /** What the hourly timer runs. */
 function hourly() {
   console.log('Health Sync script v' + SCRIPT_VERSION);
-  const errors = {};
+  const t0 = Date.now(), errors = {};
   try { saveHealthReports(); } catch (e) { errors.email = String(e.message || e); console.error(e); }
   try { syncStrava(); } catch (e) { errors.strava = String(e.message || e); console.error(e); }
   try { syncGarmin(); } catch (e) { errors.garmin = String(e.message || e); console.error(e); }
   try { checkSources_(errors); } catch (e) { console.error(e); }
-  if (errors.email || errors.strava || errors.garmin) throw new Error(Object.values(errors).join(' | '));   // still shows as Failed in Executions
+  const failed = Object.keys(errors);
+  console.log(`Done in ${Math.round((Date.now() - t0) / 1000)} s${failed.length ? ` · ${failed.join(', ')} failed (see the errors above)` : ''}.`);
+  if (failed.length) throw new Error(Object.values(errors).join(' | '));   // still shows as Failed in Executions
 }
 
 /** Turns the hourly check off. */
@@ -69,9 +71,11 @@ function stop() {
 
 /** Saves attachments from matching emails into Health Sync › Inbox. */
 function saveHealthReports() {
+  console.log('Email: looking for new Lose It and Garmin report emails…');
   const folder = inboxFolder_();
   const label = GmailApp.getUserLabelByName(LABEL) || GmailApp.createLabel(LABEL);
   const threads = GmailApp.search(SEARCH, 0, 50);
+  if (threads.length) console.log(`Email: ${threads.length} new email${threads.length === 1 ? '' : 's'}, saving attachments…`);
   let saved = 0;
   threads.forEach(thread => {
     thread.getMessages().forEach(msg => {
@@ -150,8 +154,9 @@ function stravaCheck() {
 
 /** Saves new Strava activities into Health Sync › Inbox. Does nothing if Strava isn't connected. */
 function syncStrava() {
+  console.log('Strava: checking for new workouts…');
   const token = stravaAccess_();
-  if (!token) return;
+  if (!token) { console.log('Strava: not connected, skipped.'); return; }
   const p = props_();
   const seen = JSON.parse(p.getProperty('STRAVA_SEEN') || '[]');
   const days = seen.length ? STRAVA_LOOKBACK_DAYS : STRAVA_FIRST_DAYS;
@@ -164,6 +169,7 @@ function syncStrava() {
   } while (batch.length === 100 && page <= 5);
   const fresh = list.filter(a => !seen.includes(a.id));
   if (!fresh.length) { console.log('Strava: nothing new.'); return; }
+  console.log(`Strava: ${fresh.length} new workout${fresh.length === 1 ? '' : 's'}, reading calories for each…`);
   const activities = fresh.map(a => {
     let calories = null;
     try { calories = stravaGet_('activities/' + a.id, token).calories; } catch (e) {}   // calories are only in the detailed view
@@ -187,9 +193,11 @@ function stravaBackfill() {
   if (!token) throw new Error('Connect Strava first: run stravaLink, then stravaConnect (SETUP.md Step 10d).');
   const p = props_();
   let all = [], page = 1, batch;
+  console.log('Strava history: reading your workout list, 200 at a time…');
   do {
     batch = stravaGet_(`athlete/activities?per_page=200&page=${page}`, token);
     all = all.concat(batch);
+    console.log(`Strava history: page ${page} · ${all.length} workouts so far`);
     page++;
   } while (batch.length === 200 && page <= 50);
   if (!all.length) { console.log('Strava history: no activities found.'); return; }
@@ -341,8 +349,9 @@ function garminCheck() {
 function garminHistoryNow() {
   console.log('Health Sync script v' + SCRIPT_VERSION);
   if (Number(props_().getProperty('GARMIN_PAUSE_UNTIL')) > Date.now()) { console.log(`Garmin asked to slow down, so the script is pausing until ${garminTime_(Number(props_().getProperty('GARMIN_PAUSE_UNTIL')))}.`); return; }
+  console.log('Garmin history: loading for about 5 minutes…');
   garminHistory_(Date.now(), 300, 3 * GARMIN_HISTORY_REQUESTS);
-  console.log(garminHistoryLine_());
+  console.log('Garmin: ' + garminHistoryLine_());
 }
 
 /** Starts the history load again from the top (for example after Garmin adds new kinds of data). */
@@ -354,12 +363,14 @@ function garminRestartHistory() {
 /** What the hourly check runs. Does nothing until GARMIN_KEY is added. */
 function syncGarmin() {
   const p = props_();
-  if (!(p.getProperty('GARMIN_KEY') || '').trim()) return;
+  if (!(p.getProperty('GARMIN_KEY') || '').trim()) { console.log('Garmin: not connected, skipped.'); return; }
   const left = garminKeyDaysLeft_();
   if (left != null && left < 0) throw new Error(`Garmin key expired on ${p.getProperty('GARMIN_KEY_EXPIRES')}. Create a new one (SETUP.md Step 13) and paste it into GARMIN_KEY and GARMIN_KEY_EXPIRES.`);
   const pause = Number(p.getProperty('GARMIN_PAUSE_UNTIL'));
   if (pause > Date.now()) { console.log(`Garmin: pausing until ${garminTime_(pause)} (Garmin asked to slow down). Nothing is lost.`); return; }
   const t0 = Date.now(), today = garminToday_();
+  // Garmin takes a minute or two with pauses between requests, so say what's happening as it goes.
+  console.log(`Garmin: reading the last ${GARMIN_RECENT_DAYS} days and new workouts…`);
   const recent = garminSaveDays_(garminAddDays_(today, 1 - GARMIN_RECENT_DAYS), today, true);
   if (recent.watchSync) p.setProperty('GARMIN_WATCH_SYNC', recent.watchSync);
   if (p.getProperty('GARMIN_PROFILE_DAY') !== today) { garminProfile_(); p.setProperty('GARMIN_PROFILE_DAY', today); }
@@ -367,6 +378,8 @@ function syncGarmin() {
   p.setProperty('GARMIN_LAST_OK', new Date().toISOString());
   p.deleteProperty('GARMIN_STRIKES');   // Garmin is happy again: the next pause starts back at an hour
   if (fresh) p.setProperty('GARMIN_LAST_NEW', new Date().toISOString());
+  const historyDone = p.getProperty('GARMIN_ACT_DONE') === 'yes' && p.getProperty('GARMIN_HISTORY_DONE') === 'yes';
+  console.log(`Garmin: last ${GARMIN_RECENT_DAYS} days saved${fresh ? ` · ${fresh} new workout${fresh === 1 ? '' : 's'}` : ''} (${Math.round((Date.now() - t0) / 1000)} s)${historyDone ? '' : `. Loading history for up to ${Math.round(GARMIN_HISTORY_SECONDS / 60)} minutes…`}`);
   garminHistory_(t0, GARMIN_HISTORY_SECONDS, GARMIN_HISTORY_REQUESTS);
   console.log(`Garmin: up to date${fresh ? ` · ${fresh} new workout${fresh === 1 ? '' : 's'}` : ''} · ${garminHistoryLine_()}`);
 }
@@ -388,6 +401,7 @@ function garminHistory_(t0, seconds, allowance) {
       garminSaveIndex_(index);
       p.setProperty('GARMIN_ACT_OFFSET', String(offset + done));
       if (done === list.length && list.length < GARMIN_PAGE) p.setProperty('GARMIN_ACT_DONE', 'yes');
+      if (done) console.log(`Garmin history: ${done === 1 ? `workout ${offset + 1}` : `workouts ${offset + 1}–${offset + done}`} checked`);
     }
     if (left() && p.getProperty('GARMIN_HISTORY_DONE') !== 'yes') {
       const to = p.getProperty('GARMIN_HISTORY_TO') || garminAddDays_(garminToday_(), -GARMIN_RECENT_DAYS);
@@ -398,6 +412,7 @@ function garminHistory_(t0, seconds, allowance) {
       const was = p.getProperty('GARMIN_EARLIEST');
       if (earliest && (!was || earliest < was)) p.setProperty('GARMIN_EARLIEST', earliest);
       p.setProperties({ GARMIN_HISTORY_TO: garminAddDays_(from, -1), GARMIN_HISTORY_EMPTY: String(empty) });
+      console.log(`Garmin history: ${from} to ${to} saved (${found} day${found === 1 ? '' : 's'} with data)`);
       // Done once: a long empty stretch AND past your oldest workout (so a few months off the watch don't end it early),
       // or the GARMIN_HISTORY_FROM date, or before Garmin Connect existed.
       const oldestWorkout = p.getProperty('GARMIN_ACT_DONE') === 'yes' ? garminOldestWorkout_() : null;
@@ -593,19 +608,22 @@ function healthAddress() {
 function doPost(e) {
   const reply = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
   const key = props_().getProperty('HEALTH_KEY');
-  if (!key || !e || !e.parameter || e.parameter.key !== key) return reply({ ok: false, error: 'wrong or missing key' });
+  if (!key || !e || !e.parameter || e.parameter.key !== key) { console.log('Receiver: refused a delivery (wrong or missing key).'); return reply({ ok: false, error: 'wrong or missing key' }); }
   const body = e.postData && e.postData.contents;
-  if (!body) return reply({ ok: false, error: 'no data received' });
+  if (!body) { console.log('Receiver: a delivery arrived with no data in it.'); return reply({ ok: false, error: 'no data received' }); }
   // The Health Sync app asking for a review email (sent only to you, the owner of this script).
   let msg = null;
   try { msg = JSON.parse(body); } catch (err) {}
   if (msg && msg.action === 'email') {
     MailApp.sendEmail({ to: Session.getEffectiveUser().getEmail(), subject: String(msg.subject || 'Health Sync review').slice(0, 200), htmlBody: String(msg.html || ''), name: 'Health Sync' });
+    console.log('Receiver: emailed you a Coach review.');
     return reply({ ok: true, emailed: true });
   }
   const isJson = /^\s*[{[]/.test(body);
   const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmmss');
-  inboxFolder_().createFile(`${stamp} apple-health.${isJson ? 'json' : 'txt'}`, body, isJson ? 'application/json' : 'text/plain');
+  const name = `${stamp} apple-health.${isJson ? 'json' : 'txt'}`;
+  inboxFolder_().createFile(name, body, isJson ? 'application/json' : 'text/plain');
+  console.log(`Receiver: saved Health Auto Export data to the Inbox as ${name} (${Math.round(body.length / 1024)} KB).`);
   return reply({ ok: true, saved: body.length });
 }
 
@@ -625,6 +643,7 @@ function doGet() {
 // (the app shows it), and email you once a day if something has stopped.
 const LATE_HOURS = 36;
 function checkSources_(errors) {
+  console.log('Data health: checking each source…');
   const p = props_(), now = Date.now(), hours = t => t ? Math.round((now - t) / 36e5) : null;
   const loseIt = Number(p.getProperty('LAST_LOSEIT')) || null;
   let hae = null, haeSize = null, haeName = '';
@@ -669,12 +688,17 @@ function checkSources_(errors) {
   if (gm.connected && gm.watchHoursAgo != null && gm.watchHoursAgo > GARMIN_WATCH_LATE_HOURS) problems.push(['garminwatch', `Your watch hasn't synced to Garmin Connect for ${gm.watchHoursAgo} hours. Open the Garmin Connect app on your phone (with Bluetooth on) so it syncs.`]);
   if (gm.connected && gm.keyDaysLeft != null && gm.keyDaysLeft >= 0 && gm.keyDaysLeft <= GARMIN_KEY_WARN_DAYS)
     problems.push(['garminkey', `Your Garmin key expires on ${gm.keyExpires} (${gm.keyDaysLeft} days). Create a new one on Garmin Connect and paste it into the script's GARMIN_KEY and GARMIN_KEY_EXPIRES (SETUP.md Step 13). It takes 2 minutes.`, 7]);
+  const emailed = [];
   for (const [k, msg, everyDays = 1] of problems) {
     const last = Number(p.getProperty('ALERT_' + k)) || 0;
     if (now - last < everyDays * 24 * 36e5) continue;   // at most one email per problem per day (key reminders: weekly)
     MailApp.sendEmail({ to: Session.getEffectiveUser().getEmail(), subject: 'Health Sync: data problem', htmlBody: `<p>${msg}</p><p style="color:#666;font-size:13px">Health Sync checks this every hour and emails at most once a day per problem.</p>`, name: 'Health Sync' });
     p.setProperty('ALERT_' + k, String(now));
+    emailed.push(k);
   }
+  const NAMES = { loseit: 'Lose It report late', email: 'saving emails', hae: 'Health Auto Export late', haemin: 'Health Auto Export minute data', strava: 'Strava', garmin: 'Garmin', garminwatch: 'watch not synced', garminkey: 'Garmin key expiring' };
+  const named = ks => ks.map(k => NAMES[k] || k).join(', ');
+  console.log(`Data health: status saved for the app · ${problems.length ? `${problems.length} problem${problems.length === 1 ? '' : 's'}: ${named(problems.map(x => x[0]))}${emailed.length ? ` · emailed you about ${named(emailed)}` : ' · already emailed about recently'}` : 'no problems'}.`);
 }
 
 /* ============================ Helpers ============================ */
