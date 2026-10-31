@@ -1,6 +1,8 @@
 # Health Sync — Setup from scratch
 
-This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health) and the Claude Coach. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
+> **Version 3.0** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+
+This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
 > ✏️ `YOUR-USERNAME` means your GitHub username (yours is `abgentner`).
 
@@ -400,6 +402,8 @@ The hourly check only goes back 30 days the first time. To bring in **everything
 
 **What this does:** Garmin Connect (steps, sleep, heart rate), your **Withings** scale (weight, body fat) and Lose It (nutrition) all write into **Apple Health** on your iPhone. **Health Auto Export** copies that into your Google Drive every hour, and Health Sync reads it.
 
+**How this works with Step 13 (Garmin straight from Garmin):** do both. Apple Health is where your **step total** (iPhone and Garmin merged), **weight** (Withings), **vitamins and minerals** and the nutrition backup come from. Garmin's own data is where **sleep with its score**, overnight HRV, Body Battery and stress come from. Each measure uses one source, the same every time (README › Which source wins). The other source fills in any day the first one misses. So keep **Sleep Analysis** ticked below: it's the backup if the Garmin key ever lapses.
+
 ### 11a. Health Auto Export (fully automatic)
 
 Once set up, this runs on its own in the background. You never export anything by hand.
@@ -418,7 +422,7 @@ Once set up, this runs on its own in the background. You never export anything b
 | Data type | **Health Metrics** |
 | Metrics | **Step Count, Sleep Analysis, Resting Heart Rate, Active Energy, Flights Climbed, Dietary Energy, Protein, Carbohydrates, Total Fat**, plus **Weight & Body Mass** and **Body Fat Percentage** (from your Withings scale), and **Heart Rate Variability, Water, VO2 Max, Mindful Minutes** if you like |
 | Export format | **JSON** |
-| Aggregation / Time grouping | **Day**. This one really matters. With **Minutes** or **Hours**, Health Auto Export lumps your iPhone's and Garmin's steps into the same buckets and adds them together (e.g. 14,922 instead of 11,442). Health Sync ignores steps, active calories and flights from those files and says so in the Import tab. |
+| Aggregation / Time grouping | **Day**. This one really matters. With **Minutes** or **Hours**, Health Auto Export lumps your iPhone's and Garmin's steps into the same buckets and adds them together (e.g. 14,922 instead of 11,442). Health Sync ignores steps, active calories and flights from those files and says so in the Import tab. (Sleep is read correctly either way.) |
 | Date range | **Last 7 Days** (or "since last sync"). Days are replaced, never doubled. |
 | Sync cadence | **Every hour** (or every few hours) |
 
@@ -437,7 +441,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 **First, let the script receive data (one time, about 5 minutes, on your computer):**
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v1.9 or later) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.0, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
 2. Click **Deploy** (blue, top right) → **New deployment**.
 3. Click the **⚙ gear** next to "Select type" → **Web app**.
 4. Fill in:
@@ -458,6 +462,8 @@ Once set up, this runs on its own in the background. You never export anything b
 4. Apply the settings in the table above, and turn it **on**.
 5. Tap **Sync now** / **Manual sync** once. Within a few seconds, a file like `2026-10-16 101500 apple-health.json` appears in your Drive **Inbox**. Open Health Sync and it imports it.
 
+**Check it (either destination):** in Health Sync, open **Import › Import results**. The Health Auto Export line lists what each file held, for example *"Apple Health (Health Auto Export) — 7 days (steps, sleep, weight, resting heart rate…)"*. If a measure you ticked isn't in that list, it isn't reaching the app; the matching row in **Import › Data health** says what to check.
+
 > **Keep the key private.** Anyone with the full address could send data into your Inbox, though they still couldn't read anything. To change the key: in **Project Settings → Script Properties**, delete `HEALTH_KEY`, run **healthAddress** again, and paste the new address into Health Auto Export.
 
 > **When you paste a newer version of the script later:** go to **Deploy → Manage deployments** → **✏️ edit** → **Version: New version** → **Deploy**. This keeps the same address and switches it to the new code.
@@ -473,8 +479,9 @@ Once set up, this runs on its own in the background. You never export anything b
 **Garmin Connect:**
 
 1. Open the **Garmin Connect** app → tap **More** (☰, bottom right) → **Settings** → **Connected Apps** → **Apple Health**.
-2. Turn on sharing, and allow everything you want: steps, sleep, weight, heart rate and so on.
+2. Turn on sharing, and allow everything you want: steps, sleep, weight, heart rate and so on. **Steps** matters most: Apple Health merges them with your iPhone's. **Sleep** is the backup for Step 13.
 3. Check on the iPhone side: **Settings → Apps → Health → Data Access & Devices → Garmin Connect** → **Turn On All**. (On older iOS: **Settings → Health → Data Access & Devices**.)
+4. **Check it:** in the **Health** app, open **Sleep** and **Steps**. Last night and today should show **Garmin Connect** as a source.
 
 ---
 
@@ -518,9 +525,9 @@ That's it. Health Sync writes the reviews for every week since **September 7** i
 
 ### 12c. Turn on the Monday email (5 minutes)
 
-The email comes from your own Google script, so it needs the script's v2.0 code:
+The email comes from your own Google script, so it needs the script's v2.0 code or later:
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v2.0) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.0, the same version as the app) and click **💾 Save**.
 2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
    - Google asks for permission again, this time to **send email as you**. Allow it.
    - Check that you received a test email.
@@ -559,7 +566,16 @@ Anthropic doesn't let an API key read the account balance, so Health Sync tracks
 
 What it doesn't include: Garmin doesn't offer **training readiness, training status or VO2 max** through this API.
 
-> In this version (2.12) the app shows Garmin's **status** under Import › Data health. Showing the data itself on the dashboard, day pages and in the Coach comes in the next version, built on your real Garmin files.
+**What the app shows from it (v3.0):** every time it syncs, Health Sync reads the new and updated day files in **Garmin › days** and uses:
+
+| From Garmin | Where it shows |
+|---|---|
+| **Sleep and sleep score** | Sleep tile and Sleep page. Garmin's night is used ahead of Apple Health's copy, because it has the score |
+| **Overnight HRV, Body Battery (high), stress** | Dashboard › **Body & recovery**, each with its own detail page, and the Coach |
+| **Resting heart rate** | Body & recovery (Apple Health's value first, Garmin's if Apple Health has none) |
+| **Steps, weight** | Only on days Apple Health has none (Apple Health's step total merges your iPhone too, and Withings writes weight there) |
+
+The rest of the Garmin folder isn't used by the app yet: workout files (workouts still come from Strava), the heart-rate, stress and Body Battery curves, Pulse Ox, hydration and food logged in Garmin. It's all kept, complete, for later.
 
 You need **Step 9 done first** (the script).
 
@@ -577,7 +593,7 @@ You need **Step 9 done first** (the script).
 
 1. Open your project at **https://script.google.com** (**Health Sync email saver**).
 2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
-3. Paste in the new **`email-to-drive.gs`** (v2.12.1 or later). Click **💾 Save**.
+3. Paste in the new **`email-to-drive.gs`** (v3.0, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
 
 ### 13c. Add your key (privately)
 
@@ -603,6 +619,11 @@ You need **Step 9 done first** (the script).
    - **History:** whether Garmin has data for a day 120 days ago.
 3. Choose **`setup`** and click **▶ Run**. This restarts the hourly timer with the new version.
 4. In Health Sync, click **Sync**. **Import › Data health** now shows a **Garmin** row.
+5. **Check the data reaches the app.** On the first sync, Health Sync reads every Garmin day the script has saved so far. The status at the top counts them ("Reading Garmin days: 120 of 400…"), and it can take a few minutes. When it's done:
+   - **Import › Import results** has a line like *"Garmin folder: read 400 day files — 380 nights of sleep, 395 days of HRV, Body Battery and stress…"*.
+   - **Data health › Sleep** is green, showing last night (or the night before, if the watch hasn't synced since you woke up).
+   - The **Sleep** tile shows a **score**, and **Body & recovery** shows Overnight HRV, Body Battery and Stress.
+   - As the script loads more history each hour, later syncs pick it up by themselves.
 
 **That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then loads a slice of your history, newest first: about 2 weeks of days plus some workouts each hour, so roughly **a year of history a day**. It keeps going until it's past your oldest Garmin workout, so months without the watch don't stop it early. Import › Data health shows how far back it has got.
 

@@ -3211,7 +3211,9 @@ function healthRows() {
   if (!st) rows.push(['warn', 'Google script', 'No status yet from your script.', 'Paste script v2.3 or later into script.google.com and run setup once (README › Updating the app).']);
   else {
     const h = since(st.checkedAt);
-    rows.push([h > 3 ? 'bad' : 'ok', 'Google script', `Last ran ${H(h)} · v${st.scriptVersion}`, h > 3 ? 'It should run every hour. In script.google.com › Triggers, check the hourly trigger exists; run setup to recreate it.' : '']);
+    // Every file in a release carries the same version, so a script that doesn't match the app hasn't been pasted yet.
+    const stale = st.scriptVersion && st.scriptVersion !== APP_VERSION;
+    rows.push([h > 3 ? 'bad' : stale ? 'warn' : 'ok', 'Google script', `Last ran ${H(h)} · v${st.scriptVersion}`, h > 3 ? 'It should run every hour. In script.google.com › Triggers, check the hourly trigger exists; run setup to recreate it.' : stale ? `This app is v${APP_VERSION}. Paste email-to-drive.gs v${APP_VERSION} into script.google.com (README › Updating the app), even if only its number changed, so every file stays on one version.` : '']);
     const l = st.loseIt;
     rows.push([l.error ? 'bad' : !l.lastAt ? 'gray' : l.hoursAgo > 72 ? 'bad' : l.hoursAgo > 36 ? 'warn' : 'ok', 'Lose It report',
       l.lastAt ? `Last email ${H(l.hoursAgo)}` : 'No report email seen yet (tracking starts with script v2.3)', l.error ? `Saving emails failed: ${l.error}` : l.hoursAgo > 36 ? 'Check that Lose It is still emailing daily reports to your Gmail (donotreply@loseit.com).' : '']);

@@ -1,22 +1,23 @@
 # Health Sync — Version history
 
-The app and the docs share one version number. The script has its own (see below). To check which files you're using:
+**Every file shares one version number** (from v3.0 on): the app, the script, README, SETUP, ALTERNATIVES and this file. Each release bumps all of them together, and its notes say which files **only had their number changed**. To check which files you're using:
 
 | File | Where to see its version |
 |---|---|
 | **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
-| **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs |
-| **README / SETUP / ALTERNATIVES / CHANGELOG** | At the top of README.md |
-| **Your copies** | The Desktop folder name, like **Health Sync v2.13** |
+| **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
+| **README / SETUP / ALTERNATIVES** | The line at the top of each file |
+| **CHANGELOG** | Its newest entry |
+| **Your copies** | The Desktop folder name, like **Health Sync v3.0** |
 
-### How versions are numbered (from v2.9 on)
+### How versions are numbered
 
 **MAJOR.MINOR.PATCH**:
-- **Major (3.0):** a big change in how Health Sync works, such as its architecture or a redesign. Rare, and agreed beforehand.
-- **Minor (2.10, 2.11…):** a new feature or screen.
-- **Patch (2.9.1…):** fixes and small tweaks to something that already exists. Bundled when possible.
+- **Major (3.0, 4.0…):** a big change in how Health Sync works, such as where its data comes from, its architecture or a redesign. Rare, and agreed beforehand.
+- **Minor (3.1, 3.2…):** a new feature or screen.
+- **Patch (3.0.1…):** fixes and small tweaks to something that already exists. Bundled when possible.
 
-**The script has its own version**, and it only goes up when the script's code changes. **If the script's version changes in a release, paste it in.** Otherwise leave it alone.
+**Paste the script every release**, even if only its number changed, so everything stays on one version (README › Updating the app). Before v3.0 the script had its own number, which is why older entries below mention script versions such as 2.12.1.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
 
@@ -35,7 +36,18 @@ The app and the docs share one version number. The script has its own (see below
 - **Data health checks each measure.** New rows for Steps, Sleep, Weight, Resting heart rate and Food show the newest value and turn amber or red when one stops, even while its source keeps sending files.
 - **Where it came from:** the Sleep, Steps and Weight pages name the device behind Apple Health's value, for example "Apple Health (Garmin Connect)".
 - Tests: 31 new checks against sample files built in each format (Health Auto Export JSON and CSV sleep variants, Garmin day files, CSVs, Lose It duplicates, Data health rows). **The 131-check regression suite and your real sample files are on the home Mac and weren't run for this release.** Run them there before relying on it.
-- Script: unchanged (still v2.12.1).
+- **One version for every file.** The script, app and docs are all v3.0 now, and move together from here on. If the script you've pasted doesn't match the app, Data health's Google script row turns amber.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `index.html` | Everything above |
+  | `email-to-drive.gs` | **Version number only** (2.12.1 → 3.0), no code changes. **Paste it** so Data health shows the same version (README › Updating the app). No need to run `setup` or make a new deployment. |
+  | `README.md` | Which source wins, Body & recovery, Garmin in the setup table, measure rows in Data health, new troubleshooting rows, versions, privacy, FAQ |
+  | `SETUP.md` | Step 13 now describes what the app shows from Garmin and how to check it; Steps 11 and 11b explain how Apple Health and Garmin share the work; version line added |
+  | `ALTERNATIVES.md` | Brought in line with Garmin-direct (manual Garmin files and the full export are now only for filling gaps); which source wins for manual files; version line added |
+  | `CHANGELOG.md` | This entry, and the one-version rule |
+  | `config.js` | Not changed (it has no version) |
 
 ### v2.13 (October 30, 2026)
 

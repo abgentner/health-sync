@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.0** · October 31, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.0** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -78,7 +78,7 @@ The Sleep, Steps and Weight pages show where each day's value came from, includi
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
 | **Steps, Sleep, Weight, Resting heart rate, Food** | The newest automatic value is from yesterday or the day before (weight: within the last week) | Steps, sleep, resting heart rate and food: newest value 3–4 days old (amber) or older (red). Weight: over a week old (amber) or over two weeks (red). Each row says what to check |
 
-The measure rows exist because a source can keep delivering files while one measure inside them stops. For example, Health Auto Export can keep updating while its file has no sleep in it.
+The measure rows exist because a source can keep delivering files while one measure inside them stops. For example, Health Auto Export can keep updating while its file has no sleep in it. The app checks these rows when it's open; they don't send alert emails.
 
 - When anything is amber or red, a **⚠ data issue** chip appears at the top of every screen. Tap it to open this panel.
 - **Alert emails:** your Google script checks every hour, even when the app is closed. It emails you **once a day per problem** if Lose It or Health Auto Export goes quiet for 36 hours, if Health Auto Export switches to minute data, or if Strava fails.
@@ -112,7 +112,8 @@ The measure rows exist because a source can keep delivering files while one meas
   - Under it, a message tells you how many more you need and how many days are left.
   - The **Daily anchors per week** chart shows each week's total against a dashed **goal line**. The current week is shown lighter, because it isn't finished yet.
 - **Click any chart, tile, the anchors box or the mood words** to open that metric's [detail page](#metric-detail-pages).
-- **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep.
+- **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep (with Garmin's sleep score when there is one).
+- **Body & recovery:** resting heart rate, Apple Health's HRV, active calories and the rest of Apple Health's measures, plus **Overnight HRV, Body Battery (high) and Stress** from Garmin. Only measures you actually have are shown. Click one for its detail page.
 - **Workouts / Food / How you felt:** the details for the selected day.
 - **Trends:** charts for steps, weight, calories, exercise, mood and sleep. Pick the last 7 days, 30 days, 90 days or 12 months. Hover over a bar or point to see its exact number.
 - **Mood words:** a word cloud of your feelings over the same period as the Trends charts.
@@ -261,7 +262,7 @@ Click **Save anchors**. The changes sync to all your computers.
 
 ### Steps by time of day
 
-Your step **total** always comes from Apple Health's daily count, which is the only one that merges iPhone and Garmin without counting steps twice. To see **when** you walked, Health Sync also needs your steps **by the hour**. That takes one extra automation in Health Auto Export, set up once:
+Your step **total** comes from Apple Health's daily count, which is the only one that merges iPhone and Garmin without counting steps twice. Garmin's own count is used only on a day Apple Health missed. To see **when** you walked, Health Sync also needs your steps **by the hour**. That takes one extra automation in Health Auto Export, set up once:
 
 1. On your iPhone, open **Health Auto Export → Automations** and tap **+**.
 2. Choose the same destination as your existing automation (**Google Drive**, same folder).
@@ -330,7 +331,7 @@ A table with one row per day. **Click any column header to sort** (click again t
 
 ## Updating the app
 
-Each release comes as a Desktop folder named **Health Sync vX.Y**. Upload its `index.html` and the `.md` files to GitHub. **Never upload `config.js`**, because your GitHub copy holds your Client ID.
+Each release is either pushed straight to GitHub (when Claude works in your copy of the repository) or comes as a Desktop folder named **Health Sync vX.Y**, whose `index.html`, `email-to-drive.gs` and `.md` files you upload to GitHub. **Never upload `config.js`**, because your GitHub copy holds your Client ID.
 
 1. Go to `https://github.com/YOUR-USERNAME/health-sync`
 2. Click **Add file → Upload files**.
@@ -347,9 +348,11 @@ Each release comes as a Desktop folder named **Health Sync vX.Y**. Upload its `i
 > - ✅ = live
 > - ❌ = something went wrong; try uploading again
 
-**Versions:** MAJOR.MINOR.PATCH. 3.0 is reserved for a big change; new features are 2.10, 2.11 and so on; fixes are 2.9.1 and so on. The script has its own version, and **when its number changes, paste it**. Details are in [CHANGELOG.md](CHANGELOG.md).
+**Versions:** MAJOR.MINOR.PATCH (3.0, 3.1, 3.1.1…). **Every file carries the same version:** the app, the script, README, SETUP, ALTERNATIVES and CHANGELOG. Each release bumps all of them together, and the CHANGELOG says which files only had their number changed. Details are in [CHANGELOG.md](CHANGELOG.md).
 
-**When the script changes too:**
+**Paste the script every release,** even when only its number changed, so everything stays on one version. If the script's version doesn't match the app's, the **Google script** row in Data health turns amber and says which version to paste.
+
+**Pasting the script:**
 1. At **script.google.com**, open **Health Sync email saver**, replace all the code with the new `email-to-drive.gs`, and click **Save**.
 2. Go to **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**, so the receiver uses the new code. If it says **"This project has not been deployed yet"**, skip this step: you haven't set up the receiver (it's only needed for the Coach email, SETUP.md Step 12c).
 3. If the release notes say so, run **`setup`** once.
@@ -379,7 +382,11 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 | **"The sign-in window was closed"** | You closed the Google window before finishing. Click Connect again. |
 | **A file stays in the Inbox** | The app couldn't use it. Open the **Import** tab to see why. It's often a file type the app doesn't use; see [ALTERNATIVES.md](ALTERNATIVES.md). |
 | **"Skipped (this is Garmin's Progress Summary…)"** or **"…monthly Activities report…"** | Wrong Garmin file. Use the **Activities list → Export CSV** ([ALTERNATIVES.md](ALTERNATIVES.md#manual-files-from-lose-it-and-garmin)). |
-| **Numbers look doubled** | Lose It sometimes copies Garmin workouts. The app skips Lose It entries with "Garmin" in the name, so this shouldn't happen. If it does, delete the extra entry in **Log today** (the **×** button). |
+| **Numbers look doubled** | Lose It sometimes copies Garmin, Strava or Apple Health workouts. The app skips those copies by name, and also any Lose It workout with the same minutes (±1) and similar calories as a Garmin or Strava workout that day, so this shouldn't happen. If it does, delete the extra entry in **Log today** (the **×** button). |
+| **A genuine Lose It workout disappeared** | It had the same length and similar calories as a Garmin or Strava workout that day, so the app treated it as a copy. Add it in **Log today** instead. Workouts you add there are never removed. |
+| **Sleep is blank** | Open **Import › Data health**. The **Sleep** row shows the last night that arrived and what to check. Sleep comes straight from Garmin (the **Garmin** row must be green, and the watch must have synced after you woke up) or through Apple Health (Sleep Analysis must be in the Health Auto Export automation). |
+| **Import results say "sleep record had no hours this app can read"** | Health Auto Export sent sleep in a format the app doesn't know yet. The message lists the fields it found. Send that line to Claude so the format can be added. |
+| **The first sync after updating takes a few minutes** | Normal once. The app is reading your whole Garmin history (the status shows "Reading Garmin days: 120 of 400…"). After that, each sync reads only the few days that changed. |
 | **Changes I uploaded to GitHub don't show** | Wait 2–5 minutes, then press **Cmd+Shift+R** / **Ctrl+Shift+R**. Check the dot on your GitHub page (see [Updating the app](#updating-the-app)). |
 | **I double-clicked `index.html` on my computer and Connect doesn't work** | Google sign-in only works from the web address, so use `https://YOUR-USERNAME.github.io/health-sync/`. (Opening the file directly only allows "this computer only" mode, with no syncing.) |
 | **"Strava sign-in failed (400)" when running stravaConnect** | The code expired or was already used. Run **stravaLink** again, authorize again, paste the new address into `STRAVA_CODE`, and run **stravaConnect** right away. |
@@ -405,7 +412,8 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 - The app has **no server** of its own. It talks only to Google Drive, straight from your browser.
 - On each computer, the browser remembers your Google sign-in for about an hour, plus which account you used. **Settings → Sign out** clears both on that computer.
 - **Using a shared or public computer?** Click **Sign out** when you're done.
-- **Claude (Coach):** to write a review, a summary of that period's data is sent to Anthropic's API. Your API key is kept in your Drive data, never on GitHub, and is left out of backups.
+- **Garmin:** your Google script signs in to Garmin with your Personal API key and saves your data into your own Drive. The key stays in the script's private settings.
+- **Claude (Coach):** to write a review, a summary of that period's data is sent to Anthropic's API. This includes sleep and sleep score, and Garmin's HRV, Body Battery and stress. Your API key is kept in your Drive data, never on GitHub, and is left out of backups.
 
 ---
 
@@ -415,7 +423,7 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 No. GitHub Pages, Google Drive (15 GB free) and Google's sign-in system are all free for this.
 
 **How much space will my data use?**
-Very little: roughly 1 MB per year of daily use.
+The app's own data file is small: roughly 1 MB per year of daily use. The **Garmin** folder that the script fills is much bigger, because it keeps everything Garmin sends, including the original file from your watch for every workout. Even so, it's well within Google Drive's free 15 GB for years of use.
 
 **Can I use it on my phone?**
 Yes. Open the same web address in your phone's browser and sign in. To make it feel like an app, use your browser's **Share → Add to Home Screen**.
@@ -447,4 +455,4 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 ## Regression tests (for releases)
 
-Before each release, the importers are checked against **your real sample files** (Lose It PDF and CSV, Health Auto Export ZIP, daily, minute and weekly files, and Garmin summary files): 45 checks such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". The test page and your files live **only on your Mac** (Desktop › **Health Sync tests**). They're never uploaded to GitHub, because they contain your health data.
+Before each release, the importers are checked against **your real sample files** (Lose It PDF and CSV, Health Auto Export ZIP, daily, minute, hourly and weekly files, and Garmin files): 131 app checks and 56 script checks as of v2.13, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". **v3.0** was made on the work Mac. Its 31 new checks ran against sample files built in each format, but they aren't in the home suite yet, and the suite wasn't run for v3.0. The test page and your files live **only on your Mac** (Desktop › **Health Sync tests**). They're never uploaded to GitHub, because they contain your health data.

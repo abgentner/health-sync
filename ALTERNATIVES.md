@@ -1,6 +1,12 @@
 # Health Sync — Alternatives and extras
 
+> **Version 3.0** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+
 Ways to get data in that **aren't part of the standard setup**, kept here in case you need them: manual Garmin files, Garmin's full account export, the free iPhone Shortcut, and Health Auto Export's REST option. The standard setup is in [SETUP.md](SETUP.md).
+
+> **With the standard setup you don't need any of this.** Since v3.0, sleep, HRV, Body Battery, stress and your whole Garmin history come straight from Garmin (SETUP.md Step 13). Steps, weight and nutrition come from Apple Health (Step 11), workouts from Strava (Step 10) and food from Lose It (Step 9). The files below are for filling gaps, or for a setup without those steps.
+
+**Manual files follow the same rules as everything else** (README › Which source wins): they never replace anything you typed in, and a lower-ranked file never replaces a better source. For example, a Garmin steps report doesn't replace Apple Health's step total for the same day, and Lose It's sleep is only used for a night nothing else covers.
 
 ## Manual files from Lose It and Garmin
 
@@ -12,7 +18,7 @@ Lose It's emailed **daily report** comes as a spreadsheet (`.csv`), and the app 
 
 - every food, which meal it was in, and the amount
 - calories and **all nutrients**: protein, carbs, fat, saturated fat, fiber, sugars, sodium and cholesterol
-- exercise you logged directly in Lose It (Garmin and Apple Health copies are skipped, because they come from Garmin/Strava)
+- exercise you logged directly in Lose It. Copies of Garmin, Strava, Apple Health or Apple Watch workouts are skipped, because those come from Garmin and Strava. So is any Lose It workout with the same minutes (±1) and similar calories as a Garmin or Strava workout that day, even if it was renamed.
 
 A newer report for the same day replaces that day's Lose It food, so re-sending a report is safe.
 
@@ -20,7 +26,7 @@ The app also reads Lose It's **Daily Report PDF**, the kind you can print or sha
 
 - every food you logged, and which meal it was in
 - the day's calories, protein, carbs and fat
-- the steps and sleep that Lose It shows
+- the steps and sleep that Lose It shows (used only for days no other source covers)
 
 **How to get the PDF into the Inbox:**
 
@@ -47,13 +53,13 @@ You have to do this on the Garmin **website**. The phone app can't export.
 >
 > If you drop one in, the app tells you and leaves it in the Inbox. You can delete it.
 
-**Steps, sleep and weight from Garmin:** Garmin doesn't offer a single everyday report with all of these. You don't need one:
+**Steps, sleep and weight from Garmin:** with SETUP.md Step 13, these arrive by themselves every hour, history included. Without it:
 
-- **Every day**, your **Lose It Daily Report** already includes the steps and sleep that Garmin sends to Lose It, plus your weight if you log it there.
+- **Every day**, Apple Health (Step 11) brings steps, sleep and weight. The **Lose It Daily Report** also includes the steps and sleep Garmin sends to Lose It, as a last resort.
 - **For workouts**, drop in the **Activities CSV** above every week or two. One file covers as far back as you scroll.
 - **For your whole past history** of steps, sleep and resting heart rate, do Garmin's one-time full export (see [Your whole Garmin history](#your-whole-garmin-history-one-time)).
 
-Garmin's single-measure reports also work, if you want them: in Garmin Connect, go to **Reports** (or **Health Stats**) → **Steps**, **Weight** or **Sleep**, pick a date range, and click **Export**.
+Garmin's single-measure reports also work, if you want them: in Garmin Connect, go to **Reports** (or **Health Stats**) → **Steps**, **Weight** or **Sleep**, pick a date range, and click **Export**. They fill only days that Apple Health and your own entries don't already cover; for sleep, they're used ahead of Apple Health's copy.
 
 ### The easiest everyday routine
 
@@ -62,14 +68,17 @@ Garmin's single-measure reports also work, if you want them: in Garmin Connect, 
 | Every day (automatic with SETUP.md Step 9) | Lose It **daily report** (CSV) | Food, calories, all nutrients |
 | Whenever you close Lose It or Garmin Connect (automatic with SETUP.md Step 11) | Apple Health file from the iPhone shortcut | Steps, sleep, weight, resting heart rate, HRV, active calories and more |
 | Every hour (automatic with SETUP.md Step 10) | Strava workouts | Workouts: type, time, distance, calories, heart rate |
+| Every hour (automatic with SETUP.md Step 13; nothing to drop in) | Garmin day files, saved by your script into **Health Sync › Garmin** | Sleep and sleep score, overnight HRV, Body Battery, stress, resting heart rate, and your whole history |
 | Every week or two (optional with SETUP.md Step 10) | Garmin **Activities CSV** | Workouts, with Garmin's full details |
-| Once, at the start | Garmin **full export ZIP** (Step 11) | Your entire history of steps, sleep and resting heart rate |
+| Once, at the start (only without SETUP.md Step 13) | Garmin **full export ZIP** ([below](#your-whole-garmin-history-one-time)) | Your entire history of steps, sleep and resting heart rate |
 
 ---
 
 ## Your whole Garmin history (one-time)
 
 Garmin has one export that contains **everything**: years of daily steps, sleep and resting heart rate. It's a one-time download, and it's great for filling in your history.
+
+> **With SETUP.md Step 13 you can skip this.** The script loads your whole Garmin history by itself, with more detail (sleep scores, HRV, Body Battery, stress), and the app reads it as it arrives.
 
 1. Go to **https://www.garmin.com/account/datamanagement/** and sign in with your Garmin account.
 2. Click **Export Your Data**, then **Request Data Export**.
@@ -82,7 +91,8 @@ Garmin has one export that contains **everything**: years of daily steps, sleep 
 **Good to know:**
 
 - The app only reads the daily-summary and sleep files inside the ZIP. It ignores everything else, such as GPS tracks and device files.
-- For **workouts**, use the **Activities CSV** (Step 9). It's more reliable for workout details.
+- For **workouts**, use the **Activities CSV** ([above](#garmin--the-activities-list-csv)). It's more reliable for workout details.
+- Its sleep (with score) is used ahead of Apple Health's copy of the same night. Its steps fill only days Apple Health doesn't cover.
 - Importing it again later is safe. Days are updated, not doubled.
 
 ---
