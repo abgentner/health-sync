@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 2.13** · October 30, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.0** · October 31, 2026 · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -15,6 +15,7 @@ It's a web page you open like an app (on your Mac via Brave, on your iPhone from
 | **Lose It** | Every food, meals, all nutrients | Daily report email → your Google script → Drive Inbox | Daily |
 | **Strava** (fed by Garmin) | Workouts | Your Google script asks Strava → Drive Inbox | About hourly |
 | **Apple Health** (fed by Garmin, Withings, Lose It) | Steps, sleep, resting heart rate, active calories, flights, weight, body fat, nutrition backup | Health Auto Export → its Drive folder | Daily (yesterday's totals) |
+| **Garmin** (straight from Garmin) | Sleep with sleep score, overnight HRV, Body Battery, stress, resting heart rate; steps and weight for days Apple Health misses | Your Google script asks Garmin → Drive › Health Sync › Garmin | Hourly |
 | **You** | Mood, energy, stress, notes, anchor overrides, your plan | The app | Whenever |
 | **Claude** | Weekly review + email | The app (with your API key) → your script sends the email | Mondays at noon, or on demand |
 
@@ -34,7 +35,7 @@ Everything is automatic. The **Data health** panel (Import tab) and alert emails
 
 There's nothing to do. Open the app when you like:
 
-1. It **syncs** on open: new files from the Drive Inbox and the Health Auto Export folder are imported.
+1. It **syncs** on open: new files from the Drive Inbox, the Health Auto Export folder and the Garmin folder are imported. The first time after v3.0, it reads your whole Garmin history, which can take a few minutes. The status at the top counts the days as it goes.
 2. **Yesterday is complete**; today usually isn't, because most sources send a day's totals the next morning. That's why averages always end yesterday.
 3. **Log how you feel** in **Log today** (mood, energy, stress, tags, notes), and override an anchor box if the data got it wrong.
 4. **Mondays at noon:** the Coach writes last week's review and emails it to you.
@@ -44,6 +45,22 @@ There's nothing to do. Open the app when you like:
 **Lose It sends two kinds of report:** a **daily** report each morning (yesterday, complete) and a **weekly** report on Mondays, which includes a *partial* today. A day only counts as final once a report sent **after that day ended** has arrived, and an older report never overwrites a newer one. Until then, that day's food is marked **so far**: on the Food card, on the Calories tile, as *(partial)* in the Calories page's Source column, and to the Coach.
 
 **Re-importing never doubles anything.** A newer report for the same day replaces the old one, the same workout from Garmin and Strava is kept once, and anything you type in by hand is never overwritten.
+
+### Which source wins
+
+Several sources often report the same thing. For each measure the app keeps one value per day, and it always picks the same source regardless of which file arrived first:
+
+| Measure | Used first → last | Why |
+|---|---|---|
+| **Steps** | You → Apple Health → Garmin → Lose It | Apple Health's daily total already merges your iPhone and Garmin steps without double counting |
+| **Sleep** | You → Garmin → Apple Health → Lose It | Garmin's own data has the sleep score; Apple Health's copy is the same night without it |
+| **Weight** | You → Apple Health → Garmin → Lose It | Your Withings scale writes to Apple Health |
+| **Resting heart rate** | Apple Health → Garmin | |
+| **HRV** | Apple Health and Garmin are kept as **two separate measures** | They aren't the same number: Apple's is SDNN, Garmin's is overnight RMSSD |
+| **Body Battery, stress** | Garmin only | |
+| **Workouts** | Garmin → Strava, and Lose It for anything else | Lose It's copies of Garmin, Strava and Apple Health workouts are skipped: by name, or because they have the same minutes and similar calories as a Garmin or Strava workout that day |
+
+The Sleep, Steps and Weight pages show where each day's value came from, including the device behind Apple Health's copy, for example **Apple Health (Garmin Connect)**.
 
 ---
 
@@ -59,6 +76,9 @@ There's nothing to do. Open the app when you like:
 | **Strava** | Connected, no errors | The sync failed (run `stravaCheck`) |
 | **Garmin** | Updated in the last few hours; shows when your watch last synced, how far back history has loaded, and when the key expires | Watch not synced for 12 h (amber; email after a day), key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber with the time it resumes, no email) |
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
+| **Steps, Sleep, Weight, Resting heart rate, Food** | The newest automatic value is from yesterday or the day before (weight: within the last week) | Steps, sleep, resting heart rate and food: newest value 3–4 days old (amber) or older (red). Weight: over a week old (amber) or over two weeks (red). Each row says what to check |
+
+The measure rows exist because a source can keep delivering files while one measure inside them stops. For example, Health Auto Export can keep updating while its file has no sleep in it.
 
 - When anything is amber or red, a **⚠ data issue** chip appears at the top of every screen. Tap it to open this panel.
 - **Alert emails:** your Google script checks every hour, even when the app is closed. It emails you **once a day per problem** if Lose It or Health Auto Export goes quiet for 36 hours, if Health Auto Export switches to minute data, or if Strava fails.

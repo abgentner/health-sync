@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 2.13 -->
+<!-- Health Sync app · version 3.0 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -772,7 +772,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '2.13';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.0';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -889,7 +889,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length)) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -921,6 +921,18 @@ function latestWeight(k, maxBack = 3650) {
   return { key: last, value: d.weight, unit: d.weightUnit || 'lb' };
 }
 const sleepHours = d => d?.sleep?.hours ?? null;
+
+// Which source wins when two fill the same field: later in the list wins, an equal source replaces itself, hand-entered always wins.
+// Steps and weight: Apple Health's daily total already merges iPhone + Garmin steps, and carries the Withings weigh-ins.
+// Sleep: Garmin's own export carries the sleep score, so it beats Apple's copy of the same night.
+const SOURCE_RANK = { steps: ['loseit', 'garmin', 'health', 'manual'], weight: ['loseit', 'garmin', 'health', 'manual'], sleep: ['loseit', 'health', 'garmin', 'manual'] };
+function canSet(d, field, next) {
+  const cur = field === 'steps' ? d.stepsSource : field === 'weight' ? d.weightSource : d.sleep?.hours != null ? d.sleep.source : null;
+  if (!cur) return true;
+  const r = SOURCE_RANK[field];
+  return r.indexOf(next) >= r.indexOf(cur);
+}
+const setVia = (d, key, v) => { if (v) d[key] = v; else delete d[key]; };
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -1037,6 +1049,14 @@ const Drive = {
     };
     for (const r of roots) await walk(r.id, r.name, 1);
     return out.filter(f => /\.(json|csv|zip|txt)$/i.test(f.name) || /json|csv|zip|text/.test(f.mimeType));
+  },
+  // The script (v2.12+) saves one file per Garmin day in Health Sync › Garmin › days › <year>.
+  async garminDayFiles() {
+    const sub = async (name, parent) => (await this.list(`name='${name}' and mimeType='${FOLDER_MIME}' and '${parent}' in parents and trashed=false`))[0]?.id;
+    const g = await sub('Garmin', this.ids.root), days = g && await sub('days', g);
+    if (!days) return [];
+    const years = await this.list(`mimeType='${FOLDER_MIME}' and '${days}' in parents and trashed=false`);
+    return (await Promise.all(years.map(y => this.list(`'${y.id}' in parents and trashed=false and name contains 'garmin-'`)))).flat();
   },
   async fetchFile(f) {
     if (f.mimeType === 'application/vnd.google-apps.spreadsheet') {
@@ -1211,14 +1231,14 @@ function impAppleHealth(name, text) {
     else if (HEALTH_EXTRA[kind]) { ((extra[kind] ||= {})[k] ||= []).push(kind === 'bodyfat' && v <= 1 ? v * 100 : v); lines++; }
   }
   const dates = new Set();
-  for (const [k, v] of Object.entries(steps)) { const d = day(k); if (d.stepsSource !== 'manual') { d.steps = Math.round(v); d.stepsSource = 'health'; } touch(k); dates.add(k); }
+  for (const [k, v] of Object.entries(steps)) { const d = day(k); if (canSet(d, 'steps', 'health')) { d.steps = Math.round(v); d.stepsSource = 'health'; } touch(k); dates.add(k); }
   for (const k of new Set([...Object.keys(asleep), ...Object.keys(inBed)])) {
     const mins = asleep[k] || inBed[k];
     const d = day(k);
-    if (d.sleep?.source !== 'manual') d.sleep = { hours: Math.round(mins / 6) / 10, score: d.sleep?.score ?? null, source: 'health' };
+    if (canSet(d, 'sleep', 'health')) d.sleep = { hours: Math.round(mins / 6) / 10, score: d.sleep?.score ?? null, source: 'health' };
     touch(k); dates.add(k);
   }
-  for (const [k, w] of Object.entries(weight)) { const d = day(k); if (d.weightSource !== 'manual') { d.weight = w.v; d.weightUnit = w.unit; d.weightSource = 'health'; } touch(k); dates.add(k); }
+  for (const [k, w] of Object.entries(weight)) { const d = day(k); if (canSet(d, 'weight', 'health')) { d.weight = w.v; d.weightUnit = w.unit; d.weightSource = 'health'; } touch(k); dates.add(k); }
   for (const [k, m] of Object.entries(mindful)) { const d = day(k); (d.health ||= {}).mindful = Math.round(m); touch(k); dates.add(k); }
   for (const [kind, byDay] of Object.entries(extra)) {
     const { key, agg } = HEALTH_EXTRA[kind];
@@ -1267,8 +1287,10 @@ function haeConvert(key, v, unit) {
   return v;
 }
 function impHaeJson(name, j) {
-  const days = {}, notDaily = new Set(), stepHours = new Set();
+  const days = {}, notDaily = new Set(), stepHours = new Set(), sleepUnread = [];
   const add = (k, key, v) => { if (!k || v == null || isNaN(v)) return; const e = (days[k] ||= {})[key] ||= []; e.push(v); };
+  // The device or app that wrote the value into Apple Health (e.g. "Garmin Connect", "Withings").
+  const via = (k, key, s) => { if (k && s) ((days[k] ||= {}).via ||= {})[key] = String(s); };
   for (const m of j.data?.metrics || j.metrics || []) {
     const mname = String(m.name || '').toLowerCase(), micro = MICRO_BY[mname.replace(/^dietary_/, '')];
     const key = HAE_METRICS[mname] || (micro ? 'x:' + micro.key : null);
@@ -1289,28 +1311,34 @@ function impHaeJson(name, j) {
     }
     for (const r of m.data || []) {
       if (key === 'sleep') {
-        // Aggregated: totalSleep / asleep / core+deep+rem in hours. Raw: one stage per sample.
-        let hrs = r.totalSleep ?? r.asleep ?? null;
-        if (!hrs && (r.core != null || r.deep != null || r.rem != null)) hrs = (r.core || 0) + (r.deep || 0) + (r.rem || 0);
-        if (hrs == null && r.startDate && r.endDate && !/awake|in ?bed/i.test(r.value || '')) {
+        // Aggregated records hold totalSleep, asleep and core/deep/rem in hours, and any of them can be 0 while another
+        // holds the night (Garmin writes plain "asleep"; stage-tracking devices write core/deep/rem). Raw: one stage per sample.
+        const stages = ['core', 'deep', 'rem'].reduce((s, x) => s + (num(r[x]) || 0), 0);
+        let hrs = Math.max(num(r.totalSleep) || 0, num(r.asleep) || 0, stages) || null;
+        const skip = /awake|in ?bed/i.test(r.value || '');
+        if (hrs == null && r.startDate && r.endDate && !skip) {
           const a = haeTime(r.startDate), b = haeTime(r.endDate);
-          if (a && b && b > a) { add(haeDay(r.endDate), 'sleepRaw', (b - a) / 36e5); continue; }
+          if (a && b && b > a) { const k = haeDay(r.endDate); add(k, 'sleepRaw', (b - a) / 36e5); via(k, 'sleep', r.source); continue; }
         }
         if (/min/i.test(m.units || '') && hrs) hrs /= 60;
-        if (hrs) add(haeDay(r.sleepEnd || r.date), 'sleep', hrs);
+        if (hrs) { const k = haeDay(r.sleepEnd || r.date); add(k, 'sleep', hrs); via(k, 'sleep', r.source || r.sleepSource); }
+        else if (!skip) sleepUnread.push(r);
         continue;
       }
       const v = num(r.qty ?? r.Avg ?? r.avg ?? r.value);
       if (v == null) continue;
       add(haeDay(r.date || r.startDate), key, key.startsWith('x:') ? massTo(v, m.units, MICRO_BY[key.slice(2)].u) : key === 'weight' || key.startsWith('n:') ? v : haeConvert(key, v, m.units));
       if (key === 'weight') (days[haeDay(r.date || r.startDate)] ||= {}).weightUnit = /kg/i.test(m.units || '') ? 'kg' : 'lb';
+      if (key === 'steps' || key === 'weight') via(haeDay(r.date || r.startDate), key, r.source);
     }
   }
   if (stepHours.size) importsDirty = true;
   const hrs = stepHours.size ? `steps by time of day for ${plural(stepHours.size, 'day')} (${rangeText(stepHours)})` : '';
-  if (!Object.keys(days).length && hrs) return `${name}: Apple Health (Health Auto Export) — ${hrs}`;
+  // Say exactly what came in, so a new Health Auto Export format can be added instead of being dropped silently.
+  const unread = sleepUnread.length ? ` — ⚠ ${plural(sleepUnread.length, 'sleep record')} had no hours this app can read (fields: ${Object.keys(sleepUnread[0]).slice(0, 12).join(', ')})` : '';
+  if (!Object.keys(days).length && hrs) return `${name}: Apple Health (Health Auto Export) — ${hrs}${unread}`;
   const res = applyHae(name, days, notDaily);
-  return hrs ? `${res} · ${hrs}` : res;
+  return (hrs ? `${res} · ${hrs}` : res) + unread;
 }
 // Vitamins and minerals come from Apple Health (Lose It writes them there; its emailed report doesn't include them).
 // dv = FDA daily value for adults; null = no daily value (shown as an amount only).
@@ -1328,7 +1356,7 @@ const MICRO_BY = Object.fromEntries(MICROS.map(m => [m.key, m]));
 // Convert between g, mg and mcg.
 const massTo = (v, from, to) => { const f = { g: 1e6, mg: 1e3, mcg: 1, 'µg': 1, ug: 1 }; const a = f[String(from || to).toLowerCase()], b = f[to]; return a && b ? v * a / b : v; };
 const HAE_COLS = [
-  [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^(weight|body mass)/, 'weight'],
+  [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^sleep analysis \[(core|deep|rem)\]/, 'sleepStage'], [/^(weight|body mass)/, 'weight'],
   [/^resting heart rate/, 'restingHR'], [/^heart rate variability/, 'hrv'], [/^active energy/, 'activeCal'], [/^flights climbed/, 'flights'],
   [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'],
   [/^dietary energy/, 'n:calories'], [/^protein/, 'n:protein'], [/^carbohydrates/, 'n:carbs'], [/^total fat/, 'n:fat'], [/^saturated fat/, 'n:satFat'],
@@ -1347,7 +1375,7 @@ function impHaeCsv(label, headers, body) {
       const v = num(r[h]);
       if (v == null || r[h] === '') continue;
       const e = (days[k] ||= {});
-      (e[key] ||= []).push(key.startsWith('x:') ? massTo(v, unit.replace(/^l?bs?$/, ''), MICRO_BY[key.slice(2)].u) : key === 'weight' || key.startsWith('n:') ? v : key === 'sleep' && /min/i.test(unit) ? v / 60 : haeConvert(key, v, unit));
+      (e[key] ||= []).push(key.startsWith('x:') ? massTo(v, unit.replace(/^l?bs?$/, ''), MICRO_BY[key.slice(2)].u) : key === 'weight' || key.startsWith('n:') ? v : /^sleep/.test(key) && /min/i.test(unit) ? v / 60 : haeConvert(key, v, unit));
       if (key === 'weight') e.weightUnit = /kg/i.test(unit) ? 'kg' : 'lb';
     }
   }
@@ -1358,13 +1386,15 @@ function applyHae(name, days, notDaily = new Set()) {
   for (const [k, e] of Object.entries(days)) {
     const d = day(k);
     const val = key => e[key] ? (SUM_KEYS.has(key) ? e[key].reduce((a, b) => a + b, 0) : avg(e[key])) : null;
-    if (e.steps && d.stepsSource !== 'manual') { d.steps = Math.round(val('steps')); d.stepsSource = 'health'; got.add('steps'); }
-    const sl = e.sleep ? Math.max(...e.sleep) : e.sleepRaw ? e.sleepRaw.reduce((a, b) => a + b, 0) : null;
-    if (sl && d.sleep?.source !== 'manual') { d.sleep = { hours: Math.round(sl * 10) / 10, score: d.sleep?.score ?? null, source: 'health' }; got.add('sleep'); }
-    if (e.weight && d.weightSource !== 'manual') { d.weight = Math.round(e.weight[e.weight.length - 1] * 10) / 10; d.weightUnit = e.weightUnit || 'lb'; d.weightSource = 'health'; got.add('weight'); }
+    const sumOf = a => a.reduce((x, y) => x + y, 0);
+    const v = e.via || {};
+    if (e.steps && canSet(d, 'steps', 'health')) { d.steps = Math.round(val('steps')); d.stepsSource = 'health'; setVia(d, 'stepsVia', v.steps); got.add('steps'); }
+    // Several sleep totals for one night (one per source) → the longest; stages or raw samples → added up.
+    const sl = Math.max(e.sleep ? Math.max(...e.sleep) : 0, e.sleepStage ? sumOf(e.sleepStage) : 0, e.sleepRaw ? sumOf(e.sleepRaw) : 0) || null;
+    if (sl && canSet(d, 'sleep', 'health')) { d.sleep = { hours: Math.round(sl * 10) / 10, score: d.sleep?.score ?? null, source: 'health', ...(v.sleep ? { via: v.sleep } : {}) }; got.add('sleep'); }
+    if (e.weight && canSet(d, 'weight', 'health')) { d.weight = Math.round(e.weight[e.weight.length - 1] * 10) / 10; d.weightUnit = e.weightUnit || 'lb'; d.weightSource = 'health'; setVia(d, 'weightVia', v.weight); got.add('weight'); }
     for (const key of Object.keys(HEALTH_METRICS)) if (e[key]) { (d.health ||= {})[key] = Math.round(val(key) * 10) / 10; got.add(HEALTH_METRICS[key].name.toLowerCase()); }
     // Nutrition that Lose It wrote into Apple Health: a backup for days with no Lose It report (never mixed with food entries).
-    const sumOf = a => a.reduce((x, y) => x + y, 0);
     if (e['n:calories'] && sumOf(e['n:calories']) > 0) {
       const n = { source: 'health', calories: Math.round(sumOf(e['n:calories'])) };
       for (const x of NUTRIENTS) if (e['n:' + x.key]) n[x.key] = Math.round(sumOf(e['n:' + x.key]) * 10) / 10;
@@ -1395,7 +1425,7 @@ function readGarminJson(text, tally) {
       const k = gDate(o.calendarDate);
       if (k && typeof o.totalSteps === 'number') {
         const d = day(k);
-        if (d.stepsSource !== 'manual') { d.steps = Math.round(o.totalSteps); d.stepsSource = 'garmin'; }
+        if (canSet(d, 'steps', 'garmin')) { d.steps = Math.round(o.totalSteps); d.stepsSource = 'garmin'; delete d.stepsVia; }
         if (typeof o.restingHeartRate === 'number') d.restingHR = o.restingHeartRate;
         touch(k); tally.steps.add(k);
       }
@@ -1407,7 +1437,7 @@ function readGarminJson(text, tally) {
       const secs = (o.deepSleepSeconds || 0) + (o.lightSleepSeconds || 0) + (o.remSleepSeconds || 0);
       if (k && secs > 0) {
         const d = day(k);
-        if (d.sleep?.source !== 'manual') {
+        if (canSet(d, 'sleep', 'garmin')) {
           const sc = o.sleepScores?.overallScore ?? o.sleepScores?.overall?.value;
           d.sleep = { hours: Math.round(secs / 360) / 10, score: typeof sc === 'number' ? sc : null, source: 'garmin' };
         }
@@ -1418,6 +1448,42 @@ function readGarminJson(text, tally) {
     for (const v of Object.values(o)) if (v && typeof v === 'object') visit(v, depth + 1);
   };
   visit(j, 0);
+}
+/* ---- Garmin, straight from Garmin (script v2.12+): Health Sync › Garmin › days › <year> › garmin-<date>.json ----
+   { source: 'garmin', date, data: { userSummary, dailySummary, steps, sleep, sleepDetail, hrv, hrvReadings, weightDay, weighIns, … } } */
+const GARMIN_PARSER = 1;   // bump when this reader changes, so every Garmin day file is read once more
+const garminStamp = f => `g${GARMIN_PARSER}:${f.modifiedTime}`;
+// First value that's a real positive number (Garmin uses 0, -1 and -2 for "no data").
+const gPos = (...a) => a.find(v => typeof v === 'number' && isFinite(v) && v > 0) ?? null;
+function readGarminDay(j, tally) {
+  const k = parseDate(String(j?.date || '')), x = j?.data;
+  if (!k || !x) return;
+  const u = x.userSummary || {}, s = x.dailySummary || {}, sl = x.sleep || {}, sd = x.sleepDetail?.dailySleepDTO || {};
+  const d = day(k);
+  const steps = gPos(x.steps?.totalSteps, u.totalSteps, s.totalSteps);
+  if (steps && canSet(d, 'steps', 'garmin')) { d.steps = Math.round(steps); d.stepsSource = 'garmin'; delete d.stepsVia; tally.steps.add(k); }
+  const secs = gPos(sl.sleepTimeSeconds, sd.sleepTimeSeconds, (sd.deepSleepSeconds || 0) + (sd.lightSleepSeconds || 0) + (sd.remSleepSeconds || 0));
+  if (secs && canSet(d, 'sleep', 'garmin')) {
+    const score = gPos(sl.sleepScores?.overall?.value, sl.sleepScores?.overallScore, sd.sleepScores?.overall?.value, sl.overallSleepScore?.value, sl.sleepScore);
+    d.sleep = { hours: Math.round(secs / 360) / 10, score, source: 'garmin' }; tally.sleep.add(k);
+  }
+  const w = x.weightDay?.latestWeight || [].concat(x.weighIns || []).pop(), grams = gPos(w?.weight);
+  if (grams && canSet(d, 'weight', 'garmin')) { d.weight = Math.round((grams > 1000 ? grams / 1000 : grams) * 22.0462) / 10; d.weightUnit = 'lb'; d.weightSource = 'garmin'; delete d.weightVia; tally.weight.add(k); }
+  const rhr = gPos(u.restingHeartRate, s.restingHeartRate, x.heartRate?.restingHeartRate);
+  if (rhr) d.restingHR = rhr;
+  // Garmin-only measures. Garmin's HRV is overnight RMSSD, not Apple's SDNN, so it's kept as its own measure.
+  const g = {}, hrv = gPos(x.hrv?.lastNightAvg, x.hrvReadings?.hrvSummary?.lastNightAvg), bb = gPos(u.bodyBatteryHighestValue, s.bodyBatteryHighestValue), st = gPos(u.averageStressLevel, s.averageStressLevel);
+  if (hrv) g.hrvNight = hrv;
+  if (bb) g.bodyBattery = bb;
+  if (st) g.stress = st;
+  if (Object.keys(g).length) { d.garmin = g; tally.recovery.add(k); } else delete d.garmin;
+  touch(k);
+}
+function garminDaysSummary(t, files, failed) {
+  const all = new Set([...t.steps, ...t.sleep, ...t.weight, ...t.recovery]);
+  const parts = [t.sleep.size && plural(t.sleep.size, 'night') + ' of sleep', t.steps.size && plural(t.steps.size, 'day') + ' of steps (only where Apple Health had none)', t.weight.size && plural(t.weight.size, 'weigh-in'), t.recovery.size && plural(t.recovery.size, 'day') + ' of HRV, Body Battery and stress'].filter(Boolean);
+  if (all.size) data.imports.push({ id: uid(), at: new Date().toISOString(), name: 'Garmin folder', what: 'Garmin days', count: all.size, range: rangeText(all) });
+  return `Garmin folder: read ${plural(files, 'day file')}${parts.length ? ` — ${parts.join(', ')} (${rangeText(all)})` : ' — nothing new (Apple Health or your own entries already cover those days)'}${failed ? ` · ⚠ ${plural(failed, 'file')} couldn't be read and will be tried again` : ''}`;
 }
 function garminJsonSummary(name, t) {
   const all = new Set([...t.steps, ...t.sleep]);
@@ -1497,22 +1563,32 @@ function impGarminActivities(rows) {
 // Garmin workouts also reach Strava, so the same workout can arrive twice. Workouts from the
 // two that start within 3 minutes of each other on the same day are kept once (Garmin's copy wins).
 const minsOf = t => { const m = String(t || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+// Lose It copies in workouts from Garmin, Strava and Apple Health under their names. Those arrive directly, so its copy is skipped.
+const LOSEIT_MIRROR = /garmin|strava|healthkit|apple (health|watch)|adjustment/i;
+// Lose It's copies don't always say where they came from. An entry with the same minutes (±1) and similar calories as a
+// Garmin/Strava workout that day is the same workout under another name.
+const sameAsTracked = (w, list) => w.durationMin != null && list.some(x => ['garmin', 'strava'].includes(x.source) && x.durationMin != null && Math.abs(x.durationMin - w.durationMin) <= 1 && (w.calories == null || x.calories == null || Math.abs(w.calories - x.calories) <= Math.max(25, x.calories * 0.25)));
+function setLoseItWorkouts(d, items) {
+  const rest = d.workouts.filter(w => w.source !== 'loseit');
+  d.workouts = rest.concat(items.filter(w => !sameAsTracked(w, rest)));
+}
 function addWorkout(k, w) {
   const d = day(k);
+  const done = () => { d.workouts = d.workouts.filter(x => x.source !== 'loseit' || !sameAsTracked(x, [w])); touch(k); return true; };
   const i = d.workouts.findIndex(x => x.id === w.id);
   if (i >= 0) {
     // Same workout again: update it, but keep details the new copy doesn't have (e.g. calories).
     const old = d.workouts[i];
     d.workouts[i] = Object.fromEntries(Object.keys({ ...old, ...w }).map(key => [key, w[key] ?? old[key]]));
-    touch(k); return true;
+    return done();
   }
   const ws = minsOf(w.start);
   const twin = ws == null ? -1 : d.workouts.findIndex(x => x.source !== w.source && ['garmin', 'strava'].includes(x.source) && ['garmin', 'strava'].includes(w.source) && minsOf(x.start) != null && Math.abs(minsOf(x.start) - ws) <= 3);
   if (twin >= 0) {
     if (w.source !== 'garmin') return false;
-    d.workouts[twin] = w; touch(k); return true;
+    d.workouts[twin] = w; return done();
   }
-  d.workouts.push(w); touch(k); return true;
+  d.workouts.push(w); return done();
 }
 
 function impStrava(name, j) {
@@ -1589,7 +1665,7 @@ function impLoseItFood(rows, find, name) {
     const name = r[c.name] || 'Food', meal = r[c.meal] || '';
     if (/^exercise$/i.test(meal)) {
       // Garmin / Apple Health workouts and calorie adjustments already come in from Garmin and Strava.
-      if (deleted(r) || /garmin|healthkit|apple health|adjustment/i.test(name)) { exSkipped++; return; }
+      if (deleted(r) || LOSEIT_MIRROR.test(name)) { exSkipped++; return; }
       const q = num(r[c.qty]), u = String(r[c.units] || '').toLowerCase();
       (exByDay[k] ||= []).push({ id: `loseit|${k}|x${idx}`, source: 'loseit', type: name, title: name, durationMin: /hour/.test(u) ? q * 60 : /min/.test(u) ? q : null, calories: Math.abs(num(r[c.cal]) || 0) || null });
       return;
@@ -1616,7 +1692,7 @@ function impLoseItFood(rows, find, name) {
     const d = day(k);
     if (!takeLoseItDay(d, k, sent)) { older++; dates.delete(k); continue; }
     d.food = d.food.filter(f => f.source !== 'loseit').concat(byDay[k] || []);
-    d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(exByDay[k] || []);
+    setLoseItWorkouts(d, exByDay[k] || []);
     if (byDay[k]?.length) delete d.nutrition;   // per-food nutrients replace the PDF's day totals
     touch(k);
   }
@@ -1635,8 +1711,7 @@ function impLoseItExercise(rows, find) {
     if (!k) return;
     if (c.del && /^(1|true|yes)$/i.test(r[c.del])) return;
     const name = r[c.name] || 'Exercise';
-    // Lose It can mirror Garmin workouts; those already come in from the Garmin file.
-    if (/garmin/i.test(name)) { skipped++; return; }
+    if (LOSEIT_MIRROR.test(name)) { skipped++; return; }
     let mins = c.min ? parseDuration(r[c.min], 'hm') : null;
     if (mins == null && c.qty) { const q = num(r[c.qty]), u = (r[c.units] || '').toLowerCase(); mins = /hour/.test(u) ? q * 60 : /min/.test(u) ? q : null; }
     (byDay[k] ||= []).push({ id: `loseit|${k}|${idx}`, source: 'loseit', type: name, title: name, durationMin: mins, calories: num(r[c.cal]) });
@@ -1644,10 +1719,10 @@ function impLoseItExercise(rows, find) {
   });
   for (const [k, items] of Object.entries(byDay)) {
     const d = day(k);
-    d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(items);
+    setLoseItWorkouts(d, items);
     touch(k);
   }
-  return { what: 'Lose It exercises', count, dates: new Set(Object.keys(byDay)), note: skipped ? `skipped ${skipped} that came from Garmin` : '' };
+  return { what: 'Lose It exercises', count, dates: new Set(Object.keys(byDay)), note: skipped ? `skipped ${skipped} copied from Garmin, Strava or Apple Health` : '' };
 }
 
 function dateCol(headers, find) { return find(/^(date|day|time|timestamp)/) || headers[0]; }
@@ -1663,7 +1738,8 @@ function impWeight(rows, headers, find, fn) {
     if (v == null || v <= 0 || !cur) continue;
     const unit = /kg/i.test(r[wc] + ' ' + wc) ? 'kg' : 'lb';
     const d = day(cur);
-    d.weight = v; d.weightUnit = unit; d.weightSource = source;
+    if (!canSet(d, 'weight', source)) continue;
+    d.weight = v; d.weightUnit = unit; d.weightSource = source; delete d.weightVia;
     touch(cur); dates.add(cur); count++;
   }
   return { what: 'weight readings', count, dates };
@@ -1677,7 +1753,8 @@ function impSteps(rows, headers, find) {
     const v = num(r[sc]);
     if (!k || v == null) continue;
     const d = day(k);
-    d.steps = Math.round(v); d.stepsSource = 'garmin';
+    if (!canSet(d, 'steps', 'garmin')) continue;
+    d.steps = Math.round(v); d.stepsSource = 'garmin'; delete d.stepsVia;
     touch(k); dates.add(k); count++;
   }
   return { what: 'days of steps', count, dates };
@@ -1693,6 +1770,7 @@ function impSleep(rows, headers, find) {
     const score = sc ? num(r[sc]) : null;
     if (mins == null && score == null) continue;
     const d = day(k);
+    if (!canSet(d, 'sleep', 'garmin')) continue;
     d.sleep = { hours: mins != null ? Math.round(mins / 6) / 10 : d.sleep?.hours ?? null, score, source: 'garmin' };
     touch(k); dates.add(k); count++;
   }
@@ -1787,7 +1865,7 @@ async function importPdf(name, buf) {
       }
       if (cal == null) continue;
       if (meal === 'Exercise') {
-        if (/garmin/i.test(nm)) continue;        // Garmin's own workouts come from the Garmin export
+        if (LOSEIT_MIRROR.test(nm)) continue;
         D.ex.push({ name: nm, mins: parseDuration(qty, 'hm'), cal });
       } else {
         const q = qty.match(/^([\d.]+|\d+\/\d+)\s+(.*)$/);
@@ -1813,12 +1891,12 @@ async function importPdf(name, buf) {
     const D = days[key], d = day(key);
     if (!takeLoseItDay(d, key, sent)) continue;
     d.food = d.food.filter(f => f.source !== 'loseit').concat(D.food.map((f, i) => ({ id: `loseit|${key}|${i}`, source: 'loseit', name: f.name, meal: f.meal, qty: f.qty, units: f.units, calories: f.cal })));
-    d.workouts = d.workouts.filter(w => w.source !== 'loseit').concat(D.ex.map((e, i) => ({ id: `loseit|${key}|x${i}`, source: 'loseit', type: e.name, title: e.name, durationMin: e.mins, calories: e.cal })));
+    setLoseItWorkouts(d, D.ex.map((e, i) => ({ id: `loseit|${key}|x${i}`, source: 'loseit', type: e.name, title: e.name, durationMin: e.mins, calories: e.cal })));
     if (Object.keys(D.nut).length) d.nutrition = { ...D.nut, source: 'loseit' }; else delete d.nutrition;
     // Garmin files and hand-entered values win over the copies Lose It shows.
-    if (D.weight && d.weightSource !== 'manual' && d.weightSource !== 'garmin' && d.weightSource !== 'health') { d.weight = D.weight; d.weightUnit = D.unit; d.weightSource = 'loseit'; }
-    if (D.extra.steps != null && d.stepsSource !== 'manual' && d.stepsSource !== 'garmin' && d.stepsSource !== 'health') { d.steps = Math.round(D.extra.steps); d.stepsSource = 'loseit'; }
-    if (D.extra.sleep != null && (!d.sleep || d.sleep.source === 'loseit')) d.sleep = { hours: Math.round(D.extra.sleep / 6) / 10, score: null, source: 'loseit' };
+    if (D.weight && canSet(d, 'weight', 'loseit')) { d.weight = D.weight; d.weightUnit = D.unit; d.weightSource = 'loseit'; delete d.weightVia; }
+    if (D.extra.steps != null && canSet(d, 'steps', 'loseit')) { d.steps = Math.round(D.extra.steps); d.stepsSource = 'loseit'; delete d.stepsVia; }
+    if (D.extra.sleep != null && canSet(d, 'sleep', 'loseit')) d.sleep = { hours: Math.round(D.extra.sleep / 6) / 10, score: null, source: 'loseit' };
     touch(key); foods += D.food.length;
   }
   const dates = new Set(keys);
@@ -1827,9 +1905,33 @@ async function importPdf(name, buf) {
   return [`${name}: ${keys.length} day${keys.length > 1 ? 's' : ''}, ${foods} food entries (${rangeText(dates)})`];
 }
 
-const WATCH_PARSER = 3;   // v2.13: re-read for steps by hour · bump when Health Auto Export parsing changes, so existing files are re-read once
+const WATCH_PARSER = 4;   // v3.0: sleep formats, source order · bump when Health Auto Export parsing changes, so existing files are re-read once
 const withTimeout = (p, ms, why) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(why)), ms))]);
 
+// New or updated Garmin day files (the script rewrites the last 3 days every hour, and adds history in the background).
+// The first time, this reads your whole Garmin history, a few files at a time.
+async function readGarminFolder() {
+  let files = [];
+  try { files = (await Drive.garminDayFiles()).filter(f => data.watched?.[f.id] !== garminStamp(f)); }
+  catch (e) { logImport(`Garmin folder: could not check it — ${e.message}`); return 0; }
+  if (!files.length) return 0;
+  const tally = { steps: new Set(), sleep: new Set(), weight: new Set(), recovery: new Set() }, queue = files.slice();
+  let n = 0, failed = 0;
+  const work = async () => {
+    for (let f; (f = queue.shift());) {
+      try {
+        const r = await withTimeout(Drive.api(`files/${f.id}?alt=media`), 60000, 'downloading it took too long');
+        readGarminDay(await r.json(), tally);
+        data.watched[f.id] = garminStamp(f);
+      } catch { failed++; }
+      setStatus(`Reading Garmin days: ${++n} of ${files.length}…`, 'busy');
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, work));
+  importsDirty = true;
+  logImport(garminDaysSummary(tally, files.length - failed, failed));
+  return files.length - failed;
+}
 async function checkInbox(quiet = false) {
   if (store !== Drive) return;
   const inboxFiles = await Drive.inbox();
@@ -1841,8 +1943,13 @@ async function checkInbox(quiet = false) {
     watched = (await Drive.watchedFiles()).filter(f => recheck || data.watched?.[f.id] !== f.modifiedTime).sort((a, b) => String(a.modifiedTime).localeCompare(String(b.modifiedTime)));
     if (recheck) { data.watchedParser = WATCH_PARSER; importsDirty = true; }
   } catch (e) { logImport(`Health Auto Export folder: could not check it — ${e.message}`); }
+  const gDone = await readGarminFolder();
   const files = [...inboxFiles, ...watched];
-  if (!files.length) { if (!quiet) logImport('Inbox (and Health Auto Export folder) — nothing new to import.'); return 0; }
+  if (!files.length) {
+    if (gDone) { await persist(); setStatus('Up to date'); }
+    else if (!quiet) logImport('Inbox, Health Auto Export and Garmin folders — nothing new to import.');
+    return gDone;
+  }
   let done = 0, skipped = 0;
   const imported = [];
   for (const [i, f] of files.entries()) {
@@ -1867,7 +1974,7 @@ async function checkInbox(quiet = false) {
   if (skipped) toast(`${plural(skipped, 'file')} in your Inbox couldn't be imported. Open the Import tab to see why.`, 7000);
   // Only move files after the data is safely saved.
   for (const f of imported) { try { await Drive.moveToProcessed(f); } catch (e) { logImport(`${f.name}: imported, but could not move it to Processed — ${e.message}`); } }
-  return done;
+  return done + gDone;
 }
 
 /* ================= rendering ================= */
@@ -1914,7 +2021,7 @@ function dayTiles() {
   const f = d?.feel;
   $('#d-span-lbl').textContent = fmtDay(dashDate, { weekday: 'long', month: 'long', day: 'numeric' });
   return [
-    tile('steps', 'Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcName(d.stepsSource)) : 'none yet'),
+    tile('steps', 'Steps', fmtN(d?.steps), '', d?.steps != null ? (d.stepsSource === 'manual' ? 'entered by hand' : 'from ' + srcLabel(d.stepsSource, d.stepsVia)) : 'none yet'),
     tile('cal', 'Calories eaten', t.hasFood ? fmtN(t.calIn) : '—', '', t.hasFood ? `${foodPartial(d, dashDate) ? '<b>so far</b> · ' : ''}P ${fmtN(t.protein)}g · C ${fmtN(t.carbs)}g · F ${fmtN(t.fat)}g` : 'no food logged'),
     tile('ex', 'Exercise', t.hasEx ? fmtN(t.exMin) : '—', t.hasEx ? 'min' : '', t.hasEx ? `${fmtN(t.burn)} cal burned` : 'no workouts'),
     (() => { const S = weightSeries(), t = trendOn(S, dashDate), r = trendRate(S, 30, dashDate);
@@ -2014,9 +2121,10 @@ function renderHealthCard() {
   });
   $('#hk-card').hidden = !items.length;
   $('#hk').innerHTML = items.join('');
-  $('#hk-sub').textContent = n > 1 ? `${n}-day average · from Apple Health` : `${fmtDay(dashDate, { month: 'short', day: 'numeric' })} · from Apple Health`;
+  $('#hk-sub').textContent = n > 1 ? `${n}-day average · from Apple Health and Garmin` : `${fmtDay(dashDate, { month: 'short', day: 'numeric' })} · from Apple Health and Garmin`;
 }
 const srcName = s => ({ garmin: 'Garmin', strava: 'Strava', loseit: 'Lose It', health: 'Apple Health', manual: 'Manual' }[s] || s || '');
+const srcLabel = (s, via) => s === 'health' && via ? `Apple Health (${via})` : srcName(s);
 
 
 // Words from notes only count if they describe a feeling (emotional or physical). Tags always count.
@@ -2712,7 +2820,8 @@ function dayDigest(k) {
     foods: foods.length ? foods : null,
     steps: d?.steps ?? null,
     steps_by_time: (() => { const h = stepsByHour(k); if (!h) return null; const s = (a, b) => Math.round(h.slice(a, b).reduce((x, y) => x + y, 0)); return { before_noon: s(0, 12), noon_to_5pm: s(12, 17), after_5pm: s(17, 24) }; })(),
-    sleep_h: sleepHours(d), resting_hr: healthValue(d, 'restingHR'), active_cal: healthValue(d, 'activeCal'),
+    sleep_h: sleepHours(d), sleep_score: d?.sleep?.score ?? null, resting_hr: healthValue(d, 'restingHR'), active_cal: healthValue(d, 'activeCal'),
+    garmin_overnight_hrv_ms: d?.garmin?.hrvNight ?? null, garmin_body_battery_high: d?.garmin?.bodyBattery ?? null, garmin_avg_stress: d?.garmin?.stress ?? null,
     weight: d?.weight != null ? `${d.weight} ${d.weightUnit || 'lb'}` : null,
     workouts: (d?.workouts || []).map(w => ({ type: w.type || w.title, minutes: Math.round(w.durationMin || 0), calories: w.calories ?? null, distance: w.distance ?? null })),
     anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
@@ -3114,6 +3223,23 @@ function healthRows() {
     rows.push([s.error ? 'bad' : s.connected ? 'ok' : 'gray', 'Strava', s.connected ? `Connected${s.lastNewAt ? ` · last new workout saved ${H(since(s.lastNewAt))}` : ''}` : 'Not connected', s.error ? `Sync failed: ${s.error} — run stravaCheck in the script.` : '']);
     rows.push(garminRow(st.garmin, H, since));
   }
+  // Each measure on its own: a source can keep delivering files while one measure inside them stops (for example sleep).
+  // [name, has it, days a gap is normal, what to check, only shown once it has ever arrived]
+  const yest = addDays(todayKey(), -1);
+  const MEASURES = [
+    ['Steps', d => d.steps != null && d.stepsSource !== 'manual', 2, 'Steps come from Apple Health, or from Garmin on days Apple Health has none. Check that Step Count is in the Health Auto Export automation, and the Garmin row above.'],
+    ['Sleep', d => d.sleep?.hours != null && d.sleep.source !== 'manual', 2, 'Sleep comes from Garmin: straight from Garmin (check the Garmin row above, and that the watch was worn and has synced), or through Apple Health (check that Sleep Analysis is in the Health Auto Export automation). Import results below show what each file held.'],
+    ['Weight', d => d.weight != null && d.weightSource !== 'manual', 7, 'Weigh in on the Withings scale, and check that Withings shares weight with Apple Health.'],
+    ['Resting heart rate', d => healthValue(d, 'restingHR') != null, 2, 'Check that Resting Heart Rate is in the Health Auto Export automation.', true],
+    ['Food (Lose It)', d => !!d.healthFood || (d.food || []).some(f => f.source === 'loseit'), 2, 'Keep logging in Lose It. If its emails stopped, see the Lose It report row above.', true],
+  ];
+  for (const [name, has, okDays, fix, optional] of MEASURES) {
+    const k = Object.keys(data.days).filter(x => x <= yest && has(data.days[x])).sort().pop();
+    if (!k && optional) continue;
+    const gap = k ? Math.round((keyToDate(yest) - keyToDate(k)) / 864e5) : null;
+    const c = k == null ? 'warn' : gap < okDays ? 'ok' : gap < okDays * 2 ? 'warn' : 'bad';
+    rows.push([c, name, k ? `Latest: ${fmtDay(k)} (${gap ? `${gap + 1} days ago` : 'yesterday'})` : 'Never received', c === 'ok' ? '' : fix]);
+  }
   const cc = coachCfg();
   if (cc.apiKey) {
     const lastMon = addDays(weekStart(todayKey()), -7), r = reviews()['week:' + lastMon];
@@ -3370,9 +3496,13 @@ const HEALTH_METRICS = {
   vo2max:    { name: 'VO₂ max', c: '--c-hr', unit: '', dp: 1, kind: 'line' },
   bodyFat:   { name: 'Body fat', c: '--c-weight', unit: '%', dp: 1, kind: 'line', lowerIsBetter: true },
   mindful:   { name: 'Mindful minutes', c: '--c-mood', unit: 'min', dp: 0, kind: 'bar', sum: true },
+  // From Garmin directly (script v2.12+)
+  hrvNight:    { name: 'Overnight HRV (Garmin)', c: '--c-hrv', unit: 'ms', dp: 0, kind: 'line' },
+  bodyBattery: { name: 'Body Battery (high)', c: '--c-steps', unit: '', dp: 0, kind: 'line' },
+  stress:      { name: 'Stress (Garmin)', c: '--c-mood', unit: '', dp: 0, kind: 'line', lowerIsBetter: true },
 };
 Object.assign(METRICS, HEALTH_METRICS);
-const healthValue = (d, key) => d?.health?.[key] ?? (key === 'restingHR' ? d?.restingHR ?? null : null);
+const healthValue = (d, key) => d?.health?.[key] ?? d?.garmin?.[key] ?? (key === 'restingHR' ? d?.restingHR ?? null : null);
 let metricKey = null;
 
 function weightUnit() { const w = latestWeight(todayKey()); return w ? w.unit : 'lb'; }
@@ -3558,9 +3688,9 @@ function metricColumns(key) {
     case 'cal': return [['Source', d => { const t = totals(d), p = foodPartial(d, d._k) ? ' (partial)' : ''; return (t.fromHealth ? 'Apple Health totals' : esc([...new Set((d.food || []).map(f => srcName(f.source)))].join(', ')) || '—') + p; }], ['Protein g', d => fmtN(totals(d).protein)], ['Carbs g', d => fmtN(totals(d).carbs)], ['Fat g', d => fmtN(totals(d).fat)], ['Fiber g', d => fmtN(totals(d).fiber)], ['Sugars g', d => fmtN(totals(d).sugar)], ['Sodium mg', d => fmtN(totals(d).sodium)]];
     case 'ex': return [['Workouts', d => esc((d.workouts || []).map(w => w.title || w.type).join(', ')) || '—'], ['Cal burned', d => totals(d).hasEx ? fmtN(totals(d).burn) : '—']];
     case 'mood': return [['Energy', d => d.feel?.energy ?? '—'], ['Stress', d => d.feel?.stress ?? '—'], ['Tags', d => esc((d.feel?.tags || []).join(', ')) || '—']];
-    case 'sleep': return [['Score', d => d.sleep?.score ?? '—'], ['Source', d => esc(srcName(d.sleep?.source))]];
-    case 'steps': return [['Source', d => esc(srcName(d.stepsSource))]];
-    case 'weight': return [['Source', d => esc(srcName(d.weightSource))]];
+    case 'sleep': return [['Score', d => d.sleep?.score ?? '—'], ['Source', d => esc(srcLabel(d.sleep?.source, d.sleep?.via))]];
+    case 'steps': return [['Source', d => esc(srcLabel(d.stepsSource, d.stepsVia))]];
+    case 'weight': return [['Source', d => esc(srcLabel(d.weightSource, d.weightVia))]];
     case 'anchor': return anchorCfg().names.map((nm, i) => [nm, d => anchorState(d, i).on ? '✓' : '·']);
   }
   return [];
@@ -3678,7 +3808,7 @@ function metricExtra(key, keys, vals, color, unit) {
       <p class="small muted" style="margin:14px 0 0">Goal of ${c.target} met in <b>${met} of ${plural(weeks.length, 'full week')}</b>${streak ? ` · current streak: ${plural(streak, 'week')} 🔥` : ''}</p>`];
   }
   if (HEALTH_METRICS[key]) {
-    const srcs = new Set(D.map(d => d.health?.[key] != null ? 'Apple Health' : key === 'restingHR' && d.restingHR != null ? 'Garmin export' : null).filter(Boolean));
+    const srcs = new Set(D.map(d => d.health?.[key] != null ? 'Apple Health' : d.garmin?.[key] != null || (key === 'restingHR' && d.restingHR != null) ? 'Garmin' : null).filter(Boolean));
     return ['Where this comes from', `<p class="small" style="margin:0">${srcs.size ? [...srcs].join(' and ') : 'No data yet'}. Apple Health gets it from Garmin Connect (or another app that writes to Health); the <b>Health Sync</b> shortcut on your iPhone copies it to your Drive Inbox each time it runs.</p>${have.length ? `<p class="small muted" style="margin:10px 0 0">Range in this period: ${fmtN(Math.min(...have), HEALTH_METRICS[key].dp)} – ${fmtN(Math.max(...have), HEALTH_METRICS[key].dp)} ${esc(unit)}</p>` : ''}`];
   }
   return ['Breakdown', none];

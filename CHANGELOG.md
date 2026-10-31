@@ -20,6 +20,23 @@ The app and the docs share one version number. The script has its own (see below
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
 
+### v3.0 (October 31, 2026)
+
+- **Garmin data now shows up in the app.** Since v2.12 the script has saved everything Garmin offers into Drive › Health Sync › Garmin, but the app never read it. That's why sleep was blank. Now, on every sync, it reads new and updated Garmin day files:
+  - **sleep with sleep score**
+  - **overnight HRV, Body Battery (high) and stress**, as new measures in Body & recovery, with their own detail pages; the Coach sees them too
+  - **resting heart rate**
+  - **steps and weight** on days Apple Health doesn't cover
+  - The first sync reads your whole Garmin history, 6 files at a time, with a counter in the status.
+- **Fixed: Apple Health sleep could be dropped.** Health Auto Export sometimes sends a night with `totalSleep: 0` and the real hours in `asleep` (how Garmin writes sleep into Apple Health) or only in the Core/Deep/REM stages. Those nights were thrown away. Now the app reads whichever field holds the night, in both the JSON and CSV formats. A sleep record it still can't read is reported in Import results with its field names, instead of being skipped silently. Your existing Health Auto Export files are read once more to fill in missed nights.
+- **One rule for which source wins** (README › Which source wins). Before, a day's steps, sleep and weight came from whichever file was imported last, so the same day could change depending on import order.
+- **Fixed: hand-entered values could be overwritten.** The Steps, Sleep and Weight CSV importers replaced values you'd typed in.
+- **Fixed: Lose It workouts could be counted twice.** The three Lose It import paths skipped different mirrored workouts, and Lose It's copy of a Strava workout was never caught. Now all three skip copies named after Garmin, Strava, Apple Health or Apple Watch, and drop any Lose It workout with the same minutes (±1) and similar calories as a Garmin or Strava workout that day, whichever arrives first. This affected exercise minutes and the Movement box.
+- **Data health checks each measure.** New rows for Steps, Sleep, Weight, Resting heart rate and Food show the newest value and turn amber or red when one stops, even while its source keeps sending files.
+- **Where it came from:** the Sleep, Steps and Weight pages name the device behind Apple Health's value, for example "Apple Health (Garmin Connect)".
+- Tests: 31 new checks against sample files built in each format (Health Auto Export JSON and CSV sleep variants, Garmin day files, CSVs, Lose It duplicates, Data health rows). **The 131-check regression suite and your real sample files are on the home Mac and weren't run for this release.** Run them there before relying on it.
+- Script: unchanged (still v2.12.1).
+
 ### v2.13 (October 30, 2026)
 
 - **New daily anchor: Steps.** A fourth box ticks itself at **7,500 steps or more**, using Apple Health's merged iPhone + Garmin count. While today is still going it shows your progress ("5,200 of 7,500 steps so far") rather than a miss. You can change the number in Settings › Daily anchors, which also has a new **Auto: steps** rule for any box.
