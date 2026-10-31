@@ -8,7 +8,7 @@
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
 | **README / SETUP / ALTERNATIVES** | The line at the top of each file |
 | **CHANGELOG** | Its newest entry |
-| **Your copies** | The Desktop folder name, like **Health Sync v3.0.1** |
+| **Your copies** | The Desktop folder name, like **Health Sync v3.1** |
 
 ### How versions are numbered
 
@@ -20,6 +20,36 @@
 **Paste the script every release**, even if only its number changed, so everything stays on one version (README › Updating the app). Before v3.0 the script had its own number, which is why older entries below mention script versions such as 2.12.1.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v3.1 (October 31, 2026)
+
+- **New: Training tab.** Shows how hard to train, and whether your training is building sensibly (README › Training):
+  - **Readiness:** *Ready for a hard session*, *Normal training* or *Take it easy today*. It compares last night's HRV, resting heart rate and sleep with your own usual (the 28 days before), and adds yesterday's load, any load spike and your body log. Every reason is listed. A short version is on the Dashboard, under the tiles.
+  - **Training load:** your last 7 days against your usual week (the 4 weeks before), with a 12-week chart. It flags *building fast* (1.3–1.5×) and *spike* (over 1.5×).
+  - **Intensity mix:** easy, moderate and hard heart-rate-zone minutes, for 7 days and 4 weeks.
+  - **Strength:** sessions per week, and sets and reps by exercise.
+  - **Body log** and **Workouts** for the last 2 weeks.
+- **New: Garmin workouts with full detail.** The app now reads the workout files the script has saved since v2.12 (Drive › Health Sync › Garmin › activities). Each workout gets:
+  - heart-rate zones
+  - Garmin's training load and training effect
+  - strength sets and reps
+
+  The Garmin copy of a workout replaces the Strava or Activities-CSV copy (best copy first: Garmin's file, then the CSV, then Strava). Workouts without Garmin's load get an estimate, marked "est.".
+- **New: body log** in Log today. Log soreness, pain or stiffness by body area, 0–10, with a note. Pain that repeats 3 days running, gets worse 3 times in a row, or reaches 7/10 is flagged, with advice to ease off and when to see a physical therapist or doctor.
+- **Coach:** reviews have a new **Training and recovery** section: load, intensity mix, strength, recovery, pain to watch, and one or two suggestions for next week. The Coach now also sees each workout's zones, load, training effect and sets, the body log and each day's readiness.
+  - **Note:** past weekly reviews rewrite themselves when a workout is added to their week (since v2.11). If Garmin brings in workouts that never reached Strava, some past weeks may be rewritten, at most 3 every 10 minutes. Each rewrite is a normal Coach call.
+- Tests: 25 new checks against data built in each format: workout files, best-copy rules (Garmin file over CSV over Strava, in both orders), readiness on a poor-recovery day and an ordinary day, load and intensity numbers, the pain flag, the body log form, the Coach's data and the Training tab on desktop and phone. The v3.0 duplicate and sleep rules were re-checked too. **The real-file suite on the home Mac wasn't run.**
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `index.html` | Everything above |
+  | `README.md` | New Training section; Readiness on the Dashboard; Log today › Body; Coach review contents; workouts in Which source wins; setup table; privacy, FAQ and troubleshooting rows |
+  | `SETUP.md` | Step 13: what the app uses from Garmin's workout files, and what to look for after the first sync; version line |
+  | `ALTERNATIVES.md` | The Activities CSV isn't needed with Step 13, and how its copies rank; version line |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.0.1 → 3.1), no code changes. **Paste it** so Data health shows the same version. No need to run `setup` or make a new deployment. |
+  | `config.js` | Not changed (it has no version) |
 
 ### v3.0.1 (October 31, 2026)
 

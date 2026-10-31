@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.0.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -441,7 +441,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 **First, let the script receive data (one time, about 5 minutes, on your computer):**
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.0.1, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.1, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
 2. Click **Deploy** (blue, top right) → **New deployment**.
 3. Click the **⚙ gear** next to "Select type" → **Web app**.
 4. Fill in:
@@ -527,7 +527,7 @@ That's it. Health Sync writes the reviews for every week since **September 7** i
 
 The email comes from your own Google script, so it needs the script's v2.0 code or later:
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.0.1, the same version as the app) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.1, the same version as the app) and click **💾 Save**.
 2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
    - Google asks for permission again, this time to **send email as you**. Allow it.
    - Check that you received a test email.
@@ -566,7 +566,7 @@ Anthropic doesn't let an API key read the account balance, so Health Sync tracks
 
 What it doesn't include: Garmin doesn't offer **training readiness, training status or VO2 max** through this API.
 
-**What the app shows from it (since v3.0):** every time it syncs, Health Sync reads the new and updated day files in **Garmin › days** and uses:
+**What the app shows from it:** every time it syncs, Health Sync reads the new and updated files in **Garmin › days** (since v3.0) and **Garmin › activities** (since v3.1) and uses:
 
 | From Garmin | Where it shows |
 |---|---|
@@ -574,8 +574,10 @@ What it doesn't include: Garmin doesn't offer **training readiness, training sta
 | **Overnight HRV, Body Battery (high), stress** | Dashboard › **Body & recovery**, each with its own detail page, and the Coach |
 | **Resting heart rate** | Body & recovery (Apple Health's value first, Garmin's if Apple Health has none) |
 | **Steps, weight** | Only on days Apple Health has none (Apple Health's step total merges your iPhone too, and Withings writes weight there) |
+| **Every workout:** heart-rate zones, training load, training effect (Tempo, Aerobic Base…), strength sets and reps | The **Training** tab (readiness, load, intensity mix, strength), the Workouts card and the Coach. Garmin's copy replaces the Strava or Activities-CSV copy of the same workout |
+| **HRV, resting heart rate, sleep, Body Battery** together | **Readiness** on the Dashboard and Training tab |
 
-The rest of the Garmin folder isn't used by the app yet: workout files (workouts still come from Strava), the heart-rate, stress and Body Battery curves, Pulse Ox, hydration and food logged in Garmin. It's all kept, complete, for later.
+The rest of the Garmin folder isn't used by the app yet: the original watch files (`fit`), the heart-rate, stress and Body Battery curves, laps and splits, Pulse Ox, hydration and food logged in Garmin. It's all kept, complete, for later.
 
 You need **Step 9 done first** (the script).
 
@@ -593,7 +595,7 @@ You need **Step 9 done first** (the script).
 
 1. Open your project at **https://script.google.com** (**Health Sync email saver**).
 2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
-3. Paste in the new **`email-to-drive.gs`** (v3.0.1, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
+3. Paste in the new **`email-to-drive.gs`** (v3.1, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
 
 ### 13c. Add your key (privately)
 
@@ -623,6 +625,7 @@ You need **Step 9 done first** (the script).
    - **Import › Import results** has a line like *"Garmin folder: read 400 day files — 380 nights of sleep, 395 days of HRV, Body Battery and stress…"*.
    - **Data health › Sleep** is green, showing last night (or the night before, if the watch hasn't synced since you woke up).
    - The **Sleep** tile shows a **score**, and **Body & recovery** shows Overnight HRV, Body Battery and Stress.
+   - **Import results** also has a line like *"Garmin folder: read 46 workout files — 40 workouts with heart-rate zones or training load"*, and the **Training** tab shows readiness, load and your workouts with their zones. (Readiness needs about a week of history and the load comparison 4 weeks; both fill in as history loads.)
    - As the script loads more history each hour, later syncs pick it up by themselves.
 
 **That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then loads a slice of your history, newest first: about 2 weeks of days plus some workouts each hour, so roughly **a year of history a day**. It keeps going until it's past your oldest Garmin workout, so months without the watch don't stop it early. Import › Data health shows how far back it has got.
@@ -630,7 +633,7 @@ You need **Step 9 done first** (the script).
 - **A run takes 1–3 minutes,** because the script pauses between requests to stay gentle with Garmin. The Execution log shows each step as it goes, for example:
 
   ```
-  Health Sync script v3.0.1
+  Health Sync script v3.1
   Email: looking for new Lose It and Garmin report emails…
   Email: saved 0 attachment(s) from 0 email(s).
   Strava: checking for new workouts…

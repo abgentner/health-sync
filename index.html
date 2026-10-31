@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.0.1 -->
+<!-- Health Sync app · version 3.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -350,6 +350,20 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .wt-set summary{cursor:pointer;list-style:none} .wt-set summary::-webkit-details-marker{display:none}
 .wt-set{grid-column:1/-1}
 .partial-note{margin:0 0 6px;padding:6px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);font-size:12.5px}
+.rd{border-radius:12px;padding:12px 14px;margin-bottom:10px;border:1px solid var(--border)}
+.rd-v{font-size:19px;font-weight:750;letter-spacing:-.01em}
+.rd-h{font-size:13.5px;color:var(--text-2);margin-top:2px}
+.rd-push{background:color-mix(in oklab,var(--good) 12%,var(--surface));border-color:color-mix(in oklab,var(--good) 35%,var(--border))}
+.rd-push .rd-v{color:var(--good)}
+.rd-easy{background:var(--warn-bg);border-color:color-mix(in oklab,var(--warn-ink) 25%,var(--border))}
+.rd-easy .rd-v{color:var(--warn-ink)}
+.rd-list{margin:0;padding-left:18px;font-size:14px}
+.rd-list li{margin:3px 0}
+.rd-list li.neg::marker{color:var(--bad)} .rd-list li.pos::marker{color:var(--good)}
+.ld-spike{color:var(--bad);font-weight:600} .ld-building{color:var(--warn-ink);font-weight:600}
+.zbar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:5px;max-width:220px;background:var(--surface-2)}
+.zbar i{display:block;height:100%}
+.z1,.hb .t i.z1{background:var(--muted)} .z2,.hb .t i.z2{background:var(--c-steps)} .z3,.hb .t i.z3{background:var(--c-ex)} .z4,.hb .t i.z4{background:var(--c-sleep)} .z5,.hb .t i.z5{background:var(--c-hr)}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);background:var(--text);color:var(--surface);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 @media (max-width:600px){
@@ -401,6 +415,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     </div>
     <nav id="tabs">
       <button data-tab="dash" class="on">Dashboard</button>
+      <button data-tab="train">Training</button>
       <button data-tab="coach">Coach</button>
       <button data-tab="plan">Plan</button>
       <button data-tab="log">Log today</button>
@@ -431,6 +446,10 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   </div>
   <div class="span-lbl" id="d-span-lbl"></div>
   <div class="tiles" id="d-tiles"></div>
+  <div class="card" id="rd-card" hidden>
+    <div class="card-h"><h2>Readiness</h2><span class="muted small" id="rd-date"></span><button class="btn small" id="rd-more" style="margin-left:auto">Training ›</button></div>
+    <div id="rd-body"></div>
+  </div>
   <div class="card" id="hk-card" hidden>
     <div class="card-h"><h2>Body &amp; recovery</h2><span class="muted small" id="hk-sub"></span></div>
     <div class="hk" id="hk"></div>
@@ -469,6 +488,31 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     </div>
     <div class="cloud" id="cloud"></div>
     <div class="cloud-key" id="cloud-key"><span>Bigger = more often</span><span>·</span><span>Lower mood</span><i></i><span>Higher mood</span></div>
+  </div>
+</section>
+
+<!-- Training & recovery -->
+<section class="tab" id="tab-train" hidden>
+  <div class="span-lbl">Uses the date chosen on the Dashboard. Not medical advice: a guide to how hard to train, based on your own usual.</div>
+  <div class="card">
+    <div class="card-h"><h2>Readiness</h2><span class="muted small" id="tr-date"></span></div>
+    <div id="tr-ready"></div>
+    <div class="chips" style="margin-top:12px"><button type="button" data-open="hrvNight">Overnight HRV</button><button type="button" data-open="restingHR">Resting heart rate</button><button type="button" data-open="sleep">Sleep</button><button type="button" data-open="bodyBattery">Body Battery</button><button type="button" data-open="stress">Stress</button></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Training load</h2><span class="muted small">weekly, Monday–Sunday</span></div>
+    <div class="rv-nums" id="tr-load-tiles" style="margin:0 0 10px"></div>
+    <p class="small" id="tr-load-note" style="margin:0 0 10px"></p>
+    <div class="chart-box" style="height:220px"><canvas id="c-load"></canvas></div>
+    <div class="legend" style="margin:8px 0 0"><span style="--c:var(--c-ex)"><i class="bx" style="opacity:1"></i>Week’s load (this week lighter: not finished)</span><span style="--c:var(--muted)"><i class="ln"></i>Usual week (the 4 before)</span></div>
+  </div>
+  <div class="cols">
+    <div class="card"><div class="card-h"><h2>Intensity mix</h2><span class="muted small">heart-rate zones</span></div><div id="tr-mix"></div></div>
+    <div class="card"><div class="card-h"><h2>Strength</h2><span class="muted small">last 4 weeks</span></div><div id="tr-strength"></div></div>
+  </div>
+  <div class="cols">
+    <div class="card"><div class="card-h"><h2>Body log</h2><span class="muted small">last 2 weeks</span><button class="btn small" id="tr-logbody" style="margin-left:auto">Log it</button></div><div id="tr-body"></div></div>
+    <div class="card"><div class="card-h"><h2>Workouts</h2><span class="muted small">last 2 weeks</span></div><div id="tr-workouts"></div></div>
   </div>
 </section>
 
@@ -585,6 +629,17 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     </div>
     <div style="margin-top:14px"><label for="f-tags">Tags <span class="muted">(comma separated, e.g. sore, motivated, headache)</span></label><input type="text" id="f-tags"><div class="chips" id="f-tagsugg"></div></div>
     <div style="margin-top:14px"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="How was today?"></textarea></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Body</h2><span class="muted small">soreness or pain, 0 (none) to 10 (worst)</span></div>
+    <div class="list" id="l-body"></div>
+    <div class="row" style="margin-top:10px">
+      <select id="b-area" style="width:auto" aria-label="Body area"></select>
+      <select id="b-kind" style="width:auto" aria-label="Soreness or pain"><option value="sore">Soreness (muscle, after training)</option><option value="pain">Pain (sharp, joint, or not from training)</option><option value="stiff">Stiffness</option></select>
+      <input type="number" id="b-level" min="0" max="10" step="1" placeholder="0–10" style="width:80px" aria-label="Level 0 to 10">
+      <input type="text" id="b-note" class="grow" placeholder="Note (optional), e.g. worse on stairs">
+      <button class="btn small" id="b-add">Add</button>
+    </div>
   </div>
   <div class="cols">
     <div class="card">
@@ -772,7 +827,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 
 <script>
 'use strict';
-const APP_VERSION = '3.0.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.1';   // bump with every release; shown in the footer and Settings
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -889,7 +944,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null && !d.body?.length) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -1050,13 +1105,13 @@ const Drive = {
     for (const r of roots) await walk(r.id, r.name, 1);
     return out.filter(f => /\.(json|csv|zip|txt)$/i.test(f.name) || /json|csv|zip|text/.test(f.mimeType));
   },
-  // The script (v2.12+) saves one file per Garmin day in Health Sync › Garmin › days › <year>.
-  async garminDayFiles() {
+  // The script (v2.12+) saves Garmin files in Health Sync › Garmin › days|activities › <year>.
+  async garminFiles(kind) {
     const sub = async (name, parent) => (await this.list(`name='${name}' and mimeType='${FOLDER_MIME}' and '${parent}' in parents and trashed=false`))[0]?.id;
-    const g = await sub('Garmin', this.ids.root), days = g && await sub('days', g);
-    if (!days) return [];
-    const years = await this.list(`mimeType='${FOLDER_MIME}' and '${days}' in parents and trashed=false`);
-    return (await Promise.all(years.map(y => this.list(`'${y.id}' in parents and trashed=false and name contains 'garmin-'`)))).flat();
+    const g = await sub('Garmin', this.ids.root), top = g && await sub(kind, g);
+    if (!top) return [];
+    const years = await this.list(`mimeType='${FOLDER_MIME}' and '${top}' in parents and trashed=false`);
+    return (await Promise.all(years.map(y => this.list(`'${y.id}' in parents and trashed=false and name contains 'garmin-'`)))).flat().map(f => ({ ...f, kind }));
   },
   async fetchFile(f) {
     if (f.mimeType === 'application/vnd.google-apps.spreadsheet') {
@@ -1479,6 +1534,37 @@ function readGarminDay(j, tally) {
   if (Object.keys(g).length) { d.garmin = g; tally.recovery.add(k); } else delete d.garmin;
   touch(k);
 }
+/* ---- Garmin workouts: Health Sync › Garmin › activities › <year> › garmin-activity-<date>-<id>.json ----
+   { activityId, date, summary: (Garmin's workout list entry), detail: { summaryDTO, … }, workouts } */
+const titleCase = s => String(s || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+function readGarminActivity(j, tally) {
+  const s = j?.summary || {}, sd = j?.detail?.summaryDTO || {}, id = j?.activityId ?? s.activityId;
+  const when = String(s.startTimeLocal || sd.startTimeLocal || j?.date || ''), k = parseDate(when);
+  if (!k || id == null) return;
+  const start = (when.match(/[ T](\d{2}:\d{2})/) || [])[1] || '';
+  const type = titleCase(s.activityType?.typeKey || j?.detail?.activityTypeDTO?.typeKey) || 'Workout';
+  const secs = gPos(s.duration, sd.duration, s.movingDuration, sd.movingDuration);
+  const zones = [1, 2, 3, 4, 5].map(z => Math.round((gPos(s['hrTimeInZone_' + z], sd['hrTimeInZone_' + z]) || 0) / 6) / 10);
+  const meters = gPos(s.distance, sd.distance);
+  // Strength workouts: Garmin groups the sets by exercise, e.g. BENCH_PRESS × 3 sets, 30 reps.
+  const sets = (s.summarizedExerciseSets || []).filter(x => x && (x.sets || x.reps)).map(x => ({ name: titleCase(x.subCategory && x.subCategory !== 'UNKNOWN' ? x.subCategory : x.category), sets: x.sets || null, reps: x.reps || null }));
+  const w = {
+    id: `garmin|a${id}`, source: 'garmin', garminId: id, type, title: s.activityName || type, start,
+    durationMin: secs ? Math.round(secs / 6) / 10 : null,
+    distance: meters ? +(settings.units === 'metric' ? meters / 1000 : meters / 1609.344).toFixed(2) : null,
+    calories: gPos(s.calories, sd.calories) ? Math.round(gPos(s.calories, sd.calories)) : null,
+    avgHR: gPos(s.averageHR, sd.averageHR) ? Math.round(gPos(s.averageHR, sd.averageHR)) : null, maxHR: gPos(s.maxHR, sd.maxHR),
+    ...(zones.some(Boolean) ? { zones } : {}),
+    ...(gPos(s.activityTrainingLoad, sd.activityTrainingLoad) ? { load: Math.round(gPos(s.activityTrainingLoad, sd.activityTrainingLoad)) } : {}),
+    ...(gPos(s.aerobicTrainingEffect, sd.trainingEffect) ? { teAerobic: gPos(s.aerobicTrainingEffect, sd.trainingEffect) } : {}),
+    ...(gPos(s.anaerobicTrainingEffect, sd.anaerobicTrainingEffect) ? { teAnaerobic: gPos(s.anaerobicTrainingEffect, sd.anaerobicTrainingEffect) } : {}),
+    ...(s.trainingEffectLabel || sd.trainingEffectLabel ? { teLabel: titleCase(s.trainingEffectLabel || sd.trainingEffectLabel) } : {}),
+    ...(sets.length ? { sets } : {}),
+  };
+  // addWorkout keeps this copy over a Garmin CSV or Strava copy of the same workout (same start ±3 min).
+  addWorkout(k, w);
+  tally.workouts.add(k); if (w.zones || w.load) tally.detail++;
+}
 function garminDaysSummary(t, files, failed) {
   const all = new Set([...t.steps, ...t.sleep, ...t.weight, ...t.recovery]);
   const parts = [t.sleep.size && plural(t.sleep.size, 'night') + ' of sleep', t.steps.size && plural(t.steps.size, 'day') + ' of steps (only where Apple Health had none)', t.weight.size && plural(t.weight.size, 'weigh-in'), t.recovery.size && plural(t.recovery.size, 'day') + ' of HRV, Body Battery and stress'].filter(Boolean);
@@ -1582,10 +1668,12 @@ function addWorkout(k, w) {
     d.workouts[i] = Object.fromEntries(Object.keys({ ...old, ...w }).map(key => [key, w[key] ?? old[key]]));
     return done();
   }
+  // Copies of one workout, best first: Garmin's own workout file (full detail), Garmin's CSV, Strava.
+  const rank = x => !['garmin', 'strava'].includes(x.source) ? 0 : String(x.id).startsWith('garmin|a') ? 3 : x.source === 'garmin' ? 2 : 1;
   const ws = minsOf(w.start);
-  const twin = ws == null ? -1 : d.workouts.findIndex(x => x.source !== w.source && ['garmin', 'strava'].includes(x.source) && ['garmin', 'strava'].includes(w.source) && minsOf(x.start) != null && Math.abs(minsOf(x.start) - ws) <= 3);
+  const twin = ws == null || !rank(w) ? -1 : d.workouts.findIndex(x => rank(x) && rank(x) !== rank(w) && minsOf(x.start) != null && Math.abs(minsOf(x.start) - ws) <= 3);
   if (twin >= 0) {
-    if (w.source !== 'garmin') return false;
+    if (rank(w) < rank(d.workouts[twin])) return false;
     d.workouts[twin] = w; return done();
   }
   d.workouts.push(w); return done();
@@ -1912,24 +2000,30 @@ const withTimeout = (p, ms, why) => Promise.race([p, new Promise((_, rej) => set
 // The first time, this reads your whole Garmin history, a few files at a time.
 async function readGarminFolder() {
   let files = [];
-  try { files = (await Drive.garminDayFiles()).filter(f => data.watched?.[f.id] !== garminStamp(f)); }
+  try { files = [...await Drive.garminFiles('days'), ...await Drive.garminFiles('activities')].filter(f => data.watched?.[f.id] !== garminStamp(f)); }
   catch (e) { logImport(`Garmin folder: could not check it — ${e.message}`); return 0; }
   if (!files.length) return 0;
-  const tally = { steps: new Set(), sleep: new Set(), weight: new Set(), recovery: new Set() }, queue = files.slice();
-  let n = 0, failed = 0;
+  const tally = { steps: new Set(), sleep: new Set(), weight: new Set(), recovery: new Set(), workouts: new Set(), detail: 0 }, queue = files.slice();
+  const nDays = files.filter(f => f.kind === 'days').length;
+  let n = 0, failed = 0, failedDays = 0;
   const work = async () => {
     for (let f; (f = queue.shift());) {
       try {
         const r = await withTimeout(Drive.api(`files/${f.id}?alt=media`), 60000, 'downloading it took too long');
-        readGarminDay(await r.json(), tally);
+        (f.kind === 'activities' ? readGarminActivity : readGarminDay)(await r.json(), tally);
         data.watched[f.id] = garminStamp(f);
-      } catch { failed++; }
-      setStatus(`Reading Garmin days: ${++n} of ${files.length}…`, 'busy');
+      } catch { failed++; if (f.kind === 'days') failedDays++; }
+      setStatus(`Reading Garmin files: ${++n} of ${files.length}…`, 'busy');
     }
   };
   await Promise.all(Array.from({ length: 6 }, work));
   importsDirty = true;
-  logImport(garminDaysSummary(tally, files.length - failed, failed));
+  if (nDays) logImport(garminDaysSummary(tally, nDays - failedDays, failedDays));
+  const nAct = files.length - nDays, failedAct = failed - failedDays;
+  if (nAct) {
+    if (tally.workouts.size) data.imports.push({ id: uid(), at: new Date().toISOString(), name: 'Garmin folder', what: 'Garmin workouts', count: nAct - failedAct, range: rangeText(tally.workouts) });
+    logImport(`Garmin folder: read ${plural(nAct - failedAct, 'workout file')}${tally.detail ? ` — ${plural(tally.detail, 'workout')} with heart-rate zones or training load` : ''}${tally.workouts.size ? ` (${rangeText(tally.workouts)})` : ''}${failedAct ? ` · ⚠ ${plural(failedAct, 'file')} couldn't be read and will be tried again` : ''}`);
+  }
   return files.length - failed;
 }
 async function checkInbox(quiet = false) {
@@ -1986,7 +2080,7 @@ function render() {
   if (metricKey) renderMetric();
   renderHealth();
   renderCoach(); renderCoachSettings();
-  renderDash(); renderLog(); renderHist(); renderImports(); renderSettings(); if (!planEditing) renderPlan();
+  renderDash(); renderTraining(); renderLog(); renderHist(); renderImports(); renderSettings(); if (!planEditing) renderPlan();
 }
 
 const ICONS = {
@@ -2109,7 +2203,7 @@ function renderDash() {
   renderCharts();
   renderCloud();
   renderAnchorSummary();
-  renderHealthCard();
+  renderHealthCard(); renderReadinessCard();
 }
 function renderHealthCard() {
   const n = settings.span, end = n > 1 ? addDays(dashDate, -1) : dashDate, ks = windowKeys(end, n);
@@ -2282,6 +2376,8 @@ function renderLogLists() {
   const d = getDay(logDate);
   const ws = d?.workouts || [], fd = d?.food || [];
   $('#l-workouts').innerHTML = ws.length ? ws.map((x, i) => `<div class="li"><span class="n">${esc(x.title || x.type)}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${[x.durationMin != null && fmtN(x.durationMin) + ' min', x.calories && fmtN(x.calories) + ' cal'].filter(Boolean).join(' · ')}</span><button class="del" data-del="workouts" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">None yet.</p>';
+  const bd = d?.body || [];
+  $('#l-body').innerHTML = bd.length ? bd.map((x, i) => `<div class="li"><span class="n">${esc(x.area)}<span class="tag">${esc(BODY_KIND[x.kind] || x.kind)}</span>${x.note ? ` <span class="muted small">${esc(x.note)}</span>` : ''}</span><span class="x">${x.level}/10</span><button class="del" data-del="body" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">Nothing logged. Add anything sore, stiff or painful, so readiness and the Coach can take it into account.</p>';
   $('#l-food').innerHTML = fd.length ? fd.map((x, i) => `<div class="li"><span class="n">${esc(x.name)}${x.meal ? `<span class="tag">${esc(x.meal)}</span>` : ''}<span class="tag">${esc(srcName(x.source))}</span></span><span class="x">${fmtN(x.calories)} cal</span><button class="del" data-del="food" data-i="${i}" aria-label="Delete">×</button></div>`).join('') : '<p class="muted small" style="margin:0">None yet.</p>';
 }
 
@@ -2636,7 +2732,7 @@ async function moveEntries(to) {
   const manualFood = src?.food.filter(f => f.source === 'manual') || [];
   const manualWk = src?.workouts.filter(w => w.source === 'manual') || [];
   const mWeight = src?.weightSource === 'manual', mSteps = src?.stepsSource === 'manual', mSleep = src?.sleep?.source === 'manual';
-  if (!src || (!hasFeel(src.feel) && !src.anchors?.some(v => v != null) && !manualFood.length && !manualWk.length && !mWeight && !mSteps && !mSleep)) { toast('Nothing you entered by hand on this day to move.'); return; }
+  if (!src || (!hasFeel(src.feel) && !src.anchors?.some(v => v != null) && !manualFood.length && !manualWk.length && !mWeight && !mSteps && !mSleep && !src.body?.length)) { toast('Nothing you entered by hand on this day to move.'); return; }
   const dst = getDay(to);
   const toName = fmtDay(to, { weekday: 'short', month: 'short', day: 'numeric' });
   if (hasFeel(src.feel) && hasFeel(dst?.feel) && !confirm(`${toName} already has feelings logged. Replace them with this day's?`)) return;
@@ -2648,6 +2744,7 @@ async function moveEntries(to) {
   if (mWeight) { d.weight = src.weight; d.weightUnit = src.weightUnit; d.weightSource = 'manual'; delete src.weight; delete src.weightUnit; delete src.weightSource; }
   if (mSteps) { d.steps = src.steps; d.stepsSource = 'manual'; delete src.steps; delete src.stepsSource; }
   if (mSleep) { d.sleep = src.sleep; delete src.sleep; }
+  if (src.body?.length) { (d.body ||= []).push(...src.body); delete src.body; }
   touch(from); touch(to);
   await runTask(persist);
   logDate = to; renderLog(); renderDash(); renderHist();
@@ -2823,7 +2920,11 @@ function dayDigest(k) {
     sleep_h: sleepHours(d), sleep_score: d?.sleep?.score ?? null, resting_hr: healthValue(d, 'restingHR'), active_cal: healthValue(d, 'activeCal'),
     garmin_overnight_hrv_ms: d?.garmin?.hrvNight ?? null, garmin_body_battery_high: d?.garmin?.bodyBattery ?? null, garmin_avg_stress: d?.garmin?.stress ?? null,
     weight: d?.weight != null ? `${d.weight} ${d.weightUnit || 'lb'}` : null,
-    workouts: (d?.workouts || []).map(w => ({ type: w.type || w.title, minutes: Math.round(w.durationMin || 0), calories: w.calories ?? null, distance: w.distance ?? null })),
+    workouts: (d?.workouts || []).map(w => { const l = workoutLoad(w); return { type: w.type || w.title, minutes: Math.round(w.durationMin || 0), calories: w.calories ?? null, distance: w.distance ?? null,
+      training_load: l.v || null, load_estimated: l.est, ...(w.zones ? { hr_zone_minutes_1_to_5: w.zones } : {}), ...(w.teLabel ? { garmin_training_effect: `${w.teLabel} (aerobic ${w.teAerobic ?? '?'}, anaerobic ${w.teAnaerobic ?? '?'})` } : {}),
+      ...(w.sets?.length ? { strength_sets: w.sets.map(x => `${x.name}: ${x.sets ?? '?'} sets, ${x.reps ?? '?'} reps`) } : {}) }; }),
+    body_log: d?.body?.length ? d.body.map(b => `${b.area}: ${BODY_KIND[b.kind] || b.kind} ${b.level}/10${b.note ? ` (${b.note})` : ''}`) : null,
+    readiness: (() => { const r = readiness(k); return r ? `${r.title}: ${r.parts.map(p => p.text).concat(r.painNote || []).join('; ')}` : null; })(),
     anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
     mood: d?.feel?.mood ?? null, energy: d?.feel?.energy ?? null, stress: d?.feel?.stress ?? null, tags: d?.feel?.tags?.length ? d.feel.tags : null, notes: d?.feel?.notes || null,
   };
@@ -2860,6 +2961,11 @@ function buildDigest(start, end, opts = {}) {
       nutrition_targets: { fiber_g_min: cc.targets.fiberMin, sodium_mg_max: cc.targets.sodiumMax, sat_fat_pct_of_calories_max: cc.targets.satFatPctMax, sugars_g_max: cc.targets.sugarMax },
     },
     this_period: periodStats(ks),
+    training: (() => { const ls = loadStatus(end), mix = intensityMix(ks), st = strengthSummary(ks);
+      return { load_last_7_days_vs_usual_week: ls.ratio == null ? ls.text : `${ls.acute} vs usual ${ls.chronic} (${ls.ratio}×): ${ls.text}`,
+        weekly_load_last_6_weeks: Array.from({ length: 6 }, (_, i) => { const e = addDays(end, -7 * (5 - i)); return { week_ending: e, load: sumLoad(windowKeys(e, 7)) }; }),
+        intensity_minutes_this_period: mix, strength_sessions_this_period: st.sessions.length, strength_sets_by_exercise: st.byEx.slice(0, 12).map(([n, e]) => `${n}: ${e.sets} sets, ${e.reps} reps`),
+        pain_flags: bodyFlags(end).map(f => f.text) }; })(),
     previous_periods_same_length: prior,
     last_weekly_review: prev ? { period: fmtRange(prev.start, prev.end), grade: prev.grade, headline: prev.headline, focus_given: prev.focus } : null,
     days: ks.map(dayDigest),
@@ -2867,7 +2973,7 @@ function buildDigest(start, end, opts = {}) {
   };
 }
 
-const COACH_SYSTEM = `You are the coach inside Health Sync, a personal health app. Each review covers one period of the user's own data: food logged in Lose It, steps/sleep/heart rate from Garmin via Apple Health, workouts from Strava/Garmin, mood notes, and three daily "anchor" habit boxes from their plan. You write a review they read in the app and by email.
+const COACH_SYSTEM = `You are the coach inside Health Sync, a personal health app. Each review covers one period of the user's own data: food logged in Lose It, steps/sleep/heart rate/HRV from Garmin (directly and via Apple Health), workouts from Garmin and Strava with heart-rate zones and training load, a body log of soreness and pain, mood notes, and the daily "anchor" habit boxes from their plan. You write a review they read in the app and by email.
 
 Voice: matter-of-fact and specific. No flattery, no cheerleading, no filler. State what happened with the numbers that show it. Be blunt only when something was genuinely bad (for example, most days missed or a target missed by a wide margin), and even then stay constructive. Write to the user as "you".
 
@@ -2881,11 +2987,11 @@ Nutrition: check the mix, not just calories: protein (as a share of calories), f
 
 Weight: judge it by weight_trend (a smoothed trend weight) and its weekly rate, never by a single weigh-in; day-to-day swings of 1-4 lb are mostly water, sodium and food in transit, so mention a jump only to explain it (for example after high-sodium days). Compare the rate with the plan's weight goal and committed rate when present.
 
-Vitamins and minerals come from Apple Health and only count foods that have that data in Lose It, so treat them as a minimum. Mention only clear, consistent shortfalls (for example potassium or magnesium well under 50% of daily value most days) and suggest plan-friendly foods that supply them; don't recommend supplements beyond suggesting the user ask their doctor.\n\nIf last_weekly_review is present, check whether its focus items were followed. focus: at most 3 concrete actions for the next period. If user_question is present, answer it directly in question_answer using the data; otherwise return an empty string.`;
+Vitamins and minerals come from Apple Health and only count foods that have that data in Lose It, so treat them as a minimum. Mention only clear, consistent shortfalls (for example potassium or magnesium well under 50% of daily value most days) and suggest plan-friendly foods that supply them; don't recommend supplements beyond suggesting the user ask their doctor.\n\nTraining and recovery (fill training.summary, training.recovery and training.next_week; leave them empty strings if there are no workouts or recovery data): judge training against the period's load (training.load_last_7_days_vs_usual_week: around 0.8-1.3x is steady, above 1.5x is a spike, a common rule of thumb for overuse risk), the intensity mix (most endurance time easy, roughly 20% hard; a high hard share week after week is hard to recover from), and strength work (two sessions a week is a common minimum for keeping muscle, especially while losing weight). Recovery: use each day's readiness, sleep, resting heart rate and HRV against the person's own usual, and connect them to the training (for example a hard day followed by low HRV). Body log: soreness after training is normal; pain that repeats, rises or is 7+/10 is not. For pain_flags, say plainly to ease off what aggravates it and to see a physical therapist or doctor if it doesn't settle; never diagnose. next_week: one or two concrete training suggestions that fit the plan (for example 'keep this week's load, move the hard session after a good night'), not a full programme.\n\nIf last_weekly_review is present, check whether its focus items were followed. focus: at most 3 concrete actions for the next period. If user_question is present, answer it directly in question_answer using the data; otherwise return an empty string.`;
 
 const REVIEW_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['grade', 'grade_reason', 'headline', 'narrative', 'went_well', 'fell_short', 'working', 'not_working', 'nutrition', 'focus', 'question_answer'],
+  required: ['grade', 'grade_reason', 'headline', 'narrative', 'went_well', 'fell_short', 'working', 'not_working', 'nutrition', 'training', 'focus', 'question_answer'],
   properties: {
     grade: { type: 'string', enum: ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F'] },
     grade_reason: { type: 'string' }, headline: { type: 'string' }, narrative: { type: 'string' },
@@ -2896,6 +3002,7 @@ const REVIEW_SCHEMA = {
       flags: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['nutrient', 'status', 'detail'], properties: { nutrient: { type: 'string' }, status: { type: 'string', enum: ['low', 'high', 'ok'] }, detail: { type: 'string' } } } },
       swaps: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['instead_of', 'try', 'why'], properties: { instead_of: { type: 'string' }, try: { type: 'string' }, why: { type: 'string' } } } },
     } },
+    training: { type: 'object', additionalProperties: false, required: ['summary', 'recovery', 'next_week'], properties: { summary: { type: 'string' }, recovery: { type: 'string' }, next_week: { type: 'string' } } },
     focus: { type: 'array', items: { type: 'string' } }, question_answer: { type: 'string' },
   },
 };
@@ -3027,6 +3134,7 @@ async function sendReviewEmail(r) {
     ${r.narrative.split(/\n\s*\n/).map(p => `<p style="font-family:Georgia,serif">${esc(p)}</p>`).join('')}
     ${r.nutrition?.summary ? `<p><b>Nutrition:</b> ${esc(r.nutrition.summary)}</p>` : ''}
     ${r.nutrition?.swaps?.length ? `<p><b>Swaps that fit your plan</b></p>${li(r.nutrition.swaps.map(s => `${s.instead_of} → ${s.try} (${s.why})`))}` : ''}
+    ${r.training?.summary || r.training?.recovery ? `<p><b>Training and recovery:</b> ${esc([r.training.summary, r.training.recovery].filter(Boolean).join(' '))}${r.training.next_week ? `<br><b>Next week:</b> ${esc(r.training.next_week)}` : ''}</p>` : ''}
     <p><b>Focus</b></p>${li(r.focus)}
     <p style="font-size:13px"><a href="${esc(location.origin + location.pathname)}#coach">Open the full review in Health Sync</a></p></div>`;
   await fetch(cc.scriptUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
@@ -3106,6 +3214,7 @@ function reviewHtml(r, compact) {
       ${flags.length ? `<ul>${flags.map(f => `<li><b>${esc(f.nutrient)} ${f.status === 'high' ? 'high' : 'low'}:</b> ${esc(f.detail)}</li>`).join('')}</ul>` : ''}
       ${n.swaps?.length ? `<div class="rv-h" style="margin-top:8px">Swaps that fit your plan</div><ul>${n.swaps.map(s => `<li><b>${esc(s.instead_of)}</b> → ${esc(s.try)}. <span class="muted">${esc(s.why)}</span></li>`).join('')}</ul>` : ''}
       ${!compact ? `<button class="btn small" data-swaps="${esc(r.key)}">More swap ideas</button> <span class="muted small">uses your plan's rules and foods you already log</span>` : ''}</div>` : ''}
+    ${r.training?.summary || r.training?.recovery ? `<div class="rv-box" style="margin-top:12px"><div class="rv-h">🏃 Training and recovery</div>${[r.training.summary, r.training.recovery].filter(Boolean).map(x => `<p style="margin:0 0 6px">${esc(x)}</p>`).join('')}${r.training.next_week ? `<p style="margin:0"><b>Next week:</b> ${esc(r.training.next_week)}</p>` : ''}</div>` : ''}
     ${r.focus?.length ? `<div class="rv-focus"><div class="rv-h">🎯 Focus next</div><ol>${r.focus.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
     ${r.stats ? `<div class="rv-nums">${[['Anchors', r.stats.anchors], ['Steps / day', fmtN(r.stats.avg_steps)], ['Calories / day', fmtN(r.stats.avg_calories_logged_days)], ['Sleep / night', r.stats.avg_sleep_h != null ? r.stats.avg_sleep_h + ' h' : '—'], ['Resting HR', fmtN(r.stats.avg_resting_hr)]].map(([k, v]) => `<div><span>${k}</span><b>${esc(v ?? '—')}</b></div>`).join('')}</div>` : ''}`;
 }
@@ -3195,6 +3304,180 @@ async function saveCoachSettings() {
   if (!coachDirty) { toast('Coach settings saved.'); renderCoachSettings(); renderCoach(); autoReviews(); }
 }
 
+
+/* ================= training & recovery ================= */
+const BODY_AREAS = ['Neck', 'Shoulder (left)', 'Shoulder (right)', 'Upper back', 'Lower back', 'Elbow / wrist / hand', 'Hip', 'Glutes', 'Hamstrings', 'Quads', 'Knee (left)', 'Knee (right)', 'Calves / shins', 'Ankle / foot', 'Other'];
+const BODY_KIND = { sore: 'Soreness', pain: 'Pain', stiff: 'Stiffness' };
+
+// Training load of one workout: Garmin's own figure when there is one. Otherwise an estimate: heart-rate-zone minutes
+// × zone number (Edwards' TRIMP, roughly on Garmin's scale), or minutes × 2 (an easy-to-moderate effort) with no heart rate.
+function workoutLoad(w) {
+  if (w.load) return { v: w.load, est: false };
+  if (w.zones) return { v: Math.round(w.zones.reduce((s, m, i) => s + m * (i + 1), 0)), est: true };
+  return { v: Math.round((w.durationMin || 0) * 2), est: true };
+}
+const dayLoad = k => (getDay(k)?.workouts || []).reduce((s, w) => s + workoutLoad(w).v, 0);
+const sumLoad = ks => Math.round(ks.reduce((s, k) => s + dayLoad(k), 0));
+const firstWorkoutDay = () => Object.keys(data.days).filter(k => data.days[k].workouts?.length).sort()[0] || null;
+
+// The last 7 days against your usual week (the 4 weeks before them): a common rule of thumb for spotting
+// load that rises faster than the body adapts. Needs 4 weeks of history.
+function loadStatus(k) {
+  const acute = sumLoad(windowKeys(k, 7)), first = firstWorkoutDay();
+  if (!first || first > addDays(k, -27)) return { acute, chronic: null, ratio: null, band: 'new', text: 'Needs 4 weeks of workouts to compare against' };
+  const chronic = Math.round(sumLoad(windowKeys(addDays(k, -7), 28)) / 4);
+  const ratio = chronic > 0 ? Math.round(acute / chronic * 100) / 100 : null;
+  const band = ratio == null ? 'new' : ratio > 1.5 ? 'spike' : ratio > 1.3 ? 'building' : ratio < 0.8 ? 'lighter' : 'steady';
+  const text = { new: 'No workouts in the 4 weeks before', spike: `A spike: ${ratio}× your usual week. Big jumps like this are when overuse injuries tend to start`, building: `Building fast: ${ratio}× your usual week. Fine for a week, not for several in a row`, lighter: `Lighter than usual: ${ratio}× your usual week`, steady: `In your usual range: ${ratio}× your usual week` }[band];
+  return { acute, chronic, ratio, band, text };
+}
+
+// Minutes by heart-rate zone: easy (zones 1–2), moderate (3), hard (4–5). Workouts without zones are counted separately.
+function intensityMix(ks) {
+  const m = { easy: 0, moderate: 0, hard: 0, noHr: 0 };
+  for (const k of ks) for (const w of getDay(k)?.workouts || []) {
+    if (w.zones) { m.easy += w.zones[0] + w.zones[1]; m.moderate += w.zones[2]; m.hard += w.zones[3] + w.zones[4]; }
+    else m.noHr += w.durationMin || 0;
+  }
+  for (const x in m) m[x] = Math.round(m[x]);
+  const zoned = m.easy + m.moderate + m.hard;
+  m.hardPct = zoned ? Math.round(m.hard / zoned * 100) : null;
+  return m;
+}
+
+const isStrength = w => !!w.sets?.length || /strength|weight|lift|resistance|gym/i.test(`${w.type} ${w.title}`);
+function strengthSummary(ks) {
+  const sessions = [], byEx = {};
+  for (const k of ks) for (const w of getDay(k)?.workouts || []) if (isStrength(w)) {
+    sessions.push({ k, w });
+    for (const s of w.sets || []) { const e = (byEx[s.name] ||= { sets: 0, reps: 0 }); e.sets += s.sets || 0; e.reps += s.reps || 0; }
+  }
+  return { sessions, byEx: Object.entries(byEx).sort((a, b) => b[1].sets - a[1].sets) };
+}
+
+// Pain that keeps coming back, climbs, or is severe. Soreness after training is expected and isn't flagged.
+function bodyFlags(k) {
+  const ks = windowKeys(k, 14), byArea = {};
+  for (const x of ks) for (const b of getDay(x)?.body || []) if (b.kind === 'pain') (byArea[b.area] ||= {})[x] = Math.max(byArea[b.area]?.[x] ?? 0, b.level);
+  const out = [];
+  for (const [area, days] of Object.entries(byArea)) {
+    const dk = Object.keys(days).sort(), levels = dk.map(x => days[x]), last = dk[dk.length - 1];
+    if (last < addDays(k, -2)) continue;   // nothing in the last 3 days: settled
+    let run = 1; for (let i = dk.length - 1; i > 0 && dk[i - 1] === addDays(dk[i], -1); i--) run++;
+    const recent = levels.slice(-3), rising = recent.length === 3 && recent[0] < recent[1] && recent[1] < recent[2];
+    const severe = levels[levels.length - 1] >= 7;
+    if (severe || run >= 3 || rising) out.push({ area, level: levels[levels.length - 1], severe,
+      text: `${area}: pain ${recent.join(' → ')}/10${run >= 3 ? `, ${run} days running` : ''}${rising ? ', getting worse' : ''}.` });
+  }
+  return out;
+}
+const BODY_ADVICE = 'Ease off whatever aggravates it. If it isn’t settling within a week or two, or it’s sharp, swollen, numb, or stops you bearing weight, see a physical therapist or doctor.';
+
+// Your usual (the 28 days before) for one measure, or null with fewer than 7 days of it.
+function usual(k, f) {
+  const v = windowKeys(addDays(k, -1), 28).map(x => f(getDay(x))).filter(x => x != null);
+  if (v.length < 7) return null;
+  const m = avg(v);
+  return { m, sd: Math.sqrt(avg(v.map(x => (x - m) ** 2))), n: v.length };
+}
+// Ready / normal / take it easy for day k, from last night's recovery against your own usual, recent load and the body log.
+// Not medical: a nudge for how hard to train.
+function readiness(k) {
+  const d = getDay(k), parts = [];
+  const add = (score, text) => parts.push({ score, text });
+  const garminHrv = d?.garmin?.hrvNight != null;
+  const hrvOf = x => garminHrv ? x?.garmin?.hrvNight ?? null : x?.health?.hrv ?? null, hv = hrvOf(d);
+  if (hv != null) {
+    const u = usual(k, hrvOf);
+    if (u) { const z = (hv - u.m) / Math.max(u.sd, u.m * 0.05), t = `HRV ${fmtN(hv)} ms (usual ${fmtN(u.m)})`;
+      add(z <= -1 ? -2 : z <= -0.5 ? -1 : z >= 0.5 ? 1 : 0, z <= -0.5 ? `${t}: lower than usual, a sign you haven’t fully recovered` : z >= 0.5 ? `${t}: higher than usual` : `${t}: normal`); }
+  }
+  const rhr = healthValue(d, 'restingHR');
+  if (rhr != null) {
+    const u = usual(k, x => healthValue(x, 'restingHR'));
+    if (u) { const z = (rhr - u.m) / Math.max(u.sd, 1.5), t = `Resting heart rate ${fmtN(rhr)} (usual ${fmtN(u.m)})`;
+      add(z >= 1 || rhr >= u.m + 5 ? -2 : z >= 0.5 ? -1 : z <= -0.5 ? 1 : 0, z >= 0.5 ? `${t}: up, which can mean stress, poor sleep, illness or hard training` : z <= -0.5 ? `${t}: lower than usual` : `${t}: normal`); }
+  }
+  const sl = sleepHours(d), sc = d?.sleep?.score;
+  if (sl != null) {
+    let s = sl < 6 ? -2 : sl < 7 ? -1 : sl >= 7.5 ? 1 : 0;
+    if (sc != null) s = Math.max(-2, Math.min(1, s + (sc < 50 ? -1 : sc >= 85 ? 1 : 0)));
+    add(s, `Sleep ${fmtN(sl, 1)} h${sc != null ? `, score ${sc}` : ''}${s < 0 ? ': short or poor' : s > 0 ? ': good' : ''}`);
+  }
+  // Body Battery is Garmin's own mix of HRV, stress and sleep, so it's only used when HRV is missing.
+  const bb = d?.garmin?.bodyBattery;
+  if (bb != null && hv == null) add(bb < 40 ? -1 : bb >= 80 ? 1 : 0, `Body Battery peaked at ${bb}${bb < 40 ? ': low' : ''}`);
+  const ls = loadStatus(k);
+  if (ls.band === 'spike') add(-1, `Training load: ${ls.text[0].toLowerCase()}${ls.text.slice(1)}`);
+  const y = addDays(k, -1), yl = dayLoad(y), usualDay = sumLoad(windowKeys(addDays(k, -2), 28)) / 28;
+  const yHard = (getDay(y)?.workouts || []).some(w => (w.teAnaerobic || 0) >= 3 || (w.teAerobic || 0) >= 4);
+  if ((usualDay > 0 && yl >= usualDay * 3 && yl >= 100) || yHard) add(-1, `Yesterday was a hard training day (load ${fmtN(yl)})`);
+  const body = [...(getDay(y)?.body || []), ...(d?.body || [])];
+  const pain = Math.max(0, ...body.filter(b => b.kind === 'pain').map(b => b.level)), sore = Math.max(0, ...body.filter(b => b.kind !== 'pain').map(b => b.level));
+  if (sore >= 7) add(-1, `Very sore (${sore}/10)`);
+  const flags = bodyFlags(k);
+  if (!parts.length && !pain) return null;
+  const score = parts.reduce((s, p) => s + p.score, 0);
+  const verdict = pain >= 7 || score <= -3 ? 'easy' : score >= 2 && !parts.some(p => p.score <= -2) && pain < 4 ? 'push' : 'normal';
+  const painNote = pain >= 4 ? `Pain logged (${pain}/10): keep training away from that area until it settles` : '';
+  return { verdict, score, parts, painNote, flags,
+    title: { push: 'Ready for a hard session', normal: 'Normal training', easy: 'Take it easy today' }[verdict],
+    hint: { push: 'Recovery looks good. A good day for intervals, a long effort or heavy lifting.', normal: 'Train as planned. Keep hard efforts to what the plan calls for.', easy: 'Choose an easy session, mobility work, a walk or rest.' }[verdict] };
+}
+
+function readinessHtml(r, k) {
+  if (!r) return `<p class="muted small" style="margin:0">Not enough data for ${k === todayKey() ? 'today' : fmtDay(k)} yet. Readiness needs last night’s sleep, HRV or resting heart rate, plus about a week of history to know your usual.</p>`;
+  return `<div class="rd rd-${r.verdict}"><div class="rd-v">${esc(r.title)}</div><div class="rd-h">${esc(r.hint)}</div></div>
+    <ul class="rd-list">${r.parts.map(p => `<li class="${p.score < 0 ? 'neg' : p.score > 0 ? 'pos' : ''}">${esc(p.text)}</li>`).join('')}${r.painNote ? `<li class="neg">${esc(r.painNote)}</li>` : ''}</ul>
+    ${r.flags.length ? `<div class="partial-note" style="margin-top:10px">${r.flags.map(f => esc(f.text)).join('<br>')}<br>${esc(BODY_ADVICE)}</div>` : ''}`;
+}
+const zoneBar = z => { const t = z.reduce((a, b) => a + b, 0); return t ? `<span class="zbar" title="${z.map((m, i) => `Zone ${i + 1}: ${fmtN(m)} min`).join(' · ')}">${z.map((m, i) => `<i class="z${i + 1}" style="width:${m / t * 100}%"></i>`).join('')}</span>` : ''; };
+
+function renderTraining() {
+  if (!$('#tab-train')) return;
+  const k = dashDate, r = readiness(k);
+  $('#tr-date').textContent = k === todayKey() ? 'today' : fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric' });
+  $('#tr-ready').innerHTML = readinessHtml(r, k);
+  const ls = loadStatus(k);
+  $('#tr-load-tiles').innerHTML = [['Last 7 days', fmtN(ls.acute)], ['Usual week', ls.chronic == null ? '—' : fmtN(ls.chronic)], ['Ratio', ls.ratio == null ? '—' : ls.ratio + '×']].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  $('#tr-load-note').innerHTML = `<span class="ld ld-${ls.band}">${esc(ls.text)}.</span> ${(() => { const ks = windowKeys(k, 28), ws = ks.flatMap(x => getDay(x)?.workouts || []), est = ws.filter(w => workoutLoad(w).est).length; return ws.length ? `<span class="muted">Load is Garmin’s training load${est ? `; ${plural(est, 'workout')} in the last 4 weeks without it ${est === 1 ? 'is' : 'are'} estimated from heart-rate zones or minutes` : ''}.</span>` : ''; })()}`;
+  // Weekly load, Monday–Sunday, for the last 12 weeks, with your usual week (the 4 before each) as a line.
+  const w0 = weekStart(k), weeks = []; for (let i = 11; i >= 0; i--) weeks.push(addDays(w0, -7 * i));
+  const wl = weeks.map(ws => sumLoad(windowKeys(addDays(ws, 6), 7)));
+  const usualLine = weeks.map(ws => { const f = firstWorkoutDay(); return f && f <= addDays(ws, -28) ? Math.round(sumLoad(windowKeys(addDays(ws, -1), 28)) / 4) : null; });
+  const cs = getComputedStyle(document.documentElement), col = cs.getPropertyValue('--c-ex').trim(), muted = cs.getPropertyValue('--muted').trim(), grid = cs.getPropertyValue('--grid').trim();
+  charts['c-load']?.destroy();
+  charts['c-load'] = new Chart($('#c-load'), {
+    data: { labels: weeks.map(ws => fmtDay(ws, { month: 'short', day: 'numeric' })), datasets: [
+      { type: 'bar', label: 'Week’s load', data: wl, backgroundColor: wl.map((_, i) => i === 11 ? col + '66' : col), borderRadius: 4, maxBarThickness: 26 },
+      { type: 'line', label: 'Usual week', data: usualLine, borderColor: muted, borderDash: [5, 4], borderWidth: 2, pointRadius: 2, pointBackgroundColor: muted, spanGaps: true, tension: 0.3 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => c.parsed.y == null ? '' : `${c.dataset.label}: ${fmtN(c.parsed.y)}` } } },
+      scales: { x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 6, maxRotation: 0 } }, y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 5 } } } } });
+  const mixRow = (label, ks) => { const m = intensityMix(ks), t = m.easy + m.moderate + m.hard;
+    return `<div class="sub-h">${label}</div>${t ? `<div class="hbars">${[['Easy (zones 1–2)', m.easy, 'z2'], ['Moderate (zone 3)', m.moderate, 'z3'], ['Hard (zones 4–5)', m.hard, 'z5']].map(([n, v, z]) => `<div class="hb"><span class="l">${n}</span><span class="t"><i class="${z}" style="width:${t ? v / t * 100 : 0}%"></i></span><span class="x">${fmtN(v)} min</span></div>`).join('')}</div><p class="small muted" style="margin:6px 0 0">${m.hardPct}% hard.${m.noHr ? ` Plus ${fmtN(m.noHr)} min without heart-rate data.` : ''}</p>` : `<p class="small muted" style="margin:0">${m.noHr ? `${fmtN(m.noHr)} min of workouts, none with heart-rate zones.` : 'No workouts.'}</p>`}`; };
+  $('#tr-mix').innerHTML = mixRow('Last 7 days', windowKeys(k, 7)) + mixRow('Last 4 weeks', windowKeys(k, 28)) + '<p class="small muted" style="margin:10px 0 0">Endurance training usually works best mostly easy, with a small share hard (often around 20%). A high hard share most weeks is hard to recover from.</p>';
+  const st = strengthSummary(windowKeys(k, 28)), perWeek = Math.round(st.sessions.length / 4 * 10) / 10;
+  $('#tr-strength').innerHTML = st.sessions.length ? `<p class="small" style="margin:0 0 8px"><b>${plural(st.sessions.length, 'session')}</b> in the last 4 weeks (about ${perWeek} a week)${perWeek < 2 ? '. Two a week is the usual minimum for keeping muscle and strength.' : '.'}</p>
+    ${st.byEx.length ? `<div class="sub-h">Sets by exercise (Garmin)</div><div class="hbars" style="--c:var(--c-ex)">${st.byEx.slice(0, 10).map(([n, e]) => `<div class="hb"><span class="l">${esc(n)}</span><span class="t"><i style="width:${e.sets / st.byEx[0][1].sets * 100}%"></i></span><span class="x">${e.sets} sets · ${e.reps} reps</span></div>`).join('')}</div>` : '<p class="small muted" style="margin:0">No per-exercise sets yet. Garmin records them when you log strength workouts on the watch.</p>'}`
+    : '<p class="small muted" style="margin:0">No strength sessions in the last 4 weeks. Two a week is the usual minimum for keeping muscle and strength, especially while losing weight.</p>';
+  const bks = windowKeys(k, 14).reverse(), entries = bks.flatMap(x => (getDay(x)?.body || []).map(b => ({ k: x, ...b })));
+  $('#tr-body').innerHTML = (r?.flags?.length ? `<div class="partial-note">${r.flags.map(f => esc(f.text)).join('<br>')}<br>${esc(BODY_ADVICE)}</div>` : '') +
+    (entries.length ? `<div class="list">${entries.map(b => `<div class="li"><span class="n">${esc(b.area)}<span class="tag">${esc(BODY_KIND[b.kind] || b.kind)}</span>${b.note ? ` <span class="muted small">${esc(b.note)}</span>` : ''}</span><span class="x">${b.level}/10 · ${esc(fmtDay(b.k, { weekday: 'short', month: 'short', day: 'numeric' }))}</span></div>`).join('')}</div>`
+      : '<p class="small muted" style="margin:0">Nothing logged in the last 2 weeks. Add soreness, stiffness or pain in <b>Log today › Body</b>.</p>');
+  const wks = windowKeys(k, 14).reverse().flatMap(x => (getDay(x)?.workouts || []).map(w => ({ k: x, w })));
+  $('#tr-workouts').innerHTML = wks.length ? wks.map(({ k: x, w }) => { const l = workoutLoad(w);
+    return `<div class="li"><span class="n">${esc(w.title || w.type)}<span class="tag">${esc(srcName(w.source))}</span>${w.teLabel ? `<span class="tag">${esc(w.teLabel)}</span>` : ''}${w.zones ? zoneBar(w.zones) : ''}${w.sets?.length ? `<div class="muted small">${esc(w.sets.map(s => `${s.name} ${s.sets || '?'}×${s.reps ? Math.round(s.reps / (s.sets || 1)) : '?'}`).join(' · '))}</div>` : ''}</span>
+      <span class="x">${[esc(fmtDay(x, { weekday: 'short', month: 'short', day: 'numeric' })), w.durationMin != null && fmtN(w.durationMin) + ' min', l.v && `load ${fmtN(l.v)}${l.est ? ' (est.)' : ''}`].filter(Boolean).join(' · ')}</span></div>`; }).join('')
+    : '<p class="small muted" style="margin:0">No workouts in the last 2 weeks.</p>';
+}
+function renderReadinessCard() {
+  const r = readiness(dashDate), el = $('#rd-card');
+  if (!el) return;
+  el.hidden = !r;
+  if (r) $('#rd-body').innerHTML = `<div class="rd rd-${r.verdict}" style="margin:0"><div class="rd-v">${esc(r.title)}</div><div class="rd-h">${esc([...r.parts.filter(p => p.score < 0).map(p => p.text), r.painNote, ...r.flags.map(f => f.text)].filter(Boolean).slice(0, 2).join(' · ') || r.hint)}</div></div>`;
+  $('#rd-date').textContent = dashDate === todayKey() ? 'today' : fmtDay(dashDate, { month: 'short', day: 'numeric' });
+}
 
 /* ================= data health ================= */
 let scriptStat = null;
@@ -3953,7 +4236,11 @@ $('#tabs').onclick = e => {
   if (b.dataset.tab === 'dash') renderCharts();
   if (b.dataset.tab === 'plan') loadPlanDocs(false).catch(e => toast(e.message, 6000));
   if (b.dataset.tab === 'coach') renderCoach();
+  if (b.dataset.tab === 'train') renderTraining();
 };
+$('#rd-more').onclick = () => goTab('train');
+$('#tr-logbody').onclick = () => { logDate = dashDate; goTab('log'); renderLog(); $('#b-area').focus(); };
+$('#tab-train').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openMetric(b.dataset.open); });
 function goTab(t) { $(`#tabs button[data-tab="${t}"]`).click(); }
 
 // Metric details: click a chart, tile, anchors box or the mood words card
@@ -4062,6 +4349,14 @@ $('#fd-add').onclick = () => {
   const name = $('#fd-name').value.trim(); if (!name) { $('#fd-name').focus(); return; }
   day(logDate).food.push({ id: 'manual|' + uid(), source: 'manual', name, meal: $('#fd-meal').value, calories: num($('#fd-cal').value) || 0 });
   touch(logDate); $('#fd-name').value = $('#fd-cal').value = '';
+  renderLogLists(); markLogDirty();
+};
+$('#b-area').innerHTML = BODY_AREAS.map(a => `<option>${a}</option>`).join('');
+$('#b-add').onclick = () => {
+  const level = num($('#b-level').value);
+  if (level == null || level < 0 || level > 10) { $('#b-level').focus(); toast('Give it a level from 0 to 10.'); return; }
+  (day(logDate).body ||= []).push({ area: $('#b-area').value, kind: $('#b-kind').value, level: Math.round(level), note: $('#b-note').value.trim() });
+  touch(logDate); $('#b-level').value = $('#b-note').value = '';
   renderLogLists(); markLogDirty();
 };
 $('#tab-log').addEventListener('click', e => {

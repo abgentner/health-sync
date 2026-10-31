@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.0.1** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.1** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -15,8 +15,8 @@ It's a web page you open like an app (on your Mac via Brave, on your iPhone from
 | **Lose It** | Every food, meals, all nutrients | Daily report email → your Google script → Drive Inbox | Daily |
 | **Strava** (fed by Garmin) | Workouts | Your Google script asks Strava → Drive Inbox | About hourly |
 | **Apple Health** (fed by Garmin, Withings, Lose It) | Steps, sleep, resting heart rate, active calories, flights, weight, body fat, nutrition backup | Health Auto Export → its Drive folder | Daily (yesterday's totals) |
-| **Garmin** (straight from Garmin) | Sleep with sleep score, overnight HRV, Body Battery, stress, resting heart rate; steps and weight for days Apple Health misses | Your Google script asks Garmin → Drive › Health Sync › Garmin | Hourly |
-| **You** | Mood, energy, stress, notes, anchor overrides, your plan | The app | Whenever |
+| **Garmin** (straight from Garmin) | Sleep with sleep score, overnight HRV, Body Battery, stress, resting heart rate; **every workout with heart-rate zones, training load, training effect and strength sets**; steps and weight for days Apple Health misses | Your Google script asks Garmin → Drive › Health Sync › Garmin | Hourly |
+| **You** | Mood, energy, stress, notes, **soreness and pain (body log)**, anchor overrides, your plan | The app | Whenever |
 | **Claude** | Weekly review + email | The app (with your API key) → your script sends the email | Mondays at noon, or on demand |
 
 ```
@@ -58,7 +58,7 @@ Several sources often report the same thing. For each measure the app keeps one 
 | **Resting heart rate** | Apple Health → Garmin | |
 | **HRV** | Apple Health and Garmin are kept as **two separate measures** | They aren't the same number: Apple's is SDNN, Garmin's is overnight RMSSD |
 | **Body Battery, stress** | Garmin only | |
-| **Workouts** | Garmin → Strava, and Lose It for anything else | Lose It's copies of Garmin, Strava and Apple Health workouts are skipped: by name, or because they have the same minutes and similar calories as a Garmin or Strava workout that day |
+| **Workouts** | Garmin's workout file → Garmin's Activities CSV → Strava, and Lose It for anything else | Copies of one workout (starting within 3 minutes of each other) are kept once, using the copy with the most detail. Lose It's copies of Garmin, Strava and Apple Health workouts are skipped: by name, or because they have the same minutes and similar calories as a Garmin or Strava workout that day |
 
 The Sleep, Steps and Weight pages show where each day's value came from, including the device behind Apple Health's copy, for example **Apple Health (Garmin Connect)**.
 
@@ -105,7 +105,8 @@ The measure rows exist because a source can keep delivering files while one meas
   - Days with no data for a measure are **skipped**, so they don't pull the average down. Each tile says how many days it's based on.
   - **Exercise** is minutes per day across all days that have any data, so a day without a workout counts as 0.
   - The app remembers which button you picked.
-- **Tabs along the top:** Dashboard · **Coach** · **Plan** · Log today · History · Import · Settings.
+- **Tabs along the top:** Dashboard · **Training** · **Coach** · **Plan** · Log today · History · Import · Settings.
+- **Readiness** (under the tiles): today's training call, *Ready for a hard session*, *Normal training* or *Take it easy today*, with the main reasons. **Training ›** opens the [Training](#training) tab. It follows the date you pick, so you can look back at any day.
 - **Daily anchors** (top of the Trends card): this week's habit boxes, for example **15 of 28 · goal 23**.
   - A bar of 28 boxes fills in as you go. The dashed boxes after the goal are your **weekly buffer** for real life.
   - Next to it, a little grid shows how many boxes you got each day (Mon–Sun).
@@ -170,6 +171,27 @@ Open it by clicking the Weight tile or chart. Weigh-ins come in automatically fr
 
 **Getting back to the Dashboard:** click **← Dashboard** (top left), press **Esc**, or use your browser's or mouse's **Back** button.
 
+### Training
+
+How hard to train, and whether your training is building sensibly. It uses the date picked on the Dashboard. It's a guide based on **your own usual**, not medical advice.
+
+- **Readiness:** last night compared with **your usual** (the 28 days before; it needs about a week of history):
+  - **HRV:** Garmin's overnight HRV, or Apple Health's if there's no Garmin. Lower than usual is a sign you haven't fully recovered.
+  - **Resting heart rate:** higher than usual can mean stress, poor sleep, illness or hard training.
+  - **Sleep:** under 6 h counts against, 7.5 h or more counts for. A poor or great sleep score moves it one more step.
+  - **Body Battery,** only when there's no HRV (Garmin builds it from HRV, so using both would count it twice).
+  - **Load:** a training-load spike, or a hard day yesterday (high load, or Garmin training effect 4+ aerobic or 3+ anaerobic).
+  - **Body log:** very sore (7+) counts against. **Pain** 4+ keeps the call at *Normal* at most and says to keep training away from that area; pain 7+ makes it *Take it easy*.
+
+  Each reason is listed, so you can see why. Chips underneath open the HRV, resting heart rate, sleep, Body Battery and stress pages.
+- **Training load:** Garmin's training load for each workout, added up per week. Workouts without it (Strava-only, Lose It, typed in) get an estimate: heart-rate-zone minutes × zone number, or minutes × 2 with no heart rate. These are marked **est.**
+  - **Last 7 days against your usual week** (the average of the 4 weeks before): 0.8–1.3× is steady, 1.3–1.5× is building fast, over 1.5× is a **spike**. It's a common rule of thumb for spotting load that climbs faster than your body adapts. It needs 4 weeks of workouts.
+  - **Chart:** 12 weeks of weekly load (Monday–Sunday), with your usual week as a dashed line. This week is lighter because it isn't finished.
+- **Intensity mix:** minutes in easy (zones 1–2), moderate (zone 3) and hard (zones 4–5) heart-rate zones, for the last 7 days and the last 4 weeks, with the hard share. Endurance training usually works best mostly easy, with around 20% hard.
+- **Strength:** sessions in the last 4 weeks (two a week is the usual minimum for keeping muscle), and sets and reps by exercise from Garmin.
+- **Body log:** everything logged in the last 2 weeks. **Pain that repeats 3 days running, gets worse 3 times in a row, or reaches 7/10** is flagged with what to do. Soreness after training is expected and isn't flagged. **Log it** jumps to Log today › Body.
+- **Workouts:** the last 2 weeks, each with its source, Garmin's training-effect label (Tempo, Aerobic Base…), a bar of time in each heart-rate zone, its load, and strength sets.
+
 ### Coach
 
 Reviews written by Claude (set up in [SETUP.md Step 12](SETUP.md#step-12--weekly-coach-reviews-by-claude)).
@@ -181,6 +203,7 @@ Reviews written by Claude (set up in [SETUP.md Step 12](SETUP.md#step-12--weekly
   - went well, fell short, what's working, what isn't
   - nutrition mix, with the problem foods named
   - swaps that fit your plan
+  - **training and recovery:** how the week's load, intensity mix and strength work went, how you recovered, any pain to watch, and one or two training suggestions for next week
   - focus for next week
   - the week's key numbers
 
@@ -285,6 +308,8 @@ Health Sync picks the new files up by itself.
 
 The **Daily anchors** boxes are at the top (see above). Below them, record your feelings, weight, steps, workouts and food by hand for any day. Use the date bar to fill in past days. **Always click Save day.**
 
+**Body:** log anything sore, stiff or painful. Pick the area, choose **Soreness** (muscle, after training), **Pain** (sharp, in a joint, or not from training) or **Stiffness**, give it 0–10, add a note if you like ("worse on stairs"), and click **Add**. Log it again on the following days, even if it's lower, so the app can see whether it's settling. Readiness and the Coach use it, and the Training tab flags pain that keeps coming back.
+
 **Fix a mistake** (at the bottom of the Log today screen):
 
 - **Logged on the wrong day?**
@@ -386,6 +411,7 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 | **A genuine Lose It workout disappeared** | It had the same length and similar calories as a Garmin or Strava workout that day, so the app treated it as a copy. Add it in **Log today** instead. Workouts you add there are never removed. |
 | **Sleep is blank** | Open **Import › Data health**. The **Sleep** row shows the last night that arrived and what to check. Sleep comes straight from Garmin (the **Garmin** row must be green, and the watch must have synced after you woke up) or through Apple Health (Sleep Analysis must be in the Health Auto Export automation). |
 | **Import results say "sleep record had no hours this app can read"** | Health Auto Export sent sleep in a format the app doesn't know yet. The message lists the fields it found. Send that line to Claude so the format can be added. |
+| **Readiness says "Not enough data" or Training load says "Needs 4 weeks"** | Readiness needs last night's sleep, HRV or resting heart rate, plus about a week of history to know your usual. The load comparison needs 4 weeks of workouts. Both fill in by themselves as Garmin history loads. |
 | **The first sync after updating takes a few minutes** | Normal once. The app is reading your whole Garmin history (the status shows "Reading Garmin days: 120 of 400…"). After that, each sync reads only the few days that changed. |
 | **Changes I uploaded to GitHub don't show** | Wait 2–5 minutes, then press **Cmd+Shift+R** / **Ctrl+Shift+R**. Check the dot on your GitHub page (see [Updating the app](#updating-the-app)). |
 | **I double-clicked `index.html` on my computer and Connect doesn't work** | Google sign-in only works from the web address, so use `https://YOUR-USERNAME.github.io/health-sync/`. (Opening the file directly only allows "this computer only" mode, with no syncing.) |
@@ -413,7 +439,7 @@ Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once 
 - On each computer, the browser remembers your Google sign-in for about an hour, plus which account you used. **Settings → Sign out** clears both on that computer.
 - **Using a shared or public computer?** Click **Sign out** when you're done.
 - **Garmin:** your Google script signs in to Garmin with your Personal API key and saves your data into your own Drive. The key stays in the script's private settings.
-- **Claude (Coach):** to write a review, a summary of that period's data is sent to Anthropic's API. This includes sleep and sleep score, and Garmin's HRV, Body Battery and stress. Your API key is kept in your Drive data, never on GitHub, and is left out of backups.
+- **Claude (Coach):** to write a review, a summary of that period's data is sent to Anthropic's API. This includes sleep and sleep score, Garmin's HRV, Body Battery and stress, your workouts with heart-rate zones and training load, and your body log. Your API key is kept in your Drive data, never on GitHub, and is left out of backups.
 
 ---
 
@@ -442,6 +468,9 @@ Still old? Go to **Settings → Apps → Safari → Advanced → Website Data** 
 **Can I use it on more than one computer?**
 Yes, that's the point. Open the same address, connect the same Google account, and you'll see the same data.
 
+**Is the readiness call medical advice?**
+No. It compares last night with your own recent usual and suggests how hard to train. It can't tell why your numbers are off (illness, stress, alcohol, a late meal), and it doesn't diagnose pain. If something feels wrong, trust that over the number, and see a professional for pain that doesn't settle.
+
 **What if I stop using Lose It or Garmin?**
 Your history stays in your Drive. You can keep logging feelings, weight, food and workouts by hand in **Log today**.
 
@@ -455,4 +484,4 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 ## Regression tests (for releases)
 
-Before each release, the importers are checked against **your real sample files** (Lose It PDF and CSV, Health Auto Export ZIP, daily, minute, hourly and weekly files, and Garmin files): 131 app checks and 56 script checks as of v2.13, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". **v3.0** was made on the work Mac. Its 31 new checks ran against sample files built in each format, but they aren't in the home suite yet, and the suite wasn't run for v3.0. The test page and your files live **only on your Mac** (Desktop › **Health Sync tests**). They're never uploaded to GitHub, because they contain your health data.
+Before each release, the importers are checked against **your real sample files** (Lose It PDF and CSV, Health Auto Export ZIP, daily, minute, hourly and weekly files, and Garmin files): 131 app checks and 56 script checks as of v2.13, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". **v3.0 and v3.1** were made on the work Mac. Their new checks (31 in v3.0, 25 in v3.1) ran against sample files built in each format, but they aren't in the home suite yet, and the suite wasn't run for these versions. The test page and your files live **only on your Mac** (Desktop › **Health Sync tests**). They're never uploaded to GitHub, because they contain your health data.

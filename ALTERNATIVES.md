@@ -1,6 +1,6 @@
 # Health Sync — Alternatives and extras
 
-> **Version 3.0.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 Ways to get data in that **aren't part of the standard setup**, kept here in case you need them: manual Garmin files, Garmin's full account export, the free iPhone Shortcut, and Health Auto Export's REST option. The standard setup is in [SETUP.md](SETUP.md).
 
@@ -46,6 +46,8 @@ You have to do this on the Garmin **website**. The phone app can't export.
 5. A file called **`Activities.csv`** downloads. Put it in **Health Sync → Inbox**.
 
 **How to tell you have the right file:** its first row starts with `Activity Type, Date, Favorite, Title, Distance, Calories, Time…`.
+
+> With SETUP.md Step 13 you don't need this file: the script saves every workout with more detail (heart-rate zones, training load, strength sets). If you import it anyway, Garmin's own workout file wins over the CSV copy of the same workout, and the CSV copy wins over Strava's.
 
 > ❌ **These Garmin files look similar but won't work:**
 > - **Progress Summary**: totals only, with no dates
