@@ -4,8 +4,8 @@
 
 | File | Where to see its version |
 |---|---|
-| **App** (`index.html`, with `core.js`, `importers.js`, `rules.js`) | At the bottom of every page, and **Settings → About**. `index.html` loads the other three with the same version in their address (`core.js?v=3.2.1`), so a phone never mixes old and new files |
-| **Tests** (`tests.html`) | Uses whatever `core.js`, `importers.js` and `rules.js` sit next to it |
+| **App** (`index.html`, with `core.js`, `importers.js`, `rules.js`, `sync.js`) | At the bottom of every page, and **Settings → About**. `index.html` loads the other four with the same version in their address (`core.js?v=3.2.1`), so a phone never mixes old and new files |
+| **Tests** (`tests.html`) | Uses whatever `core.js`, `importers.js`, `rules.js` and `sync.js` sit next to it, and fails if any file's version doesn't match `APP_VERSION` |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
 | **README / SETUP / ALTERNATIVES** | The line at the top of each file |
 | **CHANGELOG** | Its newest entry |
@@ -25,13 +25,38 @@
 
 ### Every release, in this order
 
-1. **Bump the version in every file:** `APP_VERSION` and the comment at the top of `index.html`; the `?v=` on its three script tags (`core.js`, `importers.js`, `rules.js`); line 3 and `SCRIPT_VERSION` in `email-to-drive.gs`; and the line at the top of README, SETUP and ALTERNATIVES.
+1. **Bump the version in every file:** `APP_VERSION` and the comment at the top of `index.html`; the `?v=` on its four script tags (`core.js`, `importers.js`, `rules.js`, `sync.js`); line 3 and `SCRIPT_VERSION` in `email-to-drive.gs`; and the line at the top of README, SETUP and ALTERNATIVES.
 2. **Update the docs** for whatever changed. In particular, README for anything you can see or do, and SETUP for anything about setting up.
 3. **Add a CHANGELOG entry** with a table of every file and what changed in it. Mark files whose only change is the number as **Version number only**.
 4. **Add a check to `tests.html`** for each fix or new rule, so it can't break again unnoticed.
 5. **Open `tests.html` and confirm it's all green.**
-6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js` and `rules.js` only work as a set.
+6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
+
+### v3.3.1 (November 1, 2026)
+
+- **Fixed: a save could wipe what another device logged that day.** A save replaced the whole day in Drive with this device's copy. So if the Mac had been open for hours and imported Apple Health for today, drinks, mood or food logged on the phone for today were lost. Now each save compares this device's copy with how it was when it last loaded or saved, and writes **only the fields it changed**, one field at a time (inside an entry too, so mood from one device and stress from another both stay). If both devices change the same field, the last save wins. Food and workout lists are taken whole.
+- **Saving and merging moved to its own file, `sync.js`, and is now tested.** It used to live in `index.html`, untested.
+- Tests: 104 checks, up from 71.
+  - Two devices, using a pretend Drive: same-day edits from both, the same field on both, lists, a cleared field, a deleted day, a stale copy of a day, tiles hidden on both, reviews, clearing the Problems log.
+  - Failures and timing: a failed save keeps the change and logs it; a change made during a save; two saves at once.
+  - Nothing silently dropped: every field in the saved file must have a merge check, and every field the code writes must be kept by `normalize()`. Both have caused bugs before.
+  - One version everywhere: fails if the app, the four script tags, the script or any doc has a different version. That rule used to rely on remembering.
+  - Checked: putting the old whole-day save back makes 4 of the new checks fail, and a mismatched version fails the version check.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `sync.js` | **New:** saving and merging, moved from `index.html`; field-by-field merge |
+  | `index.html` | Saving moved out; loads `sync.js`; version and script tags |
+  | `tests.html` | 33 new checks (104 in all); loads `sync.js` |
+  | `core.js` | Comment only (mentions `sync.js`) |
+  | `README.md` | New question: the phone and a computer on the same day; Tests; how the app is split; file lists |
+  | `SETUP.md` | File lists include `sync.js`; version line |
+  | `CHANGELOG.md` | This entry; file table and release checklist mention `sync.js` |
+  | `email-to-drive.gs` | **Version number only** (3.3 → 3.3.1). **Paste it** so Data health shows the same version. |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `importers.js`, `rules.js`, `config.js`, `.github/` | Not changed |
 
 ### v3.3 (October 31, 2026)
 

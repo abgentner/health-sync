@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.3** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.3.1** · November 1, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -399,11 +399,11 @@ A table with one row per day. **Click any column header to sort** (click again t
 
 ## Updating the app
 
-Each release is either pushed straight to GitHub (when Claude works in your copy of the repository) or comes as a Desktop folder named **Health Sync vX.Y**, whose files you upload to GitHub: `index.html`, `core.js`, `importers.js`, `rules.js`, `tests.html`, `email-to-drive.gs` and the `.md` files. **Upload them together.** The app's four files only work as a set from the same version. **Never upload `config.js`**, because your GitHub copy holds your Client ID.
+Each release is either pushed straight to GitHub (when Claude works in your copy of the repository) or comes as a Desktop folder named **Health Sync vX.Y**, whose files you upload to GitHub: `index.html`, `core.js`, `importers.js`, `rules.js`, `sync.js`, `tests.html`, `email-to-drive.gs` and the `.md` files. **Upload them together.** The app's four files only work as a set from the same version. **Never upload `config.js`**, because your GitHub copy holds your Client ID.
 
 1. Go to `https://github.com/YOUR-USERNAME/health-sync`
 2. Click **Add file → Upload files**.
-3. Drag in **all the new files at once**: `index.html`, `core.js`, `importers.js`, `rules.js`, `tests.html`, `email-to-drive.gs` and the `.md` files (not `config.js`). Each one **replaces** the old file with the same name.
+3. Drag in **all the new files at once**: `index.html`, `core.js`, `importers.js`, `rules.js`, `sync.js`, `tests.html`, `email-to-drive.gs` and the `.md` files (not `config.js`). Each one **replaces** the old file with the same name.
 4. Click **Commit changes**.
 5. Wait **2–5 minutes**, then open `https://YOUR-USERNAME.github.io/health-sync/tests.html`. It should say **All … passed**. If anything is red, don't use the new version yet: ask Claude to fix it first.
 6. Open the app.
@@ -419,7 +419,7 @@ Each release is either pushed straight to GitHub (when Claude works in your copy
 >
 > **Since v3.3, GitHub runs `tests.html` on every change and only publishes the site if every check passes** (`.github/workflows/tests.yml`). A broken release can't reach your phone.
 
-**Versions:** MAJOR.MINOR.PATCH (3.0, 3.1, 3.1.1…). **Every file carries the same version:** the app (`index.html` and the three files it loads, `core.js`, `importers.js` and `rules.js`), the script, README, SETUP, ALTERNATIVES and CHANGELOG. The release checklist is at the top of [CHANGELOG.md](CHANGELOG.md). Each release bumps all of them together, and the CHANGELOG says which files only had their number changed. Details are in [CHANGELOG.md](CHANGELOG.md).
+**Versions:** MAJOR.MINOR.PATCH (3.0, 3.1, 3.1.1…). **Every file carries the same version:** the app (`index.html` and the four files it loads, `core.js`, `importers.js`, `rules.js` and `sync.js`), the script, README, SETUP, ALTERNATIVES and CHANGELOG. The release checklist is at the top of [CHANGELOG.md](CHANGELOG.md). Each release bumps all of them together, and the CHANGELOG says which files only had their number changed. Details are in [CHANGELOG.md](CHANGELOG.md).
 
 **Paste the script every release,** even when only its number changed, so everything stays on one version. If the script's version doesn't match the app's, the **Google script** row in Data health turns amber and says which version to paste.
 
@@ -523,6 +523,9 @@ Your history stays in your Drive. You can keep logging feelings, weight, food an
 **Can I move my data somewhere else later?**
 Yes. **Settings → Download backup** gives you everything in one file, and the daily summary CSV opens in any spreadsheet.
 
+**What happens if I use the phone and a computer on the same day?**
+Both changes are kept. Before every save the app re-reads the copy in Drive and writes over it **only the fields this device changed**, field by field. Drinks logged on the phone and an Apple Health import on the Mac for the same day both survive, and so do mood from one and stress from the other. If both devices change the *same* thing (the weight for the same day, say), the device that saves last wins. A food or workout list is taken whole from whichever device changed it. Before v3.3.1 a save replaced the whole day, so a computer left open for hours could wipe what the phone had logged that day.
+
 **Do I ever have to go back to the Google Cloud pages?**
 No. That was one-time setup. The weekly re-approval happens inside the app's own sign-in window.
 
@@ -532,11 +535,11 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 **`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, and the report-card grades, GPA and period dates. That's 71 checks as of v3.3.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 104 checks as of v3.3.1.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.
 
-**How the app is split:** `index.html` holds the screens, Drive and the Coach. **`core.js`** holds shared helpers and the data model. **`importers.js`** reads Lose It, Apple Health, Garmin and Strava files. **`rules.js`** holds everything worked out from the data: anchors, training load, readiness, the weight trend and report-card grades. The tests load the last three directly.
+**How the app is split:** `index.html` holds the screens, Drive and the Coach. **`core.js`** holds shared helpers and the data model. **`importers.js`** reads Lose It, Apple Health, Garmin and Strava files. **`rules.js`** holds everything worked out from the data: anchors, training load, readiness, the weight trend and report-card grades. **`sync.js`** saves to Drive and merges the changes from your devices. The tests load the last four directly.
 
 **The real-file suite** on your Mac (Desktop › **Health Sync tests**) checks the same importers against your own exported files, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". It lives only on your Mac because it contains your health data. It was last run for v2.13. Run it on the home Mac when you can.

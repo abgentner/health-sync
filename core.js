@@ -1,5 +1,5 @@
 'use strict';
-// Health Sync · shared helpers and the data model. Loaded before importers.js, rules.js and the app.
+// Health Sync · shared helpers and the data model. Loaded before importers.js, rules.js, sync.js and the app.
 
 /* ================= utilities ================= */
 const $ = s => document.querySelector(s);

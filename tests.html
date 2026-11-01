@@ -24,11 +24,12 @@ h2+.t{border-top:1px solid var(--border);border-radius:10px 10px 0 0}
 <script src="core.js"></script>
 <script src="importers.js"></script>
 <script src="rules.js"></script>
+<script src="sync.js"></script>
 </head>
 <body>
 <main>
   <h1>Health Sync tests</h1>
-  <p>Checks the importers and the rules (core.js, importers.js, rules.js) against made-up sample files. No real health data is used, so this page is safe to keep on GitHub. Run it before each release, on any computer: all green means nothing that used to work has broken.</p>
+  <p>Checks the importers, the rules and saving (core.js, importers.js, rules.js, sync.js) against made-up sample files. No real health data is used, so this page is safe to keep on GitHub. Run it before each release, on any computer: all green means nothing that used to work has broken.</p>
   <div class="sum" id="sum">Running…</div>
   <div id="out"></div>
   <div id="toast"></div><span id="st-lbl"></span><span id="st-dot"></span>
@@ -346,6 +347,174 @@ describe('Garmin folder: newest-file mark', () => {
   test('a failed file holds the mark just before it, so it’s read again', () => eq(nextGarminMark([f('2026-10-01T10:00:00.000Z'), f('2026-10-02T09:00:00.000Z')], [f('2026-10-01T10:00:00.000Z')], null), '2026-10-01T09:59:59.999Z'));
   test('nothing new keeps the mark', () => eq(nextGarminMark([], [], '2026-09-30T00:00:00.000Z'), '2026-09-30T00:00:00.000Z'));
   test('saved data keeps reflections, the Garmin mark and the problems log', () => { const n = normalize({ reflections: { '2026-09-28': { inWay: 'x' } }, garminSeen: { days: 't', parser: 1 }, errors: [{ id: 1 }], errorsClearedAt: 'c' }); eq([!!n.reflections['2026-09-28'], n.garminSeen.days, n.errors.length, n.errorsClearedAt], [true, 't', 1, 'c']); });
+});
+
+/* ================= saving and merging (sync.js) ================= */
+// A pretend Google Drive: one saved copy that "the other device" can change directly.
+function memStore(init) {
+  let saved = normalize(structuredClone(init || {}));
+  return { saves: 0, fail: false,
+    async load() { return normalize(structuredClone(saved)); },
+    async save(o) { if (this.fail) throw new Error('Drive is offline'); this.saves++; saved = structuredClone(o); },
+    other(fn) { fn(saved); },              // the phone saving its own change
+    get saved() { return saved; } };
+}
+function logError(where, e) { (data.errors ||= []).push({ id: uid(), at: new Date().toISOString(), where, msg: String(e?.message || e) }); }
+async function device(init) {
+  fresh(); importsDirty = planDirty = coachDirty = gapsDirty = errorsDirty = false; tileOps = {}; base = null;
+  store = memStore(init); data = await loadData(); return store;
+}
+const K = '2026-10-01';
+
+describe('Saving: two devices', () => {
+  test('a drink logged on the phone survives a Health import on the Mac for the same day', async () => {
+    const s = await device({ days: { [K]: { steps: 5000, stepsSource: 'health' } } });
+    s.other(d => { d.days[K].drinks = 2; });
+    day(K).steps = 8000; touch(K); await persist();
+    eq([s.saved.days[K].steps, s.saved.days[K].drinks], [8000, 2]);
+  });
+  test('mood from the phone and stress from the Mac both survive (fields inside one entry merge)', async () => {
+    const s = await device({ days: { [K]: { feel: { mood: 3 } } } });
+    s.other(d => { d.days[K].feel.mood = 5; });
+    day(K).feel.stress = 2; touch(K); await persist();
+    eq(s.saved.days[K].feel, { mood: 5, stress: 2 });
+  });
+  test('the same field changed on both: this device’s save wins', async () => {
+    const s = await device({ days: { [K]: { weight: 180, weightUnit: 'lb' } } });
+    s.other(d => { d.days[K].weight = 181; });
+    day(K).weight = 179; touch(K); await persist();
+    eq(s.saved.days[K].weight, 179);
+  });
+  test('food lists are taken whole from the device that changed them', async () => {
+    const s = await device({ days: { [K]: { food: [{ name: 'Old', calories: 100 }] } } });
+    day(K).food = [{ name: 'Lose It', calories: 500 }]; touch(K); await persist();
+    eq(s.saved.days[K].food.map(f => f.name), ['Lose It']);
+  });
+  test('a field cleared here is cleared; a field the phone added meanwhile is kept', async () => {
+    const s = await device({ days: { [K]: { steps: 5000, stepsSource: 'manual' } } });
+    s.other(d => { d.days[K].drinks = 1; });
+    delete data.days[K]; touch(K); await persist();
+    eq(s.saved.days[K], { drinks: 1 });
+  });
+  test('a day emptied here, and untouched elsewhere, is deleted', async () => {
+    const s = await device({ days: { [K]: { steps: 5000 } } });
+    delete data.days[K].steps; touch(K); await persist();
+    eq(s.saved.days[K], undefined);
+  });
+  test('a day only the phone changed is never overwritten by this device’s stale copy', async () => {
+    const s = await device({ days: { [K]: { steps: 1 }, '2026-10-02': { steps: 2 } } });
+    s.other(d => { d.days[K].steps = 9999; });
+    day('2026-10-02').steps = 3; touch('2026-10-02'); await persist();
+    eq([s.saved.days[K].steps, s.saved.days['2026-10-02'].steps], [9999, 3]);
+  });
+  test('after a save, the next save compares with what was saved (phone edits in between survive)', async () => {
+    const s = await device({ days: { [K]: { steps: 1 } } });
+    day(K).weight = 180; touch(K); await persist();
+    s.other(d => { d.days[K].drinks = 3; });
+    day(K).steps = 2; touch(K); await persist();
+    eq([s.saved.days[K].steps, s.saved.days[K].weight, s.saved.days[K].drinks], [2, 180, 3]);
+  });
+  test('hiding a tile here and another on the phone: both stay hidden', async () => {
+    const s = await device({ dashCfg: { hiddenTiles: [] } });
+    s.other(d => { d.dashCfg.hiddenTiles = ['mood']; });
+    data.dashCfg = { hiddenTiles: ['sleep'] }; tileOps = { sleep: true }; await persist();
+    eq(s.saved.dashCfg.hiddenTiles.sort(), ['mood', 'sleep']);
+  });
+  test('reviews: the newer edit wins, whichever device saves last', async () => {
+    const s = await device({ reviews: { w: { key: 'w', updatedAt: '2026-10-01T00:00:00Z' } } });
+    s.other(d => { d.reviews.w = { key: 'w', note: 'phone', updatedAt: '2026-10-03T00:00:00Z' }; });
+    data.reviews.w = { key: 'w', note: 'mac', updatedAt: '2026-10-02T00:00:00Z' }; coachDirty = true; await persist();
+    eq(s.saved.reviews.w.note, 'phone');
+  });
+  test('clearing the problems log on one device clears it everywhere', async () => {
+    const s = await device({ errors: [{ id: 'a', at: '2026-10-01T00:00:00Z' }] });
+    data.errors = []; data.errorsClearedAt = '2026-10-02T00:00:00Z'; errorsDirty = true; await persist();
+    eq(s.saved.errors.length, 0);
+  });
+});
+
+describe('Saving: failures and timing', () => {
+  test('a failed save keeps the change, logs it, and the next save writes it', async () => {
+    const s = await device({});
+    s.fail = true; day(K).steps = 4000; touch(K);
+    let threw = false; try { await persist(); } catch { threw = true; }
+    ok(threw, 'the failed save reports an error'); ok(dirty.has(K), 'day still waiting to be saved'); eq(data.errors.at(-1).where, 'Saving');
+    s.fail = false; await persist();
+    eq(s.saved.days[K].steps, 4000); eq(s.saved.errors.at(-1).where, 'Saving', 'problem saved too');
+  });
+  test('a change made while a save is running is kept and saved next', async () => {
+    const s = await device({}), save = s.save.bind(s);
+    s.save = async o => { day('2026-10-05').steps = 77; touch('2026-10-05'); return save(o); };
+    day(K).steps = 1; touch(K); await persist();
+    eq(data.days['2026-10-05']?.steps, 77, 'still in memory'); ok(dirty.has('2026-10-05'), 'still marked unsaved');
+    s.save = save; await persist();
+    eq(s.saved.days['2026-10-05'].steps, 77);
+  });
+  test('two saves at once run one after the other', async () => {
+    const s = await device({});
+    day(K).steps = 1; touch(K); const a = persist(); day('2026-10-02').steps = 2; touch('2026-10-02'); const b = persist();
+    await Promise.all([a, b]);
+    eq([s.saved.days[K].steps, s.saved.days['2026-10-02'].steps], [1, 2]);
+  });
+});
+
+describe('Saving: nothing is silently dropped', () => {
+  // Every field the saved file keeps, with a change to it. A new field must be added here, or this test fails.
+  const CHANGES = {
+    days: [d => { d.days[K] = { steps: 1 }; }, { days: [K] }],
+    imports: [d => { d.imports.push({ id: 'i1' }); }, { imports: true }],
+    plan: [d => { d.plan = { goal: 'x' }; }, { plan: true }],
+    anchorCfg: [d => { d.anchorCfg = { names: ['a'] }; }, { plan: true }],
+    weightCfg: [d => { d.weightCfg = { goal: 170 }; }, { plan: true }],
+    dashCfg: [d => { d.dashCfg = { hiddenTiles: ['steps'] }; }, { tiles: { steps: true } }],
+    gapsOk: [d => { d.gapsOk = { a: 1 }; }, {}],
+    watched: [d => { d.watched = { f1: 'x' }; }, {}],
+    watchedParser: [d => { d.watchedParser = 3; }, {}],
+    reviews: [d => { d.reviews = { w: { key: 'w', createdAt: '2026-10-01' } }; }, { coach: true }],
+    reflections: [d => { d.reflections = { w: { inWay: 'x', updatedAt: '2026-10-01' } }; }, {}],
+    garminSeen: [d => { d.garminSeen = { parser: 1, days: 't1', activities: 't2' }; }, {}],
+    errors: [d => { d.errors = [{ id: 'e', at: '2026-10-02T00:00:00Z' }]; }, {}],
+    errorsClearedAt: [d => { d.errorsClearedAt = '2026-10-01T00:00:00Z'; }, {}],
+    coachCfg: [d => { d.coachCfg = { why: 'kids' }; }, { coach: true }],
+    coachUsage: [d => { d.coachUsage = [{ id: 'u', at: '2026-10-01' }]; }, { coach: true }],
+  };
+  test('every field in the saved file has a merge test (add new fields here)', () => {
+    const fields = Object.keys(normalize({})).filter(k => !['version', 'updated'].includes(k));
+    eq(fields.filter(k => !CHANGES[k]), [], 'fields with no entry');
+  });
+  for (const [k, [change, flags]] of Object.entries(CHANGES)) test(`a change to ${k} is saved`, () => {
+    const local = normalize({}); change(local);
+    const remote = normalize({});
+    mergeLocal(remote, { days: new Set(flags.days || []), imports: !!flags.imports, plan: !!flags.plan, coach: !!flags.coach, tiles: flags.tiles || {} }, local, null);
+    eq(remote[k], local[k]);
+  });
+  test('every field the code writes onto the data is kept by normalize()', async () => {
+    const kept = new Set(Object.keys(normalize({}))), found = new Set();
+    for (const f of ['index.html', 'core.js', 'importers.js', 'rules.js', 'sync.js'])
+      for (const m of (await (await fetch(f, { cache: 'no-store' })).text()).matchAll(/\bdata\.([a-zA-Z]+)\s*(?:\|\|=|\?\?=|=(?!=))/g)) found.add(m[1]);
+    ok(found.size > 5, 'found the writes', [...found]);
+    eq([...found].filter(k => !kept.has(k)), [], 'written but dropped on save');
+  });
+});
+
+describe('One version everywhere', () => {
+  test('app, script tags, script and docs all carry the same version', async () => {
+    const get = async f => (await fetch(f, { cache: 'no-store' })).text();
+    const [html, gs, readme, setup, alt, log] = await Promise.all(['index.html', 'email-to-drive.gs', 'README.md', 'SETUP.md', 'ALTERNATIVES.md', 'CHANGELOG.md'].map(get));
+    const v = html.match(/const APP_VERSION = '([\d.]+)'/)[1];
+    const found = {
+      'index.html header': html.match(/<!-- Health Sync app · version ([\d.]+) -->/)?.[1],
+      ...Object.fromEntries([...html.matchAll(/src="(\w+\.js)\?v=([\d.]+)"/g)].map(m => [m[1] + ' tag', m[2]])),
+      'script line 3': gs.match(/^ \* Version ([\d.]+)$/m)?.[1],
+      SCRIPT_VERSION: gs.match(/const SCRIPT_VERSION = '([\d.]+)'/)?.[1],
+      'README.md': readme.match(/> \*\*Version ([\d.]+)\*\*/)?.[1],
+      'SETUP.md': setup.match(/> \*\*Version ([\d.]+)\*\*/)?.[1],
+      'ALTERNATIVES.md': alt.match(/> \*\*Version ([\d.]+)\*\*/)?.[1],
+      'CHANGELOG.md newest': log.match(/^### v([\d.]+) /m)?.[1],
+    };
+    ok(Object.keys(found).filter(k => k.endsWith(' tag')).length >= 4, 'script tags found', found);
+    eq(Object.entries(found).filter(([, x]) => x !== v), [], `everything should say ${v}`);
+  });
 });
 
 /* ---- run ---- */

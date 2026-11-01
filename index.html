@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.3 -->
+<!-- Health Sync app · version 3.3.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -888,12 +888,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.3"></script>
-<script src="importers.js?v=3.3"></script>
-<script src="rules.js?v=3.3"></script>
+<script src="core.js?v=3.3.1"></script>
+<script src="importers.js?v=3.3.1"></script>
+<script src="rules.js?v=3.3.1"></script>
+<script src="sync.js?v=3.3.1"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.3';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.3.1';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -1040,7 +1041,6 @@ const Drive = {
 };
 
 /* ---- problems log: errors are kept with the data, so a failure while you weren't looking is still there later ---- */
-let errorsDirty = false;
 function logError(where, e) {
   const msg = String(e?.message || e || 'unknown error').slice(0, 400), list = (data.errors ||= []), last = list[list.length - 1];
   // The same error again within a minute is counted, not repeated.
@@ -1059,81 +1059,7 @@ function renderErrors() {
 window.addEventListener('error', e => { if (e.message && !/ResizeObserver/.test(e.message)) logError('App', `${e.message}${e.filename ? ` (${e.filename.split('/').pop()}:${e.lineno})` : ''}`); });
 window.addEventListener('unhandledrejection', e => logError('App', e.reason));
 
-let store = null;
 let busy = false;
-
-// Copy this computer's unsaved changes (flags in f) onto a freshly loaded copy of the data.
-function mergeLocal(remote, f) {
-  for (const k of f.days) { if (data.days[k]) remote.days[k] = data.days[k]; else delete remote.days[k]; }
-  const seen = new Set(remote.imports.map(i => i.id));
-  for (const i of data.imports) if (!seen.has(i.id)) remote.imports.push(i);
-  remote.imports = remote.imports.slice(-500);
-  if (f.plan) { remote.plan = data.plan; remote.anchorCfg = data.anchorCfg; remote.weightCfg = data.weightCfg; }
-  // Tiles merge one change at a time, so hiding one here never un-hides another one hidden elsewhere.
-  if (Object.keys(f.tiles).length) {
-    let h = (remote.dashCfg?.hiddenTiles || data.dashCfg?.hiddenTiles || settings.hiddenTiles || []).slice();
-    for (const [kind, hide] of Object.entries(f.tiles)) { h = h.filter(x => x !== kind); if (hide) h.push(kind); }
-    remote.dashCfg = { ...(remote.dashCfg || {}), hiddenTiles: h };
-  }
-  remote.gapsOk = { ...(remote.gapsOk || {}), ...(data.gapsOk || {}) };
-  if (f.coach) {
-    // Reviews merge one by one; the most recently written or edited copy of each wins.
-    const stamp = r => (r && (r.updatedAt || r.createdAt)) || '';
-    remote.reviews = { ...(remote.reviews || {}) };
-    for (const [k, r] of Object.entries(data.reviews || {})) if (!remote.reviews[k] || stamp(r) >= stamp(remote.reviews[k])) remote.reviews[k] = r;
-    remote.coachCfg = data.coachCfg;
-    const ids = new Set((remote.coachUsage ||= []).map(e => e.id));
-    for (const e of data.coachUsage || []) if (!ids.has(e.id)) remote.coachUsage.push(e);
-    remote.coachUsage = remote.coachUsage.sort((a, b) => a.at.localeCompare(b.at)).slice(-2000);
-  }
-  // Problems log: kept from every device, the newest 200. A clear on one device clears them all.
-  const clearedAt = [remote.errorsClearedAt, data.errorsClearedAt].filter(Boolean).sort().pop() || '';
-  if (clearedAt) remote.errorsClearedAt = clearedAt;
-  const seenErr = new Map([...(remote.errors || []), ...(data.errors || [])].filter(x => x.at > clearedAt).map(x => [x.id, x]));
-  remote.errors = [...seenErr.values()].sort((a, b) => a.at.localeCompare(b.at)).slice(-200);
-  // Reflections merge one week at a time; the latest edit wins.
-  remote.reflections = { ...(remote.reflections || {}) };
-  for (const [k, r] of Object.entries(data.reflections || {})) if (!remote.reflections[k] || (r.updatedAt || '') >= (remote.reflections[k].updatedAt || '')) remote.reflections[k] = r;
-  remote.watched = { ...(remote.watched || {}), ...(data.watched || {}) };
-  // Garmin files are tracked by the newest file time per folder now; drop the old per-file entries everywhere.
-  const gs = remote.garminSeen || {}, ls = data.garminSeen || {};
-  remote.garminSeen = { parser: Math.max(gs.parser || 0, ls.parser || 0) || undefined };
-  // Two devices: the earlier mark wins, because re-reading a file is harmless and skipping one isn't.
-  for (const k of ['days', 'activities']) { const a = gs.parser === remote.garminSeen.parser ? gs[k] : null, b = ls.parser === remote.garminSeen.parser ? ls[k] : null; remote.garminSeen[k] = !a ? b || null : !b ? a : a < b ? a : b; }
-  if (remote.garminSeen.parser) for (const [id, v] of Object.entries(remote.watched)) if (/^g\d+:/.test(v)) delete remote.watched[id];
-  remote.watchedParser = Math.max(remote.watchedParser || 1, data.watchedParser || 1);
-}
-// Saves run one at a time. A change made while a save is in progress stays in memory and is saved by the next one.
-let persistChain = Promise.resolve();
-function persist() {
-  const run = persistChain.then(persistOnce, persistOnce);
-  persistChain = run.catch(() => {});
-  return run;
-}
-async function persistOnce() {
-  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !errorsDirty && !Object.keys(tileOps).length) return;
-  const f = { days: new Set(dirty), imports: importsDirty, plan: planDirty, coach: coachDirty, tiles: tileOps };
-  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; errorsDirty = false; tileOps = {};
-  setStatus('Saving…', 'busy');
-  try {
-    // Re-read the latest copy first so edits made on another computer aren't overwritten.
-    const remote = await store.load();
-    mergeLocal(remote, f);
-    remote.updated = new Date().toISOString();
-    await store.save(remote);
-    // Keep anything changed during the save on top (its flags are still set, so the next save writes it).
-    mergeLocal(remote, { days: dirty, imports: importsDirty, plan: planDirty, coach: coachDirty, tiles: tileOps });
-    data = remote;
-    setStatus('Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
-  } catch (e) {
-    for (const k of f.days) dirty.add(k);
-    errorsDirty = true;
-    if (!/Saving/.test(data.errors?.[data.errors.length - 1]?.where || '')) logError('Saving', e);
-    importsDirty ||= f.imports; planDirty ||= f.plan; coachDirty ||= f.coach; tileOps = { ...f.tiles, ...tileOps };
-    setStatus('Not saved', 'err');
-    throw e;
-  }
-}
 
 
 /* ================= rendering ================= */
@@ -1846,7 +1772,6 @@ function applyTheme() {
 
 /* ================= Coach: weekly and on-demand reviews written by Claude ================= */
 const COACH_MODEL = 'claude-opus-5-5';
-let coachDirty = false;
 let coachBusy = null;          // key of the review being written right now
 let coachProgress = '';
 
@@ -3130,7 +3055,7 @@ async function syncNow() {
   await runTask(async () => {
     setStatus('Syncing…', 'busy');
     await persist();
-    data = await store.load();
+    data = await loadData();
     if (store === Drive) await checkInbox(true);
     setStatus('Up to date');
     render();
@@ -3177,7 +3102,7 @@ async function startApp(kind) {
   LS.set('hs-mode', kind);
   setStatus('Loading…', 'busy');
   await store.init();
-  data = await store.load();
+  data = await loadData();
 
   // First time connecting Drive after using local mode: carry local-only days over.
   const local = normalize(LS.get('hs-local-data', null));
