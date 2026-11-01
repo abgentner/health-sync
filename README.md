@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.2.1** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.3** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -77,6 +77,7 @@ The Sleep, Steps and Weight pages show where each day's value came from, includi
 | **Garmin** | Updated in the last few hours; shows when your watch last synced, how far back history has loaded, and when the key expires | Watch not synced for 12 h (amber; email after a day), key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber with the time it resumes, no email) |
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
 | **Steps, Sleep, Weight, Resting heart rate, Food** | The newest automatic value is from yesterday or the day before (weight: within the last week) | Steps, sleep, resting heart rate and food: newest value 3–4 days old (amber) or older (red). Weight: over a week old (amber) or over two weeks (red). Each row says what to check |
+| **Weight-loss pace** | A safe pace, or no weight-loss data | Amber: over 1.25% of body weight a week across the last 2 weeks, or over twice your committed rate. Red: over 1% a week across 4 weeks (see Weight page) |
 
 The measure rows exist because a source can keep delivering files while one measure inside them stops. For example, Health Auto Export can keep updating while its file has no sleep in it. The app checks these rows when it's open; they don't send alert emails.
 
@@ -114,7 +115,15 @@ The measure rows exist because a source can keep delivering files while one meas
   - The **Daily anchors per week** chart shows each week's total against a dashed **goal line**. The current week is shown lighter, because it isn't finished yet.
 - **Click any chart, tile, the anchors box or the mood words** to open that metric's [detail page](#metric-detail-pages).
 - **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep (with Garmin's sleep score when there is one).
-- **Body & recovery:** resting heart rate, Apple Health's HRV, active calories and the rest of Apple Health's measures, plus **Overnight HRV, Body Battery (high) and Stress** from Garmin. Only measures you actually have are shown. Click one for its detail page.
+- **Body & recovery:** resting heart rate, Apple Health's HRV, active calories, alcoholic drinks and the rest of Apple Health's measures, plus **Overnight HRV, Body Battery (high) and Stress** from Garmin. Only measures you actually have are shown. Click one for its detail page.
+- **Patterns:** what your evenings do to the next day, over the last 90 days. For each of these habits:
+  - drinks
+  - a big dinner (over your Dinner Boundary)
+  - a salty day, a sugary day
+  - under-eating (below the calorie floor)
+  - a workout after 7 pm
+
+  it compares the next night and morning (sleep, sleep score, HRV, resting heart rate, energy, mood and the scale) with days without the habit. For example: *"After evenings with a drink (20 of them): lower HRV (43 vs 50 ms), less sleep (6.4 vs 7.2 h)."* A pattern only shows with **at least 5 days each way**, and only when the difference is bigger than your normal day-to-day swing. It's a pattern, not proof: it can't rule out something else that tends to happen on the same days. The Coach sees these too.
 - **Workouts / Food / How you felt:** the details for the selected day.
 - **Trends:** charts for steps, weight, calories, exercise, mood and sleep. Pick the last 7 days, 30 days, 90 days or 12 months. Hover over a bar or point to see its exact number.
 - **Mood words:** a word cloud of your feelings over the same period as the Trends charts.
@@ -159,6 +168,8 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
 ### Weight page (trend, goals, BMI, predictions)
 
 Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale → Apple Health → Health Auto Export**. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
+
+- **Pace alarm:** losing faster than about **1% of body weight a week for 4 weeks** costs muscle as well as fat. The page then shows **Losing too fast** in red, and Data health turns red. Over **1.25% a week across the last 2 weeks** only, or over twice your committed rate, shows **Watch your pace** in amber. The pace is a straight line fitted through your actual weigh-ins, because the smoothed trend reacts too slowly to warn in time. Daily water swings of a couple of pounds don't set it off. It needs 3 weeks of weigh-ins, with at least 6 in the last 2 weeks. The fix it suggests: eat a little more on very low days, keep protein at target, and keep strength training.
 
 - **Trend weight:** a smoothed weight that moves 10% of the way toward each new weigh-in. It ignores day-to-day water swings (1–4 lb is normal) and shows what's really happening. The **Weight tile** on the Dashboard and the **Coach** both use it.
 - **Chart:** your weigh-ins as faint dots, the trend as a bold line, and a **dashed projection** to your goal at the selected rate.
@@ -226,6 +237,11 @@ How hard to train, and whether your training is building sensibly. It uses the d
 - **Monthly:** on the 1st. **Quarterly:** on the first day of each quarter. **Yearly:** on January 1. Each is written from noon, once the last day's Lose It report is in.
 - **Monthly and longer report cards** are written from the grades, from the weekly (or monthly, or quarterly) report cards inside them, and from the foods behind each nutrition problem, not from every day. So they cost about the same as a weekly one. Quarterly and yearly cards also compare with the same period a year earlier, once there is one.
 - A quarter or year that began before your data starts is graded from the day it starts, and the card says so.
+
+**Your why and your reflection** (top of the Coach tab):
+- **Your why:** what you're doing this for, in your own words. Every report card connects the period to it, where it fits, without quoting it back at you.
+- **Reflection:** for this week, or last week until its report card is written: *What got in the way?* and *What helped?* The week's report card reads it, and monthly and longer cards read all the weeks inside them. It can **explain** a grade (for example travel or illness), and the criticism and suggestion take it into account, but **it never changes the grade**. If you save a reflection after the week's card was written, the box says so, and **Regenerate** includes it.
+- **Both are free.** They go into the report card that's being written anyway; there's no extra Claude call.
 
 **Coach › Report cards** shows every report card ever written, nested: **years › quarters › months › weeks**. A week sits under the month its Thursday is in. Each row shows its grade, headline and GPA. Open a row to see its full report card and the level below.
 - **A period that's still running** shows its grades so far, worked out live (the dashed badge).
@@ -334,6 +350,8 @@ The **Daily anchors** boxes are at the top (see above). Below them, record your 
 
 **Body:** log anything sore, stiff or painful. Pick the area, choose **Soreness** (muscle, after training), **Pain** (sharp, in a joint, or not from training) or **Stiffness**, give it 0–10, add a note if you like ("worse on stairs"), and click **Add**. Log it again on the following days, even if it's lower, so the app can see whether it's settling. Readiness and the Coach use it, and the Training tab flags pain that keeps coming back.
 
+**Alcoholic drinks** (next to Sleep): leave it blank and the app counts drinks for you. It uses Apple Health's *Number of Alcoholic Beverages* if Health Auto Export sends it, or otherwise the drinks in your Lose It log, by quantity (a beer, a glass of wine, a cocktail). Foods that only sound like drinks, such as root beer, beer-battered fish or red wine vinegar, are left out. Type a number to override it, including **0** for a dry day. Drinks feed Patterns, Body & recovery and the Coach.
+
 **Fix a mistake** (at the bottom of the Log today screen):
 
 - **Logged on the wrong day?**
@@ -356,6 +374,7 @@ A table with one row per day. **Click any column header to sort** (click again t
 - **Open folder in Drive:** jumps straight to your Inbox.
 - **Import from this computer:** drag files from your computer straight in, without using Drive.
 - **Import results / Import history:** what was imported, and anything that was skipped and why.
+- **Problems log** (under Data health): every error from any of your devices, newest first: a sync that failed, a file that couldn't be read, a report card that couldn't be written, a save that failed. Each entry has when, where and which device, and a repeat within a minute is counted (×3) rather than listed again. It's saved with your data, so a failure while you weren't looking is still there later. **Clear** empties it on every device.
 
 ### Settings
 
@@ -394,9 +413,11 @@ Each release is either pushed straight to GitHub (when Claude works in your copy
 **Updating never touches your data.** Your data lives in Google Drive, not on GitHub.
 
 > **Is the update live yet?** On your repository page, look next to the latest change for a small **dot**:
-> - 🟡 = still publishing
-> - ✅ = live
-> - ❌ = something went wrong; try uploading again
+> - 🟡 = the tests are running, or it's publishing
+> - ✅ = the tests passed and the update is live
+> - ❌ = **a test failed, so the update was NOT published.** Your app keeps running the previous version. Click the ❌ › **Details** to see which check failed, and ask Claude to fix it.
+>
+> **Since v3.3, GitHub runs `tests.html` on every change and only publishes the site if every check passes** (`.github/workflows/tests.yml`). A broken release can't reach your phone.
 
 **Versions:** MAJOR.MINOR.PATCH (3.0, 3.1, 3.1.1…). **Every file carries the same version:** the app (`index.html` and the three files it loads, `core.js`, `importers.js` and `rules.js`), the script, README, SETUP, ALTERNATIVES and CHANGELOG. The release checklist is at the top of [CHANGELOG.md](CHANGELOG.md). Each release bumps all of them together, and the CHANGELOG says which files only had their number changed. Details are in [CHANGELOG.md](CHANGELOG.md).
 
@@ -509,9 +530,9 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 ## Tests (for releases)
 
-**`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** Run it before each release.
+**`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend, and the report-card grades, GPA and period dates. That's 52 checks as of v3.2.1.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, and the report-card grades, GPA and period dates. That's 71 checks as of v3.3.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.

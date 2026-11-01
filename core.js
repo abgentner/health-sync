@@ -86,7 +86,7 @@ function download(name, text, type) {
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, dashCfg: d.dashCfg || null, gapsOk: d.gapsOk && typeof d.gapsOk === 'object' ? d.gapsOk : {}, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
+  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, dashCfg: d.dashCfg || null, gapsOk: d.gapsOk && typeof d.gapsOk === 'object' ? d.gapsOk : {}, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, reflections: d.reflections && typeof d.reflections === 'object' ? d.reflections : {}, garminSeen: d.garminSeen && typeof d.garminSeen === 'object' ? d.garminSeen : {}, errors: Array.isArray(d.errors) ? d.errors : [], errorsClearedAt: d.errorsClearedAt || null, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
 }
 let data = emptyData();
 const dirty = new Set();
@@ -120,7 +120,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null && !d.body?.length) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null && !d.body?.length && d.drinks == null) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -182,6 +182,7 @@ const HEALTH_METRICS = {
   vo2max:    { name: 'VO₂ max', c: '--c-hr', unit: '', dp: 1, kind: 'line' },
   bodyFat:   { name: 'Body fat', c: '--c-weight', unit: '%', dp: 1, kind: 'line', lowerIsBetter: true },
   mindful:   { name: 'Mindful minutes', c: '--c-mood', unit: 'min', dp: 0, kind: 'bar', sum: true },
+  drinks:    { name: 'Alcoholic drinks', c: '--c-cal', unit: 'drinks', dp: 0, kind: 'bar', sum: true },
   // From Garmin directly (script v2.12+)
   hrvNight:    { name: 'Overnight HRV (Garmin)', c: '--c-hrv', unit: 'ms', dp: 0, kind: 'line' },
   bodyBattery: { name: 'Body Battery (high)', c: '--c-steps', unit: '', dp: 0, kind: 'line' },

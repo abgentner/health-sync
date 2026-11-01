@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.2.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.3** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -420,7 +420,7 @@ Once set up, this runs on its own in the background. You never export anything b
 | Setting | Choose |
 |---|---|
 | Data type | **Health Metrics** |
-| Metrics | **Step Count, Sleep Analysis, Resting Heart Rate, Active Energy, Flights Climbed, Dietary Energy, Protein, Carbohydrates, Total Fat**, plus **Weight & Body Mass** and **Body Fat Percentage** (from your Withings scale), and **Heart Rate Variability, Water, VO2 Max, Mindful Minutes** if you like |
+| Metrics | **Step Count, Sleep Analysis, Resting Heart Rate, Active Energy, Flights Climbed, Dietary Energy, Protein, Carbohydrates, Total Fat**, plus **Weight & Body Mass** and **Body Fat Percentage** (from your Withings scale), and **Heart Rate Variability, Water, VO2 Max, Mindful Minutes** if you like. Add **Number of Alcoholic Beverages** too if you log drinks in Apple Health; otherwise the app counts them from your Lose It log |
 | Export format | **JSON** |
 | Aggregation / Time grouping | **Day**. This one really matters. With **Minutes** or **Hours**, Health Auto Export lumps your iPhone's and Garmin's steps into the same buckets and adds them together (e.g. 14,922 instead of 11,442). Health Sync ignores steps, active calories and flights from those files and says so in the Import tab. (Sleep is read correctly either way.) |
 | Date range | **Last 7 Days** (or "since last sync"). Days are replaced, never doubled. |
@@ -441,7 +441,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 **First, let the script receive data (one time, about 5 minutes, on your computer):**
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.2.1, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.3, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
 2. Click **Deploy** (blue, top right) → **New deployment**.
 3. Click the **⚙ gear** next to "Select type" → **Web app**.
 4. Fill in:
@@ -527,7 +527,7 @@ That's it. Health Sync writes the report cards for every week, month and quarter
 
 The email comes from your own Google script, so it needs the script's v2.0 code or later:
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.2.1, the same version as the app) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.3, the same version as the app) and click **💾 Save**.
 2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
    - Google asks for permission again, this time to **send email as you**. Allow it.
    - Check that you received a test email.
@@ -597,7 +597,7 @@ You need **Step 9 done first** (the script).
 
 1. Open your project at **https://script.google.com** (**Health Sync email saver**).
 2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
-3. Paste in the new **`email-to-drive.gs`** (v3.2.1, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
+3. Paste in the new **`email-to-drive.gs`** (v3.3, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
 
 ### 13c. Add your key (privately)
 
@@ -635,7 +635,7 @@ You need **Step 9 done first** (the script).
 - **A run takes 1–3 minutes,** because the script pauses between requests to stay gentle with Garmin. The Execution log shows each step as it goes, for example:
 
   ```
-  Health Sync script v3.2.1
+  Health Sync script v3.3
   Email: looking for new Lose It and Garmin report emails…
   Email: saved 0 attachment(s) from 0 email(s).
   Strava: checking for new workouts…

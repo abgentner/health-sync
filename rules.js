@@ -107,7 +107,7 @@ const coachCfg = () => {
   const c = data.coachCfg || {};
   return { apiKey: c.apiKey || '', scriptUrl: c.scriptUrl || '', email: c.email !== false,
     autoReload: { on: c.autoReload?.on !== false, below: c.autoReload?.below ?? 5, amount: c.autoReload?.amount ?? 20 }, planDay: c.planDay || PLAN_DAY_DEFAULT,
-    planFoods: c.planFoods || PLAN_FOODS_DEFAULT, targets: { ...TARGETS_DEFAULT, ...(c.targets || {}) } };
+    planFoods: c.planFoods || PLAN_FOODS_DEFAULT, targets: { ...TARGETS_DEFAULT, ...(c.targets || {}) }, why: c.why || '' };
 };
 
 const reviews = () => (data.reviews ||= {});
@@ -259,6 +259,106 @@ function trendRate(S, days, end = todayKey()) {
   const a = trendOn(S, addDays(end, -days)), b = trendOn(S, end);
   return a == null || b == null ? null : (b - a) / days * 7;
 }
+// Losing faster than about 1% of body weight a week, for weeks, costs muscle as well as fat. The pace is a straight line
+// fitted through the actual weigh-ins (the smoothed trend lags by about 10 days, so it would warn far too late).
+// 'fast' = over 1% a week across 4 weeks (steady enough despite daily water swings); 'watch' = over 1.25% across the
+// last 2 weeks only (noisier, so a higher bar), or over twice your committed rate. Needs 3 weeks of weigh-ins,
+// 8 in the last 4 weeks and 6 in the last 2.
+function weighInSlope(k, days) {
+  const S = weightSeries(), pts = S.rows.filter(r => r.w != null && r.k > addDays(k, -days) && r.k <= k).map(r => [(keyToDate(r.k) - keyToDate(k)) / 864e5, r.w]);
+  if (pts.length < 2) return { rate: null, n: pts.length };
+  const mx = avg(pts.map(p => p[0])), my = avg(pts.map(p => p[1])), sxx = pts.reduce((s, p) => s + (p[0] - mx) ** 2, 0);
+  return { rate: sxx ? pts.reduce((s, p) => s + (p[0] - mx) * (p[1] - my), 0) / sxx * 7 : null, n: pts.length };   // units per week
+}
+function weightPace(k = todayKey()) {
+  const S = weightSeries();
+  if (!S.rows.length || S.rows[0].k > addDays(k, -21)) return null;
+  const a28 = weighInSlope(k, 28), a14 = weighInSlope(k, 14), t = trendOn(S, k), commit = weightCfg().rate;
+  if (t == null || a14.n < 6 || a14.rate == null) return null;
+  const r28 = a28.n >= 8 ? a28.rate : null, r14 = a14.rate;
+  const pct = r => r == null ? null : Math.round(-r / t * 1000) / 10;   // % of body weight lost per week (positive = losing)
+  const p28 = pct(r28), p14 = pct(r14), u = S.unit, f = r => fmtN(Math.abs(r), 1);
+  let status = 'ok', text;
+  if (p28 != null && p28 > 1) { status = 'fast'; text = `Losing ${f(r28)} ${u} a week over 4 weeks (${p28}% of body weight a week). Past about 1% a week, you lose muscle as well as fat.`; }
+  else if (p14 > 1.25) { status = 'watch'; text = `Losing ${f(r14)} ${u} a week over the last 2 weeks (${p14}% of body weight). Fine for a short stretch; if it lasts 4 weeks it’s too fast.`; }
+  else if (commit && r14 < 0 && -r14 > commit * 2 && p14 > 0.5) { status = 'watch'; text = `Losing ${f(r14)} ${u} a week over 2 weeks, over twice your committed ${fmtN(commit, 1)} ${u} a week.`; }
+  else text = r14 < 0 ? `Losing ${f(r14)} ${u} a week over 2 weeks (${p14}% of body weight): a safe pace.` : `${r14 > 0 ? 'Up' : 'Flat'}: ${r14 > 0 ? '+' : ''}${fmtN(r14, 1)} ${u} a week over 2 weeks.`;
+  const fix = status === 'ok' ? '' : 'Eat a little more on the days you’re well under budget, keep protein at or above target, and keep strength training. Those protect muscle while you lose. If it keeps up, check with a doctor or dietitian.';
+  return { status, text, fix, rate14: r14, rate28: r28, pct14: p14, pct28: p28 };
+}
+
+/* ---- alcohol ---- */
+// Drinks for a day: typed in by hand first, then Apple Health ("Number of Alcoholic Beverages"), then Lose It foods that are drinks.
+const DRINK_RX = /\b(beer|ipa|lager|pilsner|stout|porter|ale|wine|merlot|cabernet|pinot|chardonnay|sauvignon|riesling|ros[eé]|prosecco|champagne|cava|vodka|whiske?y|bourbon|scotch|rum|tequila|mezcal|gin|cocktail|margarita|martini|mojito|negroni|old fashioned|spritz|sangria|hard seltzer|white claw|truly|hard cider|sake|soju)\b/i;
+// Not drinks, although the words match.
+const NOT_DRINK_RX = /\b(root beer|ginger beer|ginger ale|non[- ]?alcoholic|alcohol[- ]free|\bna\b|0\.0|beer[- ]battered|beer cheese|wine vinegar|vinegar|cooking wine|wine sauce|rum raisin|bourbon chicken|gin(ger)?bread|vodka sauce|marsala|sauce|cake|ice cream|chicken|steak|salmon|fish|shrimp|pork|glaze)\b/i;
+function loseItDrinks(d) {
+  let n = 0;
+  for (const f of d?.food || []) {
+    if (!DRINK_RX.test(f.name || '') || NOT_DRINK_RX.test(f.name || '')) continue;
+    const q = f.qty, u = String(f.units || '').toLowerCase();
+    n += q && q > 0 && q <= 12 && /bottle|can|glass|drink|serving|shot|pint|cup|each|^$/.test(u) ? q : 1;
+  }
+  return n;
+}
+const drinksOf = d => d?.drinks ?? d?.health?.drinks ?? (d?.food?.length ? loseItDrinks(d) : null);
+
+/* ---- patterns: what an evening does to the next day ---- */
+// For each habit on day d (drinks, a big dinner, a salty day…), compare the next night and morning (sleep, HRV,
+// resting heart rate, how you felt, the scale) with days without it. A pattern, not proof: it shows only with at least
+// 5 days each way and a difference that is bigger than the day-to-day noise.
+const PATTERN_FACTORS = [
+  { key: 'drinks', name: 'drinks', test: d => { const n = drinksOf(d); return n == null ? null : n >= 1; }, label: 'evenings with a drink' },
+  { key: 'bigDinner', name: 'a big dinner', test: d => { if (!d?.food?.some(f => f.meal === 'Dinner')) return null; const m = (anchorCfg().rules.find(r => r?.type === 'meal' && /dinner/i.test(r.meal)) || {}).max || 750;
+    return d.food.filter(f => f.meal === 'Dinner').reduce((s, f) => s + (f.calories || 0), 0) > m; }, label: 'days with a big dinner' },
+  { key: 'salty', name: 'a salty day', test: d => { const t = totals(d); return t.hasNutr && t.hasFood ? t.sodium > coachCfg().targets.sodiumMax : null; }, label: 'days over your sodium limit' },
+  { key: 'sugary', name: 'a sugary day', test: d => { const t = totals(d); return t.hasNutr && t.hasFood ? t.sugar > coachCfg().targets.sugarMax : null; }, label: 'days over your sugar limit' },
+  { key: 'underEat', name: 'under-eating', test: d => { const t = totals(d); return t.hasFood ? t.calIn < rubric().calorieFloor : null; }, label: `days under your calorie floor` },
+  { key: 'lateWorkout', name: 'a late workout', test: d => (d?.workouts?.length ? d.workouts.some(w => (minsOf(w.start) ?? 0) >= 19 * 60) : null), label: 'days with a workout after 7 pm' },
+];
+const PATTERN_OUTCOMES = [
+  { key: 'sleep', name: 'sleep', unit: 'h', dp: 1, min: 0.25, of: n => sleepHours(n), better: 1 },
+  { key: 'score', name: 'sleep score', unit: '', dp: 0, min: 3, of: n => n?.sleep?.score ?? null, better: 1 },
+  { key: 'hrv', name: 'HRV', unit: 'ms', dp: 0, min: 2, of: n => n?.garmin?.hrvNight ?? n?.health?.hrv ?? null, better: 1 },
+  { key: 'rhr', name: 'resting heart rate', unit: 'bpm', dp: 0, min: 1, of: n => healthValue(n, 'restingHR'), better: -1 },
+  { key: 'energy', name: 'next-day energy', unit: '/5', dp: 1, min: 0.3, of: n => n?.feel?.energy ?? null, better: 1 },
+  { key: 'mood', name: 'next-day mood', unit: '/5', dp: 1, min: 0.3, of: n => n?.feel?.mood ?? null, better: 1 },
+  { key: 'scale', name: 'the next morning’s weigh-in', unit: 'lb', dp: 1, min: 0.3, of: null, better: -1 },
+];
+function findPatterns(end, days = 90) {
+  const ks = windowKeys(addDays(end, -1), days), out = [];
+  for (const F of PATTERN_FACTORS) {
+    const hits = [];
+    for (const O of PATTERN_OUTCOMES) {
+      const yes = [], no = [];
+      for (const k of ks) {
+        const d = getDay(k), n = getDay(addDays(k, 1)), f = F.test(d);
+        if (f == null) continue;
+        let v;
+        if (O.key === 'scale') v = d?.weight != null && n?.weight != null && (d.weightUnit || 'lb') === (n.weightUnit || 'lb') ? n.weight - d.weight : null;
+        else v = O.of(n);
+        if (v == null) continue;
+        (f ? yes : no).push(v);
+      }
+      if (yes.length < 5 || no.length < 5) continue;
+      const a = avg(yes), b = avg(no), all = [...yes, ...no], m = avg(all), sd = Math.sqrt(avg(all.map(x => (x - m) ** 2)));
+      const diff = a - b;
+      if (Math.abs(diff) < Math.max(O.min, sd * 0.4)) continue;
+      hits.push({ outcome: O.name, key: O.key, unit: O.unit, dp: O.dp, with: a, without: b, diff, worse: diff * O.better < 0, nWith: yes.length, nWithout: no.length, strength: Math.abs(diff) / (sd || 1) });
+    }
+    if (!hits.length) continue;
+    hits.sort((x, y) => y.strength - x.strength);
+    const nWith = Math.max(...hits.map(h => h.nWith));
+    const parts = hits.slice(0, 3).map(h => {
+      const amt = h.key === 'scale' ? `${h.diff > 0 ? '+' : '−'}${fmtN(Math.abs(h.diff), 1)} lb on the scale` : `${h.key === 'sleep' ? (h.diff > 0 ? 'more' : 'less') : h.diff > 0 ? 'higher' : 'lower'} ${h.outcome} (${fmtN(h.with, h.dp)} vs ${fmtN(h.without, h.dp)}${h.unit === '/5' ? '/5' : h.unit ? ' ' + h.unit : ''})`;
+      const sg = v => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtN(Math.abs(v), 1)}`;
+      return h.key === 'scale' ? `${amt} the next morning (${sg(h.with)} vs ${sg(h.without)} lb on average)` : amt;
+    });
+    out.push({ factor: F.key, label: F.label, nWith, worse: hits[0].worse, strength: hits[0].strength, hits,
+      text: `After ${F.label} (${nWith} of them): ${parts.join(', ')}.` });
+  }
+  return out.sort((a, b) => b.strength - a.strength);
+}
 
 /* ================= report cards: grades worked out from the data by fixed rules ================= */
 // The app grades; Claude only writes the words. So the same data always gets the same grade, and a GPA means the same
@@ -362,7 +462,9 @@ function periodOutcomes(start, end) {
   const perWeek = a != null && b != null && ks.length ? Math.round((b - a) / ks.length * 7 * 100) / 100 : null;
   return { weight_change: a != null && b != null ? Math.round((b - a) * 10) / 10 : null, weight_unit: S.unit, weight_rate_per_week: perWeek, committed_rate_per_week: w.rate ?? null,
     hrv_overnight_garmin: av(d => d?.garmin?.hrvNight), hrv_apple: av(d => d?.health?.hrv), resting_hr: av(d => healthValue(d, 'restingHR')),
-    mood: av(d => d?.feel?.mood), energy: av(d => d?.feel?.energy), stress: av(d => d?.feel?.stress), pain_flags: ks.length ? bodyFlags(ks[ks.length - 1]).map(f => f.text) : [] };
+    mood: av(d => d?.feel?.mood), energy: av(d => d?.feel?.energy), stress: av(d => d?.feel?.stress), pain_flags: ks.length ? bodyFlags(ks[ks.length - 1]).map(f => f.text) : [],
+    drinks_total: (() => { const v = D.map(drinksOf).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) : null; })(), days_with_drinks: D.filter(d => (drinksOf(d) || 0) >= 1).length,
+    weight_loss_pace: (() => { const p = ks.length ? weightPace(ks[ks.length - 1]) : null; return p ? { status: p.status, text: p.text } : null; })() };
 }
 
 const LEVELS = { week: 'Weekly', month: 'Monthly', quarter: 'Quarterly', year: 'Yearly', adhoc: 'On demand' };

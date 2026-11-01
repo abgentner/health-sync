@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.2.1 -->
+<!-- Health Sync app · version 3.3 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -482,6 +482,11 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div class="card-h"><h2>Body &amp; recovery</h2><span class="muted small" id="hk-sub"></span></div>
     <div class="hk" id="hk"></div>
   </div>
+  <div class="card" id="pt-card" hidden>
+    <div class="card-h"><h2>Patterns</h2><span class="muted small">what your evenings do to the next day · last 90 days</span></div>
+    <div id="pt-body"></div>
+    <p class="muted small" style="margin:8px 0 0">A pattern, not proof: each one compares at least 5 days with the habit against 5 without, and only shows when the difference is bigger than your normal day-to-day swing.</p>
+  </div>
   <div class="cols">
     <div class="card"><div class="card-h"><h2>Workouts</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-workouts"></div></div>
     <div class="card"><div class="card-h"><h2>Food</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-food"></div></div>
@@ -597,6 +602,19 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div class="row" style="margin-top:10px"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cn-email"> Email it to me</label><button class="btn primary" id="cn-go" style="margin-left:auto">Write review</button></div>
   </div>
   <div class="span-lbl" id="coach-bal"></div>
+  <div class="cols">
+    <div class="card">
+      <div class="card-h"><h2>Your why</h2><span class="muted small">every report card refers back to it</span></div>
+      <textarea id="why-text" style="min-height:90px" placeholder="What you're doing this for, in your own words. For example: to keep up with my kids on a hike, and to come off blood-pressure medication."></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn small" id="why-save">Save</button><span class="muted small" id="why-msg"></span></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Reflection</h2><select id="rf-week" style="width:auto;margin-left:auto" aria-label="Which week"></select></div>
+      <label for="rf-in-way">What got in the way?</label><textarea id="rf-in-way" style="min-height:60px" placeholder="Travel Tuesday to Thursday; bad sleep before the deadline"></textarea>
+      <label for="rf-helped" style="margin-top:8px">What helped?</label><textarea id="rf-helped" style="min-height:60px" placeholder="Prepping lunches on Sunday"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn small" id="rf-save">Save</button><span class="muted small" id="rf-msg">The week's report card reads this. It can explain a grade, but it doesn't change it.</span></div>
+    </div>
+  </div>
   <div class="span-lbl" id="coach-progress" hidden></div>
   <div class="card" id="coach-setup" hidden>
     <div class="card-h"><h2>Set up the coach</h2></div>
@@ -654,6 +672,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
       <div><label>Energy</label><div class="scale num" id="f-energy"></div></div>
       <div><label>Stress</label><div class="scale num" id="f-stress"></div></div>
       <div><label for="f-sleep">Sleep (hours)</label><input type="number" id="f-sleep" min="0" max="24" step="0.25" placeholder="e.g. 7.5"></div>
+      <div><label for="f-drinks">Alcoholic drinks</label><input type="number" id="f-drinks" min="0" max="30" step="1" placeholder="0"><div class="muted small" id="f-drinks-auto" style="margin-top:3px"></div></div>
     </div>
     <div style="margin-top:14px"><label for="f-tags">Tags <span class="muted">(comma separated, e.g. sore, motivated, headache)</span></label><input type="text" id="f-tags"><div class="chips" id="f-tagsugg"></div></div>
     <div style="margin-top:14px"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="How was today?"></textarea></div>
@@ -739,6 +758,10 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   <div class="card" id="dh-card">
     <div class="card-h"><h2>Data health</h2><span class="muted small" id="dh-sub"></span></div>
     <div class="list" id="dh-list"></div>
+  </div>
+  <div class="card" id="er-card">
+    <div class="card-h"><h2>Problems log</h2><span class="muted small">errors from any of your devices, newest first</span><button class="btn small" id="er-clear" style="margin-left:auto">Clear</button></div>
+    <div class="list" id="er-list"></div>
   </div>
   <div class="card" id="gap-card" hidden>
     <div class="card-h"><h2>Days to check</h2><span class="muted small">last 4 weeks</span></div>
@@ -865,12 +888,12 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.2.1"></script>
-<script src="importers.js?v=3.2.1"></script>
-<script src="rules.js?v=3.2.1"></script>
+<script src="core.js?v=3.3"></script>
+<script src="importers.js?v=3.3"></script>
+<script src="rules.js?v=3.3"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.2.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.3';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -989,12 +1012,13 @@ const Drive = {
     return out.filter(f => /\.(json|csv|zip|txt)$/i.test(f.name) || /json|csv|zip|text/.test(f.mimeType));
   },
   // The script (v2.12+) saves Garmin files in Health Sync › Garmin › days|activities › <year>.
-  async garminFiles(kind) {
+  async garminFiles(kind, since) {
     const sub = async (name, parent) => (await this.list(`name='${name}' and mimeType='${FOLDER_MIME}' and '${parent}' in parents and trashed=false`))[0]?.id;
     const g = await sub('Garmin', this.ids.root), top = g && await sub(kind, g);
     if (!top) return [];
     const years = await this.list(`mimeType='${FOLDER_MIME}' and '${top}' in parents and trashed=false`);
-    return (await Promise.all(years.map(y => this.list(`'${y.id}' in parents and trashed=false and name contains 'garmin-'`)))).flat().map(f => ({ ...f, kind }));
+    const newer = since ? ` and modifiedTime > '${since}'` : '';
+    return (await Promise.all(years.map(y => this.list(`'${y.id}' in parents and trashed=false and name contains 'garmin-'${newer}`)))).flat().map(f => ({ ...f, kind }));
   },
   async fetchFile(f) {
     if (f.mimeType === 'application/vnd.google-apps.spreadsheet') {
@@ -1014,6 +1038,26 @@ const Drive = {
     await this.api(`files/${f.id}?addParents=${this.ids.processed}&removeParents=${this.ids.inbox}&fields=id`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   },
 };
+
+/* ---- problems log: errors are kept with the data, so a failure while you weren't looking is still there later ---- */
+let errorsDirty = false;
+function logError(where, e) {
+  const msg = String(e?.message || e || 'unknown error').slice(0, 400), list = (data.errors ||= []), last = list[list.length - 1];
+  // The same error again within a minute is counted, not repeated.
+  if (last && last.where === where && last.msg === msg && Date.now() - Date.parse(last.at) < 60e3) { last.n = (last.n || 1) + 1; last.at = new Date().toISOString(); }
+  else list.push({ id: uid(), at: new Date().toISOString(), where, msg, device: (navigator.userAgent.match(/iPhone|iPad|Android|Macintosh|Windows/) || [''])[0].replace('Macintosh', 'Mac') });
+  if (list.length > 200) list.splice(0, list.length - 200);
+  errorsDirty = true;
+  renderErrors();
+}
+function renderErrors() {
+  const el = $('#er-list'); if (!el) return;
+  const list = [...(data.errors || [])].reverse();
+  el.innerHTML = list.length ? list.slice(0, 50).map(x => `<div class="li"><span class="n"><b>${esc(x.where)}</b>${x.n > 1 ? ` <span class="tag">×${x.n}</span>` : ''}${x.device ? ` <span class="tag">${esc(x.device)}</span>` : ''}<div class="muted small">${esc(x.msg)}</div></span><span class="x small">${esc(new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span></div>`).join('')
+    : '<p class="muted small" style="margin:0">No problems recorded.</p>';
+}
+window.addEventListener('error', e => { if (e.message && !/ResizeObserver/.test(e.message)) logError('App', `${e.message}${e.filename ? ` (${e.filename.split('/').pop()}:${e.lineno})` : ''}`); });
+window.addEventListener('unhandledrejection', e => logError('App', e.reason));
 
 let store = null;
 let busy = false;
@@ -1042,7 +1086,21 @@ function mergeLocal(remote, f) {
     for (const e of data.coachUsage || []) if (!ids.has(e.id)) remote.coachUsage.push(e);
     remote.coachUsage = remote.coachUsage.sort((a, b) => a.at.localeCompare(b.at)).slice(-2000);
   }
+  // Problems log: kept from every device, the newest 200. A clear on one device clears them all.
+  const clearedAt = [remote.errorsClearedAt, data.errorsClearedAt].filter(Boolean).sort().pop() || '';
+  if (clearedAt) remote.errorsClearedAt = clearedAt;
+  const seenErr = new Map([...(remote.errors || []), ...(data.errors || [])].filter(x => x.at > clearedAt).map(x => [x.id, x]));
+  remote.errors = [...seenErr.values()].sort((a, b) => a.at.localeCompare(b.at)).slice(-200);
+  // Reflections merge one week at a time; the latest edit wins.
+  remote.reflections = { ...(remote.reflections || {}) };
+  for (const [k, r] of Object.entries(data.reflections || {})) if (!remote.reflections[k] || (r.updatedAt || '') >= (remote.reflections[k].updatedAt || '')) remote.reflections[k] = r;
   remote.watched = { ...(remote.watched || {}), ...(data.watched || {}) };
+  // Garmin files are tracked by the newest file time per folder now; drop the old per-file entries everywhere.
+  const gs = remote.garminSeen || {}, ls = data.garminSeen || {};
+  remote.garminSeen = { parser: Math.max(gs.parser || 0, ls.parser || 0) || undefined };
+  // Two devices: the earlier mark wins, because re-reading a file is harmless and skipping one isn't.
+  for (const k of ['days', 'activities']) { const a = gs.parser === remote.garminSeen.parser ? gs[k] : null, b = ls.parser === remote.garminSeen.parser ? ls[k] : null; remote.garminSeen[k] = !a ? b || null : !b ? a : a < b ? a : b; }
+  if (remote.garminSeen.parser) for (const [id, v] of Object.entries(remote.watched)) if (/^g\d+:/.test(v)) delete remote.watched[id];
   remote.watchedParser = Math.max(remote.watchedParser || 1, data.watchedParser || 1);
 }
 // Saves run one at a time. A change made while a save is in progress stays in memory and is saved by the next one.
@@ -1053,9 +1111,9 @@ function persist() {
   return run;
 }
 async function persistOnce() {
-  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !Object.keys(tileOps).length) return;
+  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !errorsDirty && !Object.keys(tileOps).length) return;
   const f = { days: new Set(dirty), imports: importsDirty, plan: planDirty, coach: coachDirty, tiles: tileOps };
-  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; tileOps = {};
+  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; errorsDirty = false; tileOps = {};
   setStatus('Saving…', 'busy');
   try {
     // Re-read the latest copy first so edits made on another computer aren't overwritten.
@@ -1069,6 +1127,8 @@ async function persistOnce() {
     setStatus('Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
   } catch (e) {
     for (const k of f.days) dirty.add(k);
+    errorsDirty = true;
+    if (!/Saving/.test(data.errors?.[data.errors.length - 1]?.where || '')) logError('Saving', e);
     importsDirty ||= f.imports; planDirty ||= f.plan; coachDirty ||= f.coach; tileOps = { ...f.tiles, ...tileOps };
     setStatus('Not saved', 'err');
     throw e;
@@ -1085,7 +1145,7 @@ function render() {
   if (metricKey) renderMetric();
   renderHealth();
   renderCoach(); renderCoachSettings();
-  renderDash(); renderTraining(); renderLog(); renderHist(); renderImports(); renderSettings(); if (!planEditing) renderPlan();
+  renderDash(); renderTraining(); renderLog(); renderHist(); renderImports(); renderErrors(); renderSettings(); if (!planEditing) renderPlan();
 }
 
 const ICONS = {
@@ -1205,7 +1265,7 @@ function renderDash() {
   renderCharts();
   renderCloud();
   renderAnchorSummary();
-  renderHealthCard(); renderReadinessCard();
+  renderHealthCard(); renderReadinessCard(); renderPatterns();
 }
 function renderHealthCard() {
   const n = settings.span, end = n > 1 ? addDays(dashDate, -1) : dashDate, ks = windowKeys(end, n);
@@ -1364,6 +1424,8 @@ function renderLog() {
   $('#f-weight').value = d?.weight ?? '';
   $('#f-wunit').value = d?.weightUnit || latestWeight(logDate)?.unit || 'lb';
   $('#f-steps').value = d?.steps ?? '';
+  $('#f-drinks').value = d?.drinks ?? '';
+  { const auto = d?.health?.drinks ?? (d?.food?.length ? loseItDrinks(d) : null); $('#f-drinks-auto').textContent = d?.drinks == null && auto != null ? `${fmtN(auto)} from ${d?.health?.drinks != null ? 'Apple Health' : 'your Lose It log'}. Type a number to override.` : 'Leave blank to use Lose It or Apple Health.'; }
   renderLogLists();
   logDirty = false; $('#l-msg').textContent = '';
 }
@@ -1396,6 +1458,8 @@ async function saveLogDay() {
   const wt = num($('#f-weight').value), wu = $('#f-wunit').value;
   if (wt != null && wt > 0) { if (d.weight !== wt || d.weightUnit !== wu) { d.weight = wt; d.weightUnit = wu; d.weightSource = 'manual'; } }
   else { delete d.weight; delete d.weightUnit; delete d.weightSource; }
+  const dr = num($('#f-drinks').value);
+  if (dr != null && dr >= 0) d.drinks = Math.round(dr); else delete d.drinks;
   const st = num($('#f-steps').value);
   if (st != null) { if (d.steps !== Math.round(st)) { d.steps = Math.round(st); d.stepsSource = 'manual'; } }
   else { delete d.steps; delete d.stepsSource; }
@@ -1917,6 +1981,12 @@ Nutrition detail (nutrition.summary, flags, swaps): name the logged foods drivin
 
 Assignments: previous_assignments are what the last report at this level set. Mark each one done, partly or missed in assignments_review, with the evidence from the data (numbers, days). Be strict: "partly" means real but incomplete progress. Then set next_assignments: 1-3 concrete, checkable actions for the next period (a year: 3 goals for next year). You may carry an unfinished one forward: set carries to its index in previous_assignments (0-based), otherwise -1. An assignment whose carried count is already 2 may only be carried again with a reason (why it's still the most important thing); otherwise retire it in retired with a reason. Never silently drop one: every previous assignment that isn't done must be either carried or retired.
 
+your_why is what the user is doing this for, in their own words. Where it fits, connect the period to it (for example how a habit serves or works against it), once or twice per report. Don't quote it back every paragraph, and don't moralise.
+
+your_reflections are the user's own notes on the week: what got in the way and what helped. Use them. If something outside their control explains a shortfall (illness, travel, family), say so in that subject's criticism and make the suggestion fit it. The grades stay as they are. Build on what they say helped.
+
+patterns_last_90_days are rules-based comparisons of evenings against the next day (for example drinks against sleep and HRV). Mention one only when it explains something in this period, and call it a pattern, not proof. outcomes.weight_loss_pace: if its status is fast or watch, say so plainly in outcomes_comment, with the fix (eat a little more on very low days, keep protein and strength work).
+
 If question is present, answer it directly in question_answer with the data; otherwise return an empty string. headline: one line, under 12 words, the most important thing about the period.`;
 const SUBJECT_TEXT = { type: 'object', additionalProperties: false, required: ['praise', 'criticism', 'suggestion'], properties: { praise: { type: 'string' }, criticism: { type: 'string' }, suggestion: { type: 'string' } } };
 // Built when used: SUBJECTS is defined further down the file.
@@ -1945,6 +2015,9 @@ function reportDigest(kind, start, end, subjects, opts) {
     previous_period: prevCard ? { gpa: prevCard.gpa, grades: Object.fromEntries(prevCard.subjects.map(s => [s.name, s.grade])) } : null,
     outcomes: periodOutcomes(from, end), plan: base.plan, training: base.training, totals: base.this_period,
     previous_assignments: opts.prevAssignments.map((a, i) => ({ index: i, text: a.text, times_carried_already: a.carried || 0 })),
+    your_why: coachCfg().why || null,
+    your_reflections: (() => { const out = []; for (let w = weekStart(from); w <= end; w = addDays(w, 7)) { const r = reflections()[w]; if (r && (r.inWay || r.helped)) out.push({ week: fmtRange(w, addDays(w, 6)), what_got_in_the_way: r.inWay || null, what_helped: r.helped || null }); } return out.length ? out : null; })(),
+    patterns_last_90_days: findPatterns(end).slice(0, 6).map(p => p.text),
     question: opts.question || null };
   if (kind === 'week' || kind === 'adhoc') d.days = base.days;
   else {
@@ -2080,10 +2153,11 @@ async function writeReview(key, { kind, start, end, question = '', email = true,
     reviews()[key] = r;
     coachDirty = true;
     await savePersist();
-    if (email && coachCfg().email && coachCfg().scriptUrl) sendReviewEmail(r).catch(e => toast('Report saved, but the email failed: ' + e.message, 7000));
+    if (email && coachCfg().email && coachCfg().scriptUrl) sendReviewEmail(r).catch(e => { logError('Email', e); toast('Report saved, but the email failed: ' + e.message, 7000); });
     toast(`${LEVELS[kind]} report ready: ${card.grade}${card.gpa != null ? ` (GPA ${card.gpa.toFixed(2)})` : ''}`);
   } catch (e) {
     if (reviews()[key]?.status === 'writing') { delete reviews()[key]; coachDirty = true; savePersist(); }
+    logError('Coach', `${LEVELS[kind]} report ${periodLabel(kind, start, end)}: ${e.message}`);
     throw e;
   } finally { coachBusy = null; coachProgress = ''; renderCoach(); }
 }
@@ -2286,6 +2360,7 @@ function liveCardHtml(c) {
 }
 function renderCoach() {
   if (!$('#coach-latest')) return;
+  renderReflection();
   const cc = coachCfg();
   $$('#coach-seg button').forEach(b => b.classList.toggle('on', b.dataset.v === coachView));
   $('#coach-setup').hidden = !!cc.apiKey;
@@ -2424,6 +2499,36 @@ function renderTraining() {
       <span class="x">${[esc(fmtDay(x, { weekday: 'short', month: 'short', day: 'numeric' })), w.durationMin != null && fmtN(w.durationMin) + ' min', l.v && `load ${fmtN(l.v)}${l.est ? ' (est.)' : ''}`].filter(Boolean).join(' · ')}</span></div>`; }).join('')
     : '<p class="small muted" style="margin:0">No workouts in the last 2 weeks.</p>';
 }
+function renderPatterns() {
+  const el = $('#pt-card'); if (!el) return;
+  const P = findPatterns(dashDate);
+  el.hidden = !P.length;
+  $('#pt-body').innerHTML = P.slice(0, 6).map(p => `<div class="li"><span class="n"><span class="tag" style="margin:0 8px 0 0;${p.worse ? 'color:var(--bad)' : 'color:var(--good)'}">${p.worse ? 'worse' : 'better'}</span>${esc(p.text)}</span></div>`).join('');
+}
+/* ---- your why, and the weekly reflection ---- */
+const reflections = () => (data.reflections ||= {});
+function renderReflection() {
+  if (!$('#rf-week')) return;
+  const cur = weekStart(todayKey()), last = addDays(cur, -7), sel = $('#rf-week').value || cur;
+  $('#rf-week').innerHTML = [[cur, 'This week'], [last, 'Last week']].map(([k, n]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${n} · ${esc(fmtRange(k, addDays(k, 6)))}</option>`).join('');
+  const r = reflections()[$('#rf-week').value] || {};
+  // Never overwrite something being typed (the Coach tab redraws every few minutes).
+  if (!$('#rf-in-way').dataset.dirty) { $('#rf-in-way').value = r.inWay || ''; $('#rf-helped').value = r.helped || ''; }
+  const rev = reviews()['week:' + $('#rf-week').value];
+  $('#rf-msg').textContent = rev?.status === 'done' && r.updatedAt && r.updatedAt > rev.createdAt ? 'Saved after this week’s report card was written. Regenerate it to include this.' : 'The week’s report card reads this. It can explain a grade, but it doesn’t change it.';
+  if (!$('#why-text').dataset.dirty) $('#why-text').value = coachCfg().why;
+}
+async function saveReflection() {
+  const k = $('#rf-week').value, inWay = $('#rf-in-way').value.trim(), helped = $('#rf-helped').value.trim();
+  reflections()[k] = { inWay, helped, updatedAt: new Date().toISOString() };
+  delete $('#rf-in-way').dataset.dirty;
+  coachDirty = true; await savePersist(); toast('Reflection saved.'); renderReflection();
+}
+async function saveWhy() {
+  data.coachCfg = { ...(data.coachCfg || {}), why: $('#why-text').value.trim() };
+  delete $('#why-text').dataset.dirty;
+  coachDirty = true; await savePersist(); $('#why-msg').textContent = 'Saved'; setTimeout(() => $('#why-msg').textContent = '', 2500);
+}
 function renderReadinessCard() {
   const r = readiness(dashDate), el = $('#rd-card');
   if (!el) return;
@@ -2462,6 +2567,8 @@ function healthRows() {
     rows.push([s.error ? 'bad' : s.connected ? 'ok' : 'gray', 'Strava', s.connected ? `Connected${s.lastNewAt ? ` · last new workout saved ${H(since(s.lastNewAt))}` : ''}` : 'Not connected', s.error ? `Sync failed: ${s.error} — run stravaCheck in the script.` : '']);
     rows.push(garminRow(st.garmin, H, since));
   }
+  const wp = weightPace();
+  if (wp) rows.push([wp.status === 'fast' ? 'bad' : wp.status === 'watch' ? 'warn' : 'ok', 'Weight-loss pace', wp.text, wp.fix]);
   // Each measure on its own: a source can keep delivering files while one measure inside them stops (for example sleep).
   // [name, has it, days a gap is normal, what to check, only shown once it has ever arrived]
   const yest = addDays(todayKey(), -1);
@@ -2567,6 +2674,7 @@ function renderWeightExtras() {
   const S = weightSeries(), G = weightGoals(S), u = S.unit;
   if (!S.rows.length) { box.innerHTML = '<div class="card"><p class="muted" style="margin:0">No weigh-ins yet. They arrive from your Withings scale through Apple Health and Health Auto Export.</p></div>'; return; }
   const today = todayKey(), last = [...S.rows].reverse().find(r => r.w != null), trendNow = trendOn(S, today);
+  const wp = weightPace(today), paceNote = wp && wp.status !== 'ok' ? `<div class="card" style="border-color:${wp.status === 'fast' ? 'var(--bad)' : 'var(--warn-ink)'}"><div class="card-h" style="margin-bottom:4px"><h2>${wp.status === 'fast' ? 'Losing too fast' : 'Watch your pace'}</h2></div><p style="margin:0 0 4px">${esc(wp.text)}</p><p class="small muted" style="margin:0">${esc(wp.fix)}</p></div>` : '';
   const f1 = v => v == null ? '—' : fmtN(v, 1);
   const sgn = v => v == null ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtN(Math.abs(v), 1)}`;
   const cards = [];
@@ -2658,7 +2766,7 @@ function renderWeightExtras() {
     <div class="list small" id="wg-events">${G.events.map((e, i) => `<div class="li"><span class="n">${esc(e.name)} <span class="muted">· ${esc(fmtDay(e.date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span></span><button class="del" data-wev="${i}" aria-label="Remove event">×</button></div>`).join('') || '<p class="muted" style="margin:0">None yet, e.g. a reunion, trip or wedding.</p>'}</div>
     <div class="row" style="margin-top:8px"><input type="text" id="wg-ename" placeholder="Event name" class="grow"><input type="date" id="wg-edate" style="width:auto"><button class="btn small" id="wg-eadd">Add event</button></div>
     <div class="row" style="margin-top:12px"><button class="btn primary small" id="wg-save" style="margin-left:auto">Save</button></div></details>`);
-  box.innerHTML = `<div class="wt-grid">${cards.join('')}</div>`;
+  box.innerHTML = `${paceNote}<div class="wt-grid">${cards.join('')}</div>`;
 }
 
 async function saveWeightCfg(extra = {}) {
@@ -3226,7 +3334,7 @@ $('#l-prev').onclick = () => moveLog(addDays(logDate, -1));
 $('#l-next').onclick = () => moveLog(addDays(logDate, 1));
 $('#l-today').onclick = () => moveLog(todayKey());
 $('#f-tags').addEventListener('input', renderTagSugg);
-['#f-tags', '#f-notes', '#f-sleep', '#f-weight', '#f-wunit', '#f-steps'].forEach(s => $(s).addEventListener('input', markLogDirty));
+['#f-tags', '#f-notes', '#f-sleep', '#f-drinks', '#f-weight', '#f-wunit', '#f-steps'].forEach(s => $(s).addEventListener('input', markLogDirty));
 $('#l-save').onclick = saveLogDay;
 $('#an-boxes').onclick = e => {
   const reset = e.target.closest('[data-reset]');
@@ -3332,6 +3440,11 @@ setInterval(() => { if (document.visibilityState === 'visible') autoReviews().ca
 
 /* ---- Coach wiring ---- */
 $('#coach-seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; coachView = b.dataset.v; renderCoach(); };
+$('#rf-save').onclick = saveReflection;
+$('#rf-week').onchange = () => { delete $('#rf-in-way').dataset.dirty; renderReflection(); };
+['#rf-in-way', '#rf-helped'].forEach(s => $(s).addEventListener('input', () => { $('#rf-in-way').dataset.dirty = '1'; }));
+$('#why-text').addEventListener('input', () => { $('#why-text').dataset.dirty = '1'; });
+$('#why-save').onclick = saveWhy;
 $('#coach-history').addEventListener('toggle', e => { const el = e.target; if (el.matches?.('details.rt') && el.open) fillTreeRow(el); }, true);
 $('#coach-now-btn').onclick = openReviewNow;
 $('#coach-now').querySelector('.chips').onclick = e => { const b = e.target.closest('[data-q]'); if (b) quickRange(b.dataset.q); };
@@ -3356,6 +3469,7 @@ $('#tab-coach').addEventListener('click', async e => {
 });
 
 $('#hc').onclick = () => goTab('imp');
+$('#er-clear').onclick = async () => { data.errors = []; data.errorsClearedAt = new Date().toISOString(); errorsDirty = true; renderErrors(); await savePersist(); };
 
 $('#m-weight').addEventListener('click', async e => {
   const p = e.target.closest('[data-p]');

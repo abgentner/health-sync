@@ -131,6 +131,7 @@ const HAE_METRICS = {
   step_count: 'steps', sleep_analysis: 'sleep', weight_body_mass: 'weight', body_mass: 'weight',
   resting_heart_rate: 'restingHR', heart_rate_variability: 'hrv', heart_rate_variability_sdnn: 'hrv', active_energy: 'activeCal', active_energy_burned: 'activeCal',
   flights_climbed: 'flights', dietary_water: 'water', water: 'water', vo2_max: 'vo2max', body_fat_percentage: 'bodyFat', mindful_minutes: 'mindful',
+  number_of_alcoholic_beverages: 'drinks', alcoholic_beverages: 'drinks',
   // Nutrition that Lose It writes into Apple Health (one entry per meal, added up per day)
   dietary_energy: 'n:calories', protein: 'n:protein', carbohydrates: 'n:carbs', total_fat: 'n:fat', saturated_fat: 'n:satFat',
   fiber: 'n:fiber', dietary_sugar: 'n:sugar', sodium: 'n:sodium', cholesterol: 'n:cholesterol',
@@ -139,7 +140,7 @@ const HAE_METRICS = {
 // that overlap, so hourly/minute buckets never set the totals. Hourly/minute steps are kept only as the SHAPE of the
 // day (d.stepsHours, 24 raw counts), and shown scaled to the day's real total.
 const DEDUPE_KEYS = new Set(['steps', 'activeCal', 'flights']);
-const SUM_KEYS = new Set(['steps', 'activeCal', 'flights', 'water', 'mindful']);
+const SUM_KEYS = new Set(['steps', 'activeCal', 'flights', 'water', 'mindful', 'drinks']);
 // Convert to the units the app shows: calories, fl oz, %, minutes.
 function haeConvert(key, v, unit) {
   const u = String(unit || '').toLowerCase();
@@ -222,7 +223,7 @@ const massTo = (v, from, to) => { const f = { g: 1e6, mg: 1e3, mcg: 1, 'µg': 1,
 const HAE_COLS = [
   [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^sleep analysis \[(core|deep|rem)\]/, 'sleepStage'], [/^(weight|body mass)/, 'weight'],
   [/^resting heart rate/, 'restingHR'], [/^heart rate variability/, 'hrv'], [/^active energy/, 'activeCal'], [/^flights climbed/, 'flights'],
-  [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'],
+  [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'], [/^(number of )?alcoholic beverages/, 'drinks'],
   [/^dietary energy/, 'n:calories'], [/^protein/, 'n:protein'], [/^carbohydrates/, 'n:carbs'], [/^total fat/, 'n:fat'], [/^saturated fat/, 'n:satFat'],
   [/^fiber/, 'n:fiber'], [/^sugar/, 'n:sugar'], [/^sodium/, 'n:sodium'], [/^cholesterol/, 'n:cholesterol'],
   ...MICROS.map(m => [new RegExp('^' + m.name.toLowerCase().replace(/ \(.*\)/, '').replace(/[()]/g, '') + ' \\('), 'x:' + m.key]),
@@ -809,11 +810,31 @@ const withTimeout = (p, ms, why) => Promise.race([p, new Promise((_, rej) => set
 
 // New or updated Garmin day files (the script rewrites the last 3 days every hour, and adds history in the background).
 // The first time, this reads your whole Garmin history, a few files at a time.
+// Instead of remembering every Garmin file it has read, the app remembers the newest file time per folder and asks Drive
+// only for files changed after it. A file that fails holds the mark back, so it's tried again next time.
+function nextGarminMark(listed, failed, prev) {
+  if (failed.length) { const t = failed.map(f => Date.parse(f.modifiedTime)).sort((a, b) => a - b)[0]; return new Date(t - 1).toISOString(); }
+  return listed.reduce((m, f) => (!m || f.modifiedTime > m ? f.modifiedTime : m), prev || null);
+}
 async function readGarminFolder() {
+  const seen = (data.garminSeen ||= {});
+  if (seen.parser !== GARMIN_PARSER) { seen.days = seen.activities = null; seen.parser = GARMIN_PARSER; importsDirty = true; }
   let files = [];
-  try { files = [...await Drive.garminFiles('days'), ...await Drive.garminFiles('activities')].filter(f => data.watched?.[f.id] !== garminStamp(f)); }
-  catch (e) { logImport(`Garmin folder: could not check it — ${e.message}`); return 0; }
-  if (!files.length) return 0;
+  const listed = {};
+  try {
+    for (const kind of ['days', 'activities']) {
+      listed[kind] = await Drive.garminFiles(kind, seen[kind]);
+      // The first time (or after the reader changes), skip files the old per-file list says were already read.
+      files.push(...(seen[kind] ? listed[kind] : listed[kind].filter(f => data.watched?.[f.id] !== garminStamp(f))));
+    }
+  } catch (e) { logImport(`Garmin folder: could not check it — ${e.message}`); if (typeof logError === 'function') logError('Garmin folder', e); return 0; }
+  const failedFiles = [];
+  const done = () => {
+    for (const kind of ['days', 'activities']) { const m = nextGarminMark(listed[kind], failedFiles.filter(f => f.kind === kind), seen[kind]); if (m !== seen[kind]) { seen[kind] = m; importsDirty = true; } }
+    // The per-file list is no longer needed for Garmin files.
+    for (const [id, v] of Object.entries(data.watched || {})) if (/^g\d+:/.test(v)) { delete data.watched[id]; importsDirty = true; }
+  };
+  if (!files.length) { done(); return 0; }
   const tally = { steps: new Set(), sleep: new Set(), weight: new Set(), recovery: new Set(), workouts: new Set(), detail: 0 }, queue = files.slice();
   const nDays = files.filter(f => f.kind === 'days').length;
   let n = 0, failed = 0, failedDays = 0;
@@ -822,13 +843,13 @@ async function readGarminFolder() {
       try {
         const r = await withTimeout(Drive.api(`files/${f.id}?alt=media`), 60000, 'downloading it took too long');
         (f.kind === 'activities' ? readGarminActivity : readGarminDay)(await r.json(), tally);
-        data.watched[f.id] = garminStamp(f);
-      } catch { failed++; if (f.kind === 'days') failedDays++; }
+      } catch (e) { failed++; failedFiles.push(f); if (f.kind === 'days') failedDays++; if (typeof logError === 'function') logError('Garmin folder', `${f.name}: ${e.message}`); }
       setStatus(`Reading Garmin files: ${++n} of ${files.length}…`, 'busy');
     }
   };
   await Promise.all(Array.from({ length: 6 }, work));
   importsDirty = true;
+  done();
   if (nDays) logImport(garminDaysSummary(tally, nDays - failedDays, failedDays));
   const nAct = files.length - nDays, failedAct = failed - failedDays;
   if (nAct) {
@@ -872,6 +893,7 @@ async function checkInbox(quiet = false) {
     } catch (e) {
       skipped++;
       logImport(`${f.name}: could not import — ${e.message}`);
+      if (typeof logError === 'function') logError('Import', `${f.name}: ${e.message}`);
     }
   }
   await persist();

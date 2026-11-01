@@ -286,6 +286,68 @@ describe('Report cards: a week graded from data', () => {
   test('nutrition is incomplete with too few logged days', () => { week(); for (let i = 0; i < 5; i++) getDay(addDays(W, i)).food = []; eq(g(finishCard(gradeSubjects(W, addDays(W, 6)), []), 'nutrition').grade, 'I'); });
 });
 
+describe('Weight-loss pace alarm', () => {
+  // A steady loss of `perWeek` lb a week from 200 lb, weighing in every day for `days` days up to `end`.
+  function losing(perWeek, days = 35, end = '2026-10-04') { fresh(); for (let i = days; i >= 0; i--) { const k = addDays(end, -i), d = day(k); d.weight = Math.round((200 - perWeek / 7 * (days - i)) * 10) / 10; d.weightUnit = 'lb'; } return weightPace(end); }
+  test('a safe pace (1 lb a week) is fine', () => eq(losing(1).status, 'ok'));
+  test('over 1% of body weight a week for 4 weeks is too fast', () => { const p = losing(2.6); eq(p.status, 'fast'); ok(/muscle/.test(p.text) && /protein/.test(p.fix), 'explains why and what to do', p); });
+  test('a fast 2 weeks only is a warning, not an alarm', () => {
+    fresh(); for (let i = 35; i >= 0; i--) { const k = addDays('2026-10-04', -i), d = day(k); d.weightUnit = 'lb'; d.weight = i > 14 ? 200 - (35 - i) * 0.1 : 198 - (14 - i) * 0.4; }
+    eq(weightPace('2026-10-04').status, 'watch');
+  });
+  test('too little history → no call', () => eq(losing(3, 10), null));
+  test('daily water swings of ±2 lb at a safe pace don’t set it off', () => {
+    const noise = [1.8, -1.2, 0.4, -2, 1, 2, -1.6, 0.2, -0.8, 1.4, -1.9, 0.6, 1.1, -0.3];
+    fresh(); for (let i = 35; i >= 0; i--) { const k = addDays('2026-10-04', -i), d = day(k); d.weightUnit = 'lb'; d.weight = Math.round((200 - (35 - i) / 7 + noise[i % noise.length]) * 10) / 10; }
+    eq(weightPace('2026-10-04').status, 'ok');
+  });
+  test('weigh-ins only every few days still work', () => {
+    fresh(); for (let i = 35; i >= 0; i -= 2) { const d = day(addDays('2026-10-04', -i)); d.weightUnit = 'lb'; d.weight = 200 - (35 - i) * 0.4; }
+    eq(weightPace('2026-10-04').status, 'fast');
+  });
+});
+
+describe('Alcohol', () => {
+  const foods = list => { fresh(); const d = day('2026-09-20'); d.food = list.map(([name, qty, units]) => ({ id: name, source: 'loseit', name, qty, units, calories: 150 })); return d; };
+  test('drinks are counted from Lose It foods, by quantity', () => eq(loseItDrinks(foods([['Lagunitas IPA', 2, 'bottle'], ['Red wine', 1, 'glass'], ['Chicken bowl', 1, 'bowl']])), 3));
+  test('foods that only sound like drinks aren’t counted', () => eq(loseItDrinks(foods([['Root beer', 1, 'can'], ['Beer-battered fish', 1, 'serving'], ['Chicken marsala', 1, 'serving'], ['Red wine vinegar', 1, 'tbsp'], ['Ginger ale', 1, 'can'], ['Heineken 0.0', 1, 'bottle']])), 0));
+  test('typed in by hand wins, then Apple Health, then Lose It', () => {
+    const d = foods([['Beer', 2, 'can']]); eq(drinksOf(d), 2); d.health = { drinks: 3 }; eq(drinksOf(d), 3); d.drinks = 1; eq(drinksOf(d), 1); d.drinks = 0; eq(drinksOf(d), 0, 'zero by hand means none');
+  });
+  test('Apple Health’s alcoholic beverages are read', () => { fresh(); hae([{ name: 'number_of_alcoholic_beverages', units: 'count', data: [{ date: '2026-09-20 00:00:00 -0700', qty: 2 }] }]); eq(getDay('2026-09-20').health.drinks, 2); });
+  test('no food and nothing typed in → unknown, not zero', () => { fresh(); eq(drinksOf(day('2026-09-20')), null); });
+});
+
+describe('Patterns: evenings against the next day', () => {
+  // 40 days: on drink days, the next night is shorter and HRV lower. Big dinners make no difference.
+  function seed({ effect = true } = {}) {
+    fresh();
+    for (let i = 0; i < 42; i++) {
+      const k = addDays('2026-08-20', i), d = day(k), drink = i % 3 === 0, prev = getDay(addDays(k, -1)), hadDrink = prev && (prev.drinks || 0) >= 1;
+      d.drinks = drink ? 2 : 0;
+      d.food = [{ id: 'f' + i, source: 'loseit', name: 'Chicken bowl', meal: 'Dinner', calories: i % 2 ? 900 : 600, sodium: 1500, sugar: 20, protein: 120 }];
+      d.sleep = { hours: effect && hadDrink ? 6.3 + (i % 2) * 0.1 : 7.2 + (i % 2) * 0.1, source: 'garmin' };
+      d.garmin = { hrvNight: effect && hadDrink ? 42 + (i % 2) : 50 + (i % 2) };
+    }
+    return findPatterns('2026-10-01', 60);
+  }
+  test('drinks → shorter sleep and lower HRV is found, marked worse, with counts', () => {
+    const p = seed().find(x => x.factor === 'drinks'); ok(p, 'a drinks pattern');
+    eq(p.worse, true); ok(p.hits.some(h => h.key === 'sleep' && h.diff < -0.5) && p.hits.some(h => h.key === 'hrv' && h.diff < -5), 'sleep and HRV lower', p.hits); ok(/^After evenings with a drink \(\d+ of them\)/.test(p.text), 'readable', p.text);
+  });
+  test('a habit that makes no difference isn’t reported', () => ok(!seed().some(x => x.factor === 'bigDinner'), 'no big-dinner pattern'));
+  test('no effect in the data → no patterns at all', () => eq(seed({ effect: false }).length, 0));
+  test('needs 5 days each way', () => { fresh(); for (let i = 0; i < 6; i++) { const d = day(addDays('2026-09-01', i)); d.drinks = i === 0 ? 2 : 0; d.sleep = { hours: 6, source: 'garmin' }; } eq(findPatterns('2026-09-08', 10).length, 0); });
+});
+
+describe('Garmin folder: newest-file mark', () => {
+  const f = (t, kind = 'days') => ({ id: t, kind, modifiedTime: t });
+  test('with no failures, the mark moves to the newest file', () => eq(nextGarminMark([f('2026-10-01T10:00:00.000Z'), f('2026-10-02T09:00:00.000Z')], [], '2026-09-30T00:00:00.000Z'), '2026-10-02T09:00:00.000Z'));
+  test('a failed file holds the mark just before it, so it’s read again', () => eq(nextGarminMark([f('2026-10-01T10:00:00.000Z'), f('2026-10-02T09:00:00.000Z')], [f('2026-10-01T10:00:00.000Z')], null), '2026-10-01T09:59:59.999Z'));
+  test('nothing new keeps the mark', () => eq(nextGarminMark([], [], '2026-09-30T00:00:00.000Z'), '2026-09-30T00:00:00.000Z'));
+  test('saved data keeps reflections, the Garmin mark and the problems log', () => { const n = normalize({ reflections: { '2026-09-28': { inWay: 'x' } }, garminSeen: { days: 't', parser: 1 }, errors: [{ id: 1 }], errorsClearedAt: 'c' }); eq([!!n.reflections['2026-09-28'], n.garminSeen.days, n.errors.length, n.errorsClearedAt], [true, 't', 1, 'c']); });
+});
+
 /* ---- run ---- */
 (async () => {
   const out = [], results = [];

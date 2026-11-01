@@ -9,7 +9,7 @@
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
 | **README / SETUP / ALTERNATIVES** | The line at the top of each file |
 | **CHANGELOG** | Its newest entry |
-| **Your copies** | The Desktop folder name, like **Health Sync v3.2.1** |
+| **Your copies** | The Desktop folder name, like **Health Sync v3.3** |
 
 ### How versions are numbered
 
@@ -31,7 +31,39 @@
 4. **Add a check to `tests.html`** for each fix or new rule, so it can't break again unnoticed.
 5. **Open `tests.html` and confirm it's all green.**
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js` and `rules.js` only work as a set.
-7. **Once it's live,** open `tests.html` on the site and confirm it's still green. Then **paste the script** into script.google.com.
+7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
+
+### v3.3 (October 31, 2026)
+
+- **New: Your why** (Coach tab): what you're doing this for, in your own words. Report cards connect the period to it where it fits.
+- **New: weekly Reflection** (Coach tab): *What got in the way?* and *What helped?*, for this week or last week. Report cards read it, and monthly and longer cards read every week inside them. It can explain a grade, and the criticism and suggestion take it into account, **but it never changes the grade.** No extra Claude cost: it goes into the report card that's being written anyway.
+- **New: weight-loss pace alarm.**
+  - **Red**, "Losing too fast": over 1% of body weight a week across 4 weeks, which costs muscle as well as fat.
+  - **Amber**, "Watch your pace": over 1.25% a week across the last 2 weeks, or over twice your committed rate.
+  - It shows in Data health (red or amber also lights the ⚠ chip), on the Weight page and to the Coach.
+  - The pace is a straight line through the actual weigh-ins. The first version used the smoothed trend, and a test showed it lagged so much that it wouldn't warn until about 2% a week. Daily water swings of ±2 lb don't set it off; that's tested.
+- **New: alcohol.** Drinks per day come from three places, in this order: a number you type in Log today (0 for a dry day); Apple Health's *Number of Alcoholic Beverages*; or the drinks in your Lose It log, counted by quantity. Foods that only sound like drinks, such as root beer, beer-battered fish or wine vinegar, are left out. Drinks show in Body & recovery and feed Patterns and the Coach.
+- **New: Patterns** (Dashboard). For drinks, a big dinner, a salty day, a sugary day, under-eating or a late workout, it compares the next night and morning (sleep, sleep score, HRV, resting heart rate, energy, mood, the scale) with days without, over the last 90 days. It only shows a pattern with 5+ days each way and a difference bigger than your normal swing, and it's labelled a pattern, not proof. The Coach gets them too. Rules only, so no Claude cost.
+- **New: Problems log** (Import tab). Errors from any device, kept with your data: failed syncs, unreadable files, report cards that couldn't be written, failed saves and emails, unexpected app errors. Repeats within a minute are counted, not listed again. **Clear** empties it everywhere.
+- **Faster Garmin syncs.** Every sync used to list every Garmin file ever saved, and that grows daily. Now the app remembers the newest file time it has read in each Garmin folder and asks Drive only for files changed since then. A file that fails holds the mark back so it's read again. The old list of every file read is removed from the data file (about 70 KB for two years of history). Correction to the v3.2.1 review: the data file was never going to get heavy from that list; the cost was the listing on every sync. Your day-by-day data grows by about 1–1.5 MB a year, which is fine for years.
+- **New: GitHub runs the tests on every change and publishes the site only if every check passes** (`.github/workflows/tests.yml`, with `.github/run-tests.mjs`). A failing check shows ❌ on GitHub, and your app stays on the previous version. GitHub Pages was switched from "publish the main branch" to "publish from this workflow" for this. I checked that a deliberately broken rule makes the run fail.
+- Tests: 71 checks, up from 52: the pace alarm (including water swings and sparse weigh-ins), alcohol (counting, look-alikes, which source wins), Patterns (finds a real effect, ignores a non-effect, needs 5 days each way), the Garmin file mark, and saving the new data.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `index.html` | Why and Reflection cards, Patterns card, pace alarm in Data health and on the Weight page, drinks in Log today, Problems log, faster Garmin listing, reflections and the problems log synced between devices; version and script tags |
+  | `rules.js` | Pace alarm, drinks, Patterns; what the Coach is told about why, reflections, patterns and pace |
+  | `importers.js` | Garmin newest-file mark; Apple Health alcoholic beverages; errors go to the Problems log |
+  | `core.js` | Saves reflections, the Garmin mark and the Problems log; drinks in Body & recovery |
+  | `tests.html` | 19 new checks (71 in all) |
+  | `.github/workflows/tests.yml`, `.github/run-tests.mjs` | **New:** test, then publish |
+  | `README.md` | Patterns, pace alarm, why and reflection, drinks, Problems log, Data health table, how publishing works now, Tests |
+  | `SETUP.md` | Step 11: Number of Alcoholic Beverages (optional); version line |
+  | `CHANGELOG.md` | This entry; release checklist step 7 |
+  | `email-to-drive.gs` | **Version number only** (3.2.1 → 3.3). **Paste it** so Data health shows the same version. |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `config.js` | Not changed (it has no version) |
 
 ### v3.2.1 (October 31, 2026)
 
