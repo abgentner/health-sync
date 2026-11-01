@@ -384,9 +384,10 @@ Each release is either pushed straight to GitHub (when Claude works in your copy
 
 1. Go to `https://github.com/YOUR-USERNAME/health-sync`
 2. Click **Add file → Upload files**.
-3. Drag in the new file. It **replaces** the old one with the same name.
+3. Drag in **all the new files at once**: `index.html`, `core.js`, `importers.js`, `rules.js`, `tests.html`, `email-to-drive.gs` and the `.md` files (not `config.js`). Each one **replaces** the old file with the same name.
 4. Click **Commit changes**.
-5. Wait **2–5 minutes**, then open the app.
+5. Wait **2–5 minutes**, then open `https://YOUR-USERNAME.github.io/health-sync/tests.html`. It should say **All … passed**. If anything is red, don't use the new version yet: ask Claude to fix it first.
+6. Open the app.
    - From v1.4 on, a bar at the top says **"Version 1.x is available"**. Tap **Update now**.
    - On a computer, **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows) also works.
 
@@ -397,7 +398,7 @@ Each release is either pushed straight to GitHub (when Claude works in your copy
 > - ✅ = live
 > - ❌ = something went wrong; try uploading again
 
-**Versions:** MAJOR.MINOR.PATCH (3.0, 3.1, 3.1.1…). **Every file carries the same version:** the app, the script, README, SETUP, ALTERNATIVES and CHANGELOG. Each release bumps all of them together, and the CHANGELOG says which files only had their number changed. Details are in [CHANGELOG.md](CHANGELOG.md).
+**Versions:** MAJOR.MINOR.PATCH (3.0, 3.1, 3.1.1…). **Every file carries the same version:** the app (`index.html` and the three files it loads, `core.js`, `importers.js` and `rules.js`), the script, README, SETUP, ALTERNATIVES and CHANGELOG. The release checklist is at the top of [CHANGELOG.md](CHANGELOG.md). Each release bumps all of them together, and the CHANGELOG says which files only had their number changed. Details are in [CHANGELOG.md](CHANGELOG.md).
 
 **Paste the script every release,** even when only its number changed, so everything stays on one version. If the script's version doesn't match the app's, the **Google script** row in Data health turns amber and says which version to paste.
 

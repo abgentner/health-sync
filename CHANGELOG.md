@@ -22,6 +22,16 @@
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
 
+### Every release, in this order
+
+1. **Bump the version in every file:** `APP_VERSION` and the comment at the top of `index.html`; the `?v=` on its three script tags (`core.js`, `importers.js`, `rules.js`); line 3 and `SCRIPT_VERSION` in `email-to-drive.gs`; and the line at the top of README, SETUP and ALTERNATIVES.
+2. **Update the docs** for whatever changed. In particular, README for anything you can see or do, and SETUP for anything about setting up.
+3. **Add a CHANGELOG entry** with a table of every file and what changed in it. Mark files whose only change is the number as **Version number only**.
+4. **Add a check to `tests.html`** for each fix or new rule, so it can't break again unnoticed.
+5. **Open `tests.html` and confirm it's all green.**
+6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js` and `rules.js` only work as a set.
+7. **Once it's live,** open `tests.html` on the site and confirm it's still green. Then **paste the script** into script.google.com.
+
 ### v3.2.1 (October 31, 2026)
 
 - **New: `tests.html`, a test page anyone can run.** Open it, and 52 checks run against made-up sample files, each shown green or red. They cover every importer, which source wins, keeping one copy of each workout, training load, readiness, pain flags, the weight trend and the report-card grades. It contains no health data, so it lives on GitHub, and either computer can check a release before it goes out (README › Tests).
@@ -34,7 +44,8 @@
   The code was moved by a script, block for block, not retyped. **Nothing changes in what the app does.**
 - **What the tests caught straight away:** three small helpers (`avg`, `windowKeys`, `plural`) that the moved code needed were still in the screen code. The app worked only because everything happened to be loaded together. They're in `core.js` now.
 - I checked that the tests can fail: breaking which source wins, or how load is worked out, turns the matching checks red with a clear message.
-- **Releasing now means:** bump the version in every file, including the `?v=` on the three script tags in `index.html`; run `tests.html`; and upload or push all the app files together.
+- **Releasing now means:** bump the version in every file, including the `?v=` on the three script tags in `index.html`; run `tests.html`; and upload or push all the app files together. The full checklist is at the top of this file (Every release, in this order).
+- **Docs follow-up, same release:** README › Updating the app now lists all the files, says to upload them together and to run `tests.html` once live, and the release checklist is at the top of this file. No code changed, so the version stays 3.2.1.
 - **Files in this release:**
 
   | File | What changed |
