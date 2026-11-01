@@ -43,6 +43,7 @@
   - Nothing silently dropped: every field in the saved file must have a merge check, and every field the code writes must be kept by `normalize()`. Both have caused bugs before.
   - One version everywhere: fails if the app, the four script tags, the script or any doc has a different version. That rule used to rely on remembering.
   - Checked: putting the old whole-day save back makes 4 of the new checks fail, and a mismatched version fails the version check.
+- **Follow-up, same release:** GitHub's test run now also starts the real app (this-computer-only mode, a made-up day), saves an edit, and fails on any page error. Before, that check only existed on one computer. CI only, no app change, so it's still 3.3.1.
 - **Files in this release:**
 
   | File | What changed |
@@ -56,7 +57,8 @@
   | `CHANGELOG.md` | This entry; file table and release checklist mention `sync.js` |
   | `email-to-drive.gs` | **Version number only** (3.3 → 3.3.1). **Paste it** so Data health shows the same version. |
   | `ALTERNATIVES.md` | **Version number only** |
-  | `importers.js`, `rules.js`, `config.js`, `.github/` | Not changed |
+  | `.github/run-tests.mjs` | Also starts the real app, saves an edit, and fails on any page error (follow-up, same release) |
+  | `importers.js`, `rules.js`, `config.js` | Not changed |
 
 ### v3.3 (October 31, 2026)
 
