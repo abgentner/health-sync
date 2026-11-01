@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Health Sync tests</title>
+<style>
+:root{color-scheme:light;--bg:#f4f5f8;--surface:#fff;--border:#e6e7ec;--text:#14161c;--muted:#868a94;--good:#0f7a3a;--bad:#c23a39;--good-bg:#e7f5ec;--bad-bg:#fbeaea}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0f1013;--surface:#181a1f;--border:#2b2e35;--text:#f4f5f7;--muted:#8b8f98;--good:#4cc27a;--bad:#e66767;--good-bg:#16291e;--bad-bg:#2e1718}}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:22px;margin:0 0 4px} p{margin:0 0 12px;color:var(--muted)}
+.sum{font-size:18px;font-weight:700;padding:12px 16px;border-radius:12px;margin:14px 0}
+.sum.ok{background:var(--good-bg);color:var(--good)} .sum.bad{background:var(--bad-bg);color:var(--bad)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:22px 0 6px}
+.t{display:flex;gap:10px;padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-top:0;font-size:14px}
+h2+.t{border-top:1px solid var(--border);border-radius:10px 10px 0 0}
+.t i{font-style:normal;font-weight:700;flex:none;width:44px} .t.ok i{color:var(--good)} .t.bad i{color:var(--bad)}
+.t .why{display:block;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--bad);white-space:pre-wrap;word-break:break-word}
+#toast,#st-lbl,#st-dot{display:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>const APP_VERSION = 'tests';</script>
+<script src="core.js"></script>
+<script src="importers.js"></script>
+<script src="rules.js"></script>
+</head>
+<body>
+<main>
+  <h1>Health Sync tests</h1>
+  <p>Checks the importers and the rules (core.js, importers.js, rules.js) against made-up sample files. No real health data is used, so this page is safe to keep on GitHub. Run it before each release, on any computer: all green means nothing that used to work has broken.</p>
+  <div class="sum" id="sum">Running…</div>
+  <div id="out"></div>
+  <div id="toast"></div><span id="st-lbl"></span><span id="st-dot"></span>
+</main>
+<script>
+'use strict';
+/* ---- a very small test runner ---- */
+const TESTS = [];
+let group = '';
+const describe = (name, fn) => { group = name; fn(); };
+const test = (name, fn) => TESTS.push({ group, name, fn });
+class Fail extends Error {}
+const show = v => typeof v === 'string' ? JSON.stringify(v) : JSON.stringify(v, (k, x) => typeof x === 'number' ? Math.round(x * 1000) / 1000 : x);
+const eq = (got, want, what = '') => { if (show(got) !== show(want)) throw new Fail(`${what ? what + ': ' : ''}expected ${show(want)}, got ${show(got)}`); };
+const ok = (cond, what = 'expected true', got) => { if (!cond) throw new Fail(what + (got !== undefined ? ` (got ${show(got)})` : '')); };
+const near = (got, want, tol, what = '') => { if (got == null || Math.abs(got - want) > tol) throw new Fail(`${what ? what + ': ' : ''}expected ${want} ±${tol}, got ${show(got)}`); };
+// Every test starts from empty data.
+function fresh() { data = emptyData(); dirty.clear(); settings.units = 'imperial'; }
+const T = () => ({ steps: new Set(), sleep: new Set(), weight: new Set(), recovery: new Set(), workouts: new Set(), detail: 0 });
+const hae = metrics => impHaeJson('t.json', { data: { metrics } });
+const ws = (d, w) => (getDay(d)?.workouts || []).map(x => `${x.source}:${x.title}`).sort();
+
+/* ================= importers ================= */
+describe('Apple Health (Health Auto Export JSON): sleep', () => {
+  test('a night with totalSleep 0 and the hours in "asleep" (how Garmin writes it) is read', () => {
+    fresh(); hae([{ name: 'sleep_analysis', units: 'hr', data: [{ date: '2026-09-20 00:00:00 -0700', totalSleep: 0, asleep: 6.8, core: 0, deep: 0, rem: 0, sleepStart: '2026-09-19 22:40:00 -0700', sleepEnd: '2026-09-20 06:40:00 -0700', source: 'Garmin Connect' }] }]);
+    eq(getDay('2026-09-20').sleep.hours, 6.8); eq(getDay('2026-09-20').sleep.via, 'Garmin Connect', 'device'); eq(getDay('2026-09-20').sleep.start, '22:40', 'bedtime');
+  });
+  test('a night only in the core/deep/REM stages is added up', () => {
+    fresh(); hae([{ name: 'sleep_analysis', units: 'hr', data: [{ date: '2026-09-21 00:00:00 -0700', totalSleep: 0, asleep: 0, core: 3.9, deep: 1.1, rem: 1.6, sleepEnd: '2026-09-21 06:30:00 -0700' }] }]);
+    eq(getDay('2026-09-21').sleep.hours, 6.6);
+  });
+  test('raw stage samples are added up, awake time left out, bedtime = earliest start', () => {
+    fresh(); hae([{ name: 'sleep_analysis', units: 'hr', data: [
+      { startDate: '2026-09-21 23:00:00 -0700', endDate: '2026-09-22 02:00:00 -0700', value: 'Core' },
+      { startDate: '2026-09-22 02:00:00 -0700', endDate: '2026-09-22 02:30:00 -0700', value: 'Awake' },
+      { startDate: '2026-09-22 02:30:00 -0700', endDate: '2026-09-22 06:30:00 -0700', value: 'Deep' }] }]);
+    eq(getDay('2026-09-22').sleep.hours, 7); eq(getDay('2026-09-22').sleep.start, '23:00', 'bedtime');
+  });
+  test('a sleep record it can’t read is reported with its field names, not dropped silently', () => {
+    fresh(); const msg = hae([{ name: 'sleep_analysis', units: 'hr', data: [{ date: '2026-09-23 00:00:00 -0700', mystery: 7 }] }]);
+    ok(/no hours this app can read \(fields: date, mystery\)/.test(msg), 'warning in the import line', msg);
+  });
+});
+
+describe('Apple Health (Health Auto Export JSON): other measures', () => {
+  test('daily steps, weight, resting heart rate and HRV are read, with the device', () => {
+    fresh(); hae([{ name: 'step_count', units: 'count', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 11442, source: 'iPhone|Garmin Connect' }] },
+      { name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 179.4, source: 'Withings' }] },
+      { name: 'resting_heart_rate', units: 'count/min', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 54 }] },
+      { name: 'heart_rate_variability', units: 'ms', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 47 }] }]);
+    const d = getDay('2026-09-15');
+    eq([d.steps, d.stepsSource, d.stepsVia], [11442, 'health', 'iPhone|Garmin Connect']); eq([d.weight, d.weightVia], [179.4, 'Withings']); eq([d.health.restingHR, d.health.hrv], [54, 47]);
+  });
+  test('hourly step files never change the day’s step total (they would count iPhone + Garmin twice)', () => {
+    fresh(); hae([{ name: 'step_count', units: 'count', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 11442 }] }]);
+    hae([{ name: 'step_count', units: 'count', data: [{ date: '2026-09-15 08:00:00 -0700', qty: 9000 }, { date: '2026-09-15 09:00:00 -0700', qty: 6000 }] }]);
+    eq(getDay('2026-09-15').steps, 11442, 'total'); eq(getDay('2026-09-15').stepsHours[8], 9000, 'by hour');
+  });
+  test('vitamins and nutrition Lose It writes into Apple Health are kept', () => {
+    fresh(); hae([{ name: 'dietary_energy', units: 'kcal', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 1800 }] }, { name: 'protein', units: 'g', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 120 }] }, { name: 'potassium', units: 'mg', data: [{ date: '2026-09-15 00:00:00 -0700', qty: 1856 }] }]);
+    eq(getDay('2026-09-15').healthFood.calories, 1800); eq(getDay('2026-09-15').healthFood.protein, 120); eq(getDay('2026-09-15').micros.potassium, 1856);
+  });
+});
+
+describe('Apple Health (Health Auto Export CSV)', () => {
+  test('a night only in the stage columns is added up, awake left out', () => {
+    fresh(); importCsv('HealthAutoExport.csv', 'Date/Time,Step Count (count),Sleep Analysis [Total] (hr),Sleep Analysis [Core] (hr),Sleep Analysis [Deep] (hr),Sleep Analysis [REM] (hr),Sleep Analysis [Awake] (hr)\n2026-09-19 00:00:00,9000,0,3.5,1.2,1.5,0.4');
+    eq(getDay('2026-09-19').sleep.hours, 6.2); eq(getDay('2026-09-19').steps, 9000);
+  });
+});
+
+describe('Garmin day files (Drive › Garmin › days)', () => {
+  const garminDay = (date, extra = {}) => readGarminDay({ source: 'garmin', date, data: { userSummary: { totalSteps: 10980, restingHeartRate: 54, bodyBatteryHighestValue: 82, averageStressLevel: 31, includesWellnessData: true },
+    sleep: { calendarDate: date, sleepTimeSeconds: 25920, sleepScores: { overall: { value: 81 } }, sleepStartTimestampLocal: Date.UTC(2026, 8, 25, 22, 5) }, hrv: { lastNightAvg: 48 }, weightDay: { latestWeight: { weight: 81500 } }, ...extra } }, T());
+  test('sleep with score and bedtime, HRV, Body Battery and stress', () => {
+    fresh(); garminDay('2026-09-26'); const d = getDay('2026-09-26');
+    eq([d.sleep.hours, d.sleep.score, d.sleep.source, d.sleep.start], [7.2, 81, 'garmin', '22:05']); eq(d.garmin, { hrvNight: 48, bodyBattery: 82, stress: 31 }); eq(d.restingHR, 54);
+  });
+  test('weight in grams becomes lb', () => { fresh(); garminDay('2026-09-26'); eq(getDay('2026-09-26').weight, 179.7); });
+  test('sleep from stage seconds when the total is 0; -1 "no data" is ignored', () => {
+    fresh(); readGarminDay({ date: '2026-09-27', data: { userSummary: { totalSteps: 8000, restingHeartRate: -1 }, sleepDetail: { dailySleepDTO: { sleepTimeSeconds: 0, deepSleepSeconds: 3600, lightSleepSeconds: 14400, remSleepSeconds: 5400 } } } }, T());
+    eq(getDay('2026-09-27').sleep.hours, 6.5); eq(getDay('2026-09-27').restingHR, undefined);
+  });
+  test('a day with only Garmin HRV is kept', () => { fresh(); readGarminDay({ date: '2026-09-28', data: { hrv: { lastNightAvg: 51 } } }, T()); ok(!!getDay('2026-09-28')?.garmin); });
+});
+
+describe('Which source wins (README › Which source wins)', () => {
+  test('Apple Health steps and weight beat Garmin’s, whichever comes first', () => {
+    fresh(); readGarminDay({ date: '2026-09-26', data: { userSummary: { totalSteps: 10980 }, weightDay: { latestWeight: { weight: 81500 } } } }, T());
+    hae([{ name: 'step_count', units: 'count', data: [{ date: '2026-09-26 00:00:00 -0700', qty: 11442 }] }, { name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-09-26 00:00:00 -0700', qty: 179.4 }] }]);
+    readGarminDay({ date: '2026-09-26', data: { userSummary: { totalSteps: 10980 } } }, T());
+    eq([getDay('2026-09-26').steps, getDay('2026-09-26').stepsSource, getDay('2026-09-26').weight], [11442, 'health', 179.4]);
+  });
+  test('Garmin sleep beats Apple’s copy and keeps its score', () => {
+    fresh(); readGarminDay({ date: '2026-09-26', data: { sleep: { sleepTimeSeconds: 25920, sleepScores: { overall: { value: 81 } } } } }, T());
+    hae([{ name: 'sleep_analysis', units: 'hr', data: [{ date: '2026-09-26 00:00:00 -0700', totalSleep: 6.9, sleepStart: '2026-09-25 22:30:00 -0700', sleepEnd: '2026-09-26 06:00:00 -0700' }] }]);
+    eq([getDay('2026-09-26').sleep.source, getDay('2026-09-26').sleep.score, getDay('2026-09-26').sleep.hours], ['garmin', 81, 7.2]);
+    eq(getDay('2026-09-26').sleep.start, '22:30', 'Apple fills in a missing bedtime');
+  });
+  test('Garmin fills steps on a day Apple Health missed', () => { fresh(); readGarminDay({ date: '2026-09-27', data: { userSummary: { totalSteps: 8000 } } }, T()); eq(getDay('2026-09-27').stepsSource, 'garmin'); });
+  test('the steps, weight and sleep CSV importers never overwrite what you typed in', () => {
+    fresh(); const d = day('2026-09-24'); Object.assign(d, { steps: 5000, stepsSource: 'manual', weight: 180, weightUnit: 'lb', weightSource: 'manual', sleep: { hours: 8, source: 'manual' } });
+    importCsv('steps.csv', 'Date,Steps\n2026-09-24,9000\n2026-09-25,9100'); importCsv('weight.csv', 'Date,Weight\n2026-09-24,190'); importCsv('sleep.csv', 'Date,Sleep Duration,Sleep Score\n2026-09-24,6:00,70');
+    eq([getDay('2026-09-24').steps, getDay('2026-09-24').weight, getDay('2026-09-24').sleep.hours], [5000, 180, 8]); eq(getDay('2026-09-25').steps, 9100, 'other days still filled');
+  });
+  test('the source order table', () => {
+    eq(canSet({ stepsSource: 'garmin' }, 'steps', 'health'), true); eq(canSet({ stepsSource: 'health' }, 'steps', 'garmin'), false);
+    eq(canSet({ sleep: { hours: 7, source: 'health' } }, 'sleep', 'garmin'), true); eq(canSet({ sleep: { hours: 7, source: 'garmin' } }, 'sleep', 'health'), false);
+    eq(canSet({ weightSource: 'manual' }, 'weight', 'health'), false); eq(canSet({}, 'weight', 'loseit'), true);
+  });
+});
+
+describe('Workouts: one copy of each, the most detailed', () => {
+  const file = (id, start, extra = {}) => readGarminActivity({ activityId: id, summary: { activityName: 'Walk (file)', startTimeLocal: start, activityType: { typeKey: 'walking' }, duration: 1920, activityTrainingLoad: 30, ...extra } }, T());
+  const strava = (id, start, name = 'Morning Walk', secs = 1920) => impStrava('s.json', { source: 'strava', activities: [{ id, start_date_local: start, sport_type: 'Walk', name, moving_time: secs, calories: 145 }] });
+  const csv = () => importCsv('Activities.csv', 'Activity Type,Date,Favorite,Title,Distance,Calories,Time,Avg HR,Max HR\nWalking,2026-09-29 07:11:00,false,Garmin Walk,2.1,150,00:32:00,101,120');
+  test('Garmin workout file: zones in minutes, load, training effect, strength sets', () => {
+    fresh(); readGarminActivity({ activityId: 9, summary: { activityName: 'Long run', startTimeLocal: '2026-09-30 08:00:00', activityType: { typeKey: 'running' }, duration: 6000, distance: 16093, hrTimeInZone_2: 2400, hrTimeInZone_3: 2400, hrTimeInZone_4: 1200, activityTrainingLoad: 260, aerobicTrainingEffect: 4.3, anaerobicTrainingEffect: 2.1, trainingEffectLabel: 'TEMPO' } }, T());
+    readGarminActivity({ activityId: 10, summary: { activityName: 'Strength', startTimeLocal: '2026-09-30 18:00:00', activityType: { typeKey: 'strength_training' }, duration: 2400, summarizedExerciseSets: [{ category: 'SQUAT', subCategory: 'GOBLET_SQUAT', sets: 3, reps: 30 }, { category: 'BENCH_PRESS', subCategory: 'UNKNOWN', sets: 3, reps: 24 }] } }, T());
+    const [run, str] = getDay('2026-09-30').workouts;
+    eq(run.zones, [0, 40, 40, 20, 0]); eq([run.load, run.teLabel, run.durationMin, run.distance, run.start], [260, 'Tempo', 100, 10, '08:00']);
+    eq(str.sets, [{ name: 'Goblet Squat', sets: 3, reps: 30 }, { name: 'Bench Press', sets: 3, reps: 24 }]);
+  });
+  test('Garmin file over CSV over Strava, in any order, and lower copies never come back', () => {
+    fresh(); strava(1, '2026-09-29T07:10:00Z'); csv(); eq(ws('2026-09-29'), ['garmin:Garmin Walk'], 'CSV replaces Strava');
+    file(5, '2026-09-29 07:10:30'); eq(ws('2026-09-29'), ['garmin:Walk (file)'], 'file replaces CSV');
+    csv(); strava(1, '2026-09-29T07:10:00Z'); eq(ws('2026-09-29'), ['garmin:Walk (file)'], 'they don’t come back');
+    fresh(); file(5, '2026-09-29 07:10:30'); strava(1, '2026-09-29T07:10:00Z'); eq(ws('2026-09-29'), ['garmin:Walk (file)'], 'file first, Strava later');
+  });
+  test('reading the same workout file again updates it', () => {
+    fresh(); file(5, '2026-09-29 07:10:30'); file(5, '2026-09-29 07:10:30', { duration: 1980, activityTrainingLoad: 32 });
+    const w = getDay('2026-09-29').workouts; eq(w.length, 1); eq([w[0].load, w[0].durationMin], [32, 33]);
+  });
+  test('two different Strava workouts 2 minutes apart are both kept', () => {
+    fresh(); impStrava('s.json', { source: 'strava', activities: [{ id: 10, start_date_local: '2026-09-20T07:00:00Z', sport_type: 'Run', name: 'Warm-up', moving_time: 600 }, { id: 11, start_date_local: '2026-09-20T07:02:00Z', sport_type: 'Run', name: 'Race', moving_time: 1800 }] });
+    eq(getDay('2026-09-20').workouts.length, 2);
+  });
+});
+
+describe('Lose It', () => {
+  const report = (sent, rows) => importCsv(`${sent} loseit.csv`, 'Date,Name,Type,Quantity,Units,Calories,Deleted,Protein (g),Fat (g),Sodium (mg),Fiber (g)\n' + rows.join('\n'));
+  test('foods with their nutrients are read, and the day adds up', () => {
+    fresh(); report('2026-09-30 0800', ['2026-09-29,Oatmeal,Breakfast,1,Cup,300,0,10,5,150,8', '2026-09-29,Chicken bowl,Dinner,1,Bowl,650,0,55,18,900,9']);
+    const t = totals(getDay('2026-09-29')); eq([t.calIn, t.protein, t.sodium, t.fiber], [950, 65, 1050, 17]);
+  });
+  test('a report sent before the day ended is marked partial; a later one makes it final', () => {
+    fresh(); report('2026-09-29 1030', ['2026-09-29,Oatmeal,Breakfast,1,Cup,300,0,10,5,150,8']); eq(loseItFinal(getDay('2026-09-29'), '2026-09-29'), false);
+    report('2026-09-30 0800', ['2026-09-29,Oatmeal,Breakfast,1,Cup,300,0,10,5,150,8']); eq(loseItFinal(getDay('2026-09-29'), '2026-09-29'), true);
+  });
+  test('an older report never replaces a newer one', () => {
+    fresh(); report('2026-09-30 0800', ['2026-09-29,Oatmeal,Breakfast,1,Cup,300,0,10,5,150,8', '2026-09-29,Salad,Lunch,1,Bag,200,0,10,5,150,8']);
+    report('2026-09-29 1030', ['2026-09-29,Oatmeal,Breakfast,1,Cup,300,0,10,5,150,8']); eq(getDay('2026-09-29').food.length, 2);
+  });
+  test('Lose It copies of Garmin, Strava and Apple Health workouts are skipped, even renamed', () => {
+    fresh(); impStrava('s.json', { source: 'strava', activities: [{ id: 1, start_date_local: '2026-09-29T07:10:00Z', sport_type: 'Walk', name: 'Morning Walk', moving_time: 1920, calories: 145 }] });
+    report('2026-09-30 0800', ['2026-09-29,Oatmeal,Breakfast,1,Cup,300,0,10,5,150,8', '2026-09-29,Walking (Apple Health),Exercise,40,Minutes,-200,0,,,,', '2026-09-29,Walking 3 mph,Exercise,32,Minutes,-150,0,,,,', '2026-09-29,Yoga,Exercise,45,Minutes,-120,0,,,,']);
+    eq(ws('2026-09-29'), ['loseit:Yoga', 'strava:Morning Walk']);
+  });
+  test('a Strava workout arriving after Lose It replaces Lose It’s copy', () => {
+    fresh(); report('2026-10-01 0800', ['2026-09-30,Toast,Breakfast,1,Slice,90,0,3,1,100,1', '2026-09-30,Bike ride,Exercise,61,Minutes,-480,0,,,,']);
+    impStrava('s.json', { source: 'strava', activities: [{ id: 2, start_date_local: '2026-09-30T17:00:00Z', sport_type: 'Ride', name: 'Evening Ride', moving_time: 3640, calories: 470 }] });
+    eq(ws('2026-09-30'), ['strava:Evening Ride']);
+  });
+});
+
+/* ================= rules ================= */
+// Five weeks of steady training and recovery ending on day END, used by several tests.
+const END = '2026-10-04';
+function fiveWeeks({ lastNight } = {}) {
+  fresh();
+  for (let i = 35; i >= 1; i--) {
+    const k = addDays(END, -i), dow = keyToDate(k).getDay();
+    readGarminDay({ date: k, data: { sleep: { sleepTimeSeconds: 26300 + (i % 3) * 600, sleepScores: { overall: { value: 78 } } }, hrv: { lastNightAvg: 50 + (i % 4) - 2 }, userSummary: { restingHeartRate: 54 + (i % 3) - 1 } } }, T());
+    if ([1, 3, 6].includes(dow)) readGarminActivity({ activityId: 1000 + i, summary: { activityName: 'Easy run', startTimeLocal: `${k} 07:00:00`, activityType: { typeKey: 'running' }, duration: 2700, hrTimeInZone_2: 1800, hrTimeInZone_3: 600, hrTimeInZone_4: 300, activityTrainingLoad: 85 } }, T());
+    if ([2, 5].includes(dow)) readGarminActivity({ activityId: 2000 + i, summary: { activityName: 'Strength', startTimeLocal: `${k} 18:00:00`, activityType: { typeKey: 'strength_training' }, duration: 2400, summarizedExerciseSets: [{ category: 'SQUAT', sets: 3, reps: 30 }] } }, T());
+  }
+  if (lastNight) readGarminDay({ date: END, data: lastNight }, T());
+}
+describe('Training load and intensity', () => {
+  test('Garmin load is used; missing load is estimated from zones, then from minutes', () => {
+    eq(workoutLoad({ load: 85 }), { v: 85, est: false }); eq(workoutLoad({ zones: [0, 30, 10, 5, 0] }), { v: 110, est: true }); eq(workoutLoad({ durationMin: 40 }), { v: 80, est: true });
+  });
+  test('last 7 days against the usual week, with the bands', () => {
+    fiveWeeks(); const ls = loadStatus(addDays(END, -1)); ok(ls.chronic > 0 && ls.ratio >= 0.8 && ls.ratio <= 1.3, 'steady', ls); eq(ls.band, 'steady');
+    readGarminActivity({ activityId: 1, summary: { activityName: 'Huge day', startTimeLocal: `${addDays(END, -1)} 09:00:00`, activityType: { typeKey: 'running' }, duration: 9000, activityTrainingLoad: 600 } }, T());
+    eq(loadStatus(addDays(END, -1)).band, 'spike');
+  });
+  test('needs 4 weeks of workouts before comparing', () => { fresh(); readGarminActivity({ activityId: 1, summary: { activityName: 'Run', startTimeLocal: '2026-10-01 07:00:00', activityType: { typeKey: 'running' }, duration: 1800, activityTrainingLoad: 60 } }, T()); eq(loadStatus('2026-10-03').band, 'new'); });
+  test('intensity mix: easy, moderate and hard minutes, and the hard share', () => {
+    fiveWeeks(); const m = intensityMix(windowKeys(addDays(END, -1), 7)); eq([m.easy, m.moderate, m.hard], [90, 30, 15]); eq(m.hardPct, 11); ok(m.noHr > 0, 'strength without HR counted separately');
+  });
+});
+describe('Readiness and the body log', () => {
+  test('a poor night after a steady month: take it easy, with every reason', () => {
+    fiveWeeks({ lastNight: { sleep: { sleepTimeSeconds: 19800, sleepScores: { overall: { value: 52 } } }, hrv: { lastNightAvg: 41 }, userSummary: { restingHeartRate: 60 } } });
+    const r = readiness(END); eq(r.verdict, 'easy'); for (const p of ['HRV', 'Resting heart rate', 'Sleep']) ok(r.parts.some(x => x.text.startsWith(p) && x.score < 0), p + ' counts against');
+  });
+  test('an ordinary night: normal or ready', () => {
+    fiveWeeks({ lastNight: { sleep: { sleepTimeSeconds: 27000, sleepScores: { overall: { value: 80 } } }, hrv: { lastNightAvg: 50 }, userSummary: { restingHeartRate: 54 } } });
+    ok(['normal', 'push'].includes(readiness(END).verdict), 'normal or push', readiness(END).verdict);
+  });
+  test('no data → no call', () => { fresh(); eq(readiness('2026-10-04'), null); });
+  test('pain 3 days running and getting worse is flagged; soreness isn’t', () => {
+    fresh(); [[-2, 3], [-1, 4], [0, 5]].forEach(([o, l]) => (day(addDays(END, o)).body ||= []).push({ area: 'Knee (left)', kind: 'pain', level: l }));
+    (day(END).body).push({ area: 'Quads', kind: 'sore', level: 8 });
+    const f = bodyFlags(END); eq(f.length, 1); ok(/Knee \(left\): pain 3 → 4 → 5\/10, 3 days running, getting worse/.test(f[0].text), 'flag text', f[0].text);
+  });
+  test('severe pain once is flagged; pain that stopped 3+ days ago isn’t', () => {
+    fresh(); (day(END).body ||= []).push({ area: 'Lower back', kind: 'pain', level: 7 }); ok(bodyFlags(END)[0].severe, 'severe');
+    fresh(); (day(addDays(END, -5)).body ||= []).push({ area: 'Hip', kind: 'pain', level: 8 }); eq(bodyFlags(END).length, 0);
+  });
+  test('pain 7+ makes readiness "take it easy" on its own', () => { fresh(); (day(END).body ||= []).push({ area: 'Knee (left)', kind: 'pain', level: 7 }); eq(readiness(END).verdict, 'easy'); });
+});
+describe('Weight trend', () => {
+  test('the trend moves 10% of the way to each weigh-in and holds between them', () => {
+    fresh(); day('2026-09-01').weight = 200; day('2026-09-01').weightUnit = 'lb'; day('2026-09-02').weight = 190; day('2026-09-02').weightUnit = 'lb';
+    const S = weightSeries(); eq(trendOn(S, '2026-09-01'), 200); eq(trendOn(S, '2026-09-02'), 199); eq(trendOn(S, '2026-09-05'), 199);
+  });
+});
+describe('Report cards: scale, GPA and rules', () => {
+  test('grade scale boundaries', () => { eq([97, 96.9, 93, 90, 89.9, 80, 79.9, 60, 59.9].map(s => toGrade(s).grade), ['A+', 'A', 'A', 'A-', 'B+', 'B-', 'C+', 'D-', 'F']); });
+  test('GPA to letter', () => { eq([4, 3.7, 3.32, 2.99, 2.1, 0.4].map(gpaLetter), ['A', 'A-', 'B+', 'B', 'C', 'F']); });
+  test('parts without data drop out and the rest are re-weighted', () => { eq(scoreParts([{ weight: 35, score: 1 }, { weight: 30, score: 0.5 }, { weight: 20, score: null }]), 76.9); });
+  test('bedtime minutes off target, across midnight', () => { eq([bedOff('23:40', '22:00'), bedOff('00:30', '22:00'), bedOff('21:45', '22:00'), bedOff(null, '22:00')], [100, 150, 15, null]); });
+  test('period dates', () => {
+    eq(periodOf('quarter', '2026-11-15'), ['2026-10-01', '2026-12-31', 'quarter:2026-Q4']); eq(periodOf('month', '2026-02-10')[1], '2026-02-28'); eq(periodOf('month', '2028-02-10')[1], '2028-02-29', 'leap year');
+    eq(periodOf('week', '2026-10-04'), ['2026-09-28', '2026-10-04', 'week:2026-09-28']); eq(prevPeriod('year', '2026-01-01')[2], 'year:2025'); eq(periodLabel('quarter', '2026-07-01', '2026-09-30'), 'Q3 2026');
+  });
+});
+describe('Report cards: a week graded from data', () => {
+  const W = '2026-09-21';
+  function week({ skipSaturday } = {}) {
+    fresh();
+    for (let i = 0; i < 7; i++) {
+      const k = addDays(W, i), d = day(k), sat = i === 5;
+      if (!(sat && skipSaturday)) d.food = [{ id: 'f' + i, source: 'loseit', name: sat ? 'Pizza' : 'Chicken bowl', meal: 'Dinner', calories: sat ? 1900 : 1700, protein: sat ? 70 : 130, fiber: 28, sodium: sat ? 3600 : 1900, satFat: sat ? 30 : 14, sugar: 35 }];
+      d.loseItGen = d.loseItAt = new Date(keyToDate(addDays(k, 1)).getTime() + 8 * 36e5).toISOString();
+      d.anchors = [true, !sat, true, true];
+      d.sleep = { hours: i === 2 ? 6.2 : 7.1, source: 'garmin', start: i === 4 ? '23:40' : '22:10' };
+      if ([0, 2, 4, 6].includes(i)) d.workouts.push({ id: 's' + i, source: 'strava', type: i % 4 ? 'Run' : 'Weight Training', title: 'x', start: '07:00', durationMin: 40, zones: [0, 25, 10, 5, 0] });
+    }
+    return finishCard(gradeSubjects(W, addDays(W, 6)), []);
+  }
+  const g = (c, k) => c.subjects.find(s => s.key === k);
+  test('anchors: boxes ticked against the goal, capped at 100%', () => { const c = week(); eq(g(c, 'anchors').grade, 'A+'); ok(g(c, 'anchors').parts[0].detail.startsWith('27 of'), 'detail', g(c, 'anchors').parts[0].detail); });
+  test('nutrition: six parts, protein hit on 6 of 7 days', () => { const c = week(); eq(g(c, 'nutrition').parts.length, 6); eq(g(c, 'nutrition').parts[0].detail, '6 of 7 days'); });
+  test('training: sessions and strength against target; load drops out without 4 weeks', () => { const p = g(week(), 'training').parts; eq([p[0].detail, p[1].detail, p[2].score], ['4 of 4', '2 of 2', null]); });
+  test('sleep habits include the bedtime part', () => { ok(/min off/.test(g(week(), 'sleep').parts[2].detail)); });
+  test('assignments are incomplete when none were set, and left out of the GPA', () => { const c = week(); eq(g(c, 'assignments').grade, 'I'); eq([c.credits, c.creditsAll], [11, 12]); });
+  test('GPA is the credit-weighted average', () => { const c = week(), s = c.subjects.filter(x => x.points != null); eq(c.gpa, Math.round(s.reduce((a, x) => a + x.points * x.credits, 0) / s.reduce((a, x) => a + x.credits, 0) * 100) / 100); });
+  test('the same data always gets the same grades', () => { eq(week().subjects.map(s => s.grade), week().subjects.map(s => s.grade)); });
+  test('skipping the log on a bad day costs Logging (no loophole)', () => { const a = week(), b = week({ skipSaturday: true }); ok(g(b, 'logging').score < g(a, 'logging').score, 'logging lower'); ok(g(b, 'nutrition').score >= g(a, 'nutrition').score, 'nutrition no lower'); });
+  test('assignments graded from marks: done 1, partly ½, missed 0', () => { const c = finishCard(gradeSubjects(W, addDays(W, 6)), [{ status: 'done' }, { status: 'partly' }, { status: 'missed' }, { status: 'done' }]); eq(g(c, 'assignments').score, 62.5); });
+  test('nutrition is incomplete with too few logged days', () => { week(); for (let i = 0; i < 5; i++) getDay(addDays(W, i)).food = []; eq(g(finishCard(gradeSubjects(W, addDays(W, 6)), []), 'nutrition').grade, 'I'); });
+});
+
+/* ---- run ---- */
+(async () => {
+  const out = [], results = [];
+  let last = null, pass = 0;
+  for (const t of TESTS) {
+    let err = null;
+    try { await t.fn(); } catch (e) { err = e instanceof Fail ? e.message : `${e.name}: ${e.message}\n${(e.stack || '').split('\n').slice(1, 3).join('\n')}`; }
+    if (t.group !== last) { out.push(`<h2>${esc(t.group)}</h2>`); last = t.group; }
+    out.push(`<div class="t ${err ? 'bad' : 'ok'}"><i>${err ? 'FAIL' : 'pass'}</i><span>${esc(t.name)}${err ? `<span class="why">${esc(err)}</span>` : ''}</span></div>`);
+    results.push({ group: t.group, name: t.name, ok: !err, error: err }); if (!err) pass++;
+  }
+  const fail = TESTS.length - pass, sum = document.getElementById('sum');
+  sum.className = 'sum ' + (fail ? 'bad' : 'ok');
+  sum.textContent = fail ? `${fail} of ${TESTS.length} failed` : `All ${TESTS.length} passed`;
+  document.getElementById('out').innerHTML = out.join('');
+  document.title = (fail ? `FAIL ${fail}` : `PASS ${pass}`) + ' · Health Sync tests';
+  window.TEST_RESULTS = { pass, fail, total: TESTS.length, results };
+})();
+</script>
+</body>
+</html>

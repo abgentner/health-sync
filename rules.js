@@ -1,0 +1,395 @@
+'use strict';
+// Health Sync · rules worked out from the data: daily anchors, training load and readiness, weight trend, report-card grades.
+
+const STEPS_BOX = { name: 'Steps', hint: '7,500 steps or more', rule: { type: 'steps', min: 7500 } };
+const ANCHOR_DEFAULTS = {
+  names: ['Day Pack', 'Dinner Boundary', 'Movement', STEPS_BOX.name],
+  hints: ['Shakes at 7, 11 & 3 · daytime calorie budget', '8 oz protein · 2 cups veggies · 1 cup starch · one plate', '25–30 min workout, 30-min walk, or the 10-min minimum', STEPS_BOX.hint],
+  // How each box can be checked automatically from imported data.
+  rules: [
+    { type: 'budget', meals: 'daytime', max: 1200 },
+    { type: 'meal', meal: 'Dinner', max: 750 },
+    { type: 'workout', min: 10 },
+    STEPS_BOX.rule,
+  ],
+  target: 23,   // of 28 (about 80%, as 17 of 21 was with three boxes)
+  v: 2,
+};
+const anchorCfg = () => {
+  const c = { ...ANCHOR_DEFAULTS, ...(data.anchorCfg || {}) };
+  // v2.13: a fourth box for steps. Saved three-box settings get it added once, and the old 17-of-21 goal becomes 23 of 28.
+  if (data.anchorCfg && !(data.anchorCfg.v >= 2)) {
+    c.names = [...c.names]; c.hints = [...(c.hints || [])]; c.rules = [...(c.rules || [])];
+    if (!c.rules.some(r => r?.type === 'steps')) { c.names.push(STEPS_BOX.name); c.hints[c.names.length - 1] = STEPS_BOX.hint; c.rules[c.names.length - 1] = { ...STEPS_BOX.rule }; }
+    if (c.target === 17) c.target = 23;
+    c.v = 2;
+  }
+  c.rules = c.names.map((_, i) => c.rules?.[i] || ANCHOR_DEFAULTS.rules[i] || { type: 'none' });
+  // v1.3: Day Pack moved from "3 shakes" to a daytime calorie budget — upgrade the old default if it was never customised.
+  const r0 = c.rules[0];
+  if (r0?.type === 'food' && r0.words === 'kate farms, naked whey, shake' && r0.min === 3) c.rules[0] = { ...ANCHOR_DEFAULTS.rules[0] };
+  if (c.hints?.[0] === 'Shakes at 7 AM, 11 AM & 3 PM') c.hints = [ANCHOR_DEFAULTS.hints[0], ...c.hints.slice(1)];
+  return c;
+};
+
+// What the imported data says about box i: { ok, why } — or null when the box is check-by-hand only.
+function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
+  const r = c.rules[i];
+  if (!r || r.type === 'none') return null;
+  // Food boxes are only judged once the day is over and its Lose It report has arrived (it lands the next morning).
+  if (['food', 'budget', 'meal'].includes(r.type) && k) {
+    const t = todayKey();
+    if (k >= t) return { ok: false, pending: true, why: 'Waiting for Lose It — today isn’t over yet' };
+    if (k === addDays(t, -1) && !loseItFinal(d, k)) return { ok: false, pending: true, why: 'Waiting for yesterday’s Lose It report' };
+  }
+  if (r.type === 'steps') {
+    const s = d?.steps, goal = r.min || 0, today = k && k >= todayKey();
+    if (s != null && s >= goal) return { ok: true, why: `${fmtN(s)} steps` };
+    // Today can still get there: show progress instead of a miss.
+    if (today) return { ok: false, pending: true, why: s != null ? `${fmtN(s)} of ${fmtN(goal)} steps so far` : 'no steps yet today' };
+    return { ok: false, why: s != null ? `${fmtN(s)} of ${fmtN(goal)} steps` : 'no steps recorded' };
+  }
+  if (r.type === 'workout') {
+    const mins = (d?.workouts || []).reduce((s, w) => s + (w.durationMin || 0), 0);
+    if (!d?.workouts?.length) return { ok: false, why: 'no workouts yet' };
+    return { ok: mins >= (r.min || 0), why: `${fmtN(mins)} min of exercise` };
+  }
+  if (r.type === 'food') {
+    if (!d?.food?.length) return { ok: false, why: 'no food logged yet' };
+    const words = String(r.words || '').toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
+    const n = d.food.filter(f => words.some(w => String(f.name).toLowerCase().includes(w))).length;
+    return { ok: n >= (r.min || 1), why: `${n} matching food entr${n === 1 ? 'y' : 'ies'}` };
+  }
+  if (r.type === 'budget') {
+    if (!d?.food?.length) return { ok: false, why: 'no food logged yet' };
+    const daytime = r.meals !== 'all';
+    const cal = d.food.filter(f => !daytime || !/^dinner$/i.test(String(f.meal).trim())).reduce((s, f) => s + (f.calories || 0), 0);
+    return { ok: cal <= (r.max || 0), why: `${daytime ? 'Daytime' : 'Day'} ${fmtN(cal)} of ${fmtN(r.max)} cal` };
+  }
+  if (r.type === 'meal') {
+    const meal = String(r.meal || 'Dinner').toLowerCase();
+    const items = (d?.food || []).filter(f => String(f.meal).toLowerCase().replace(/s$/, '') === meal.replace(/s$/, ''));
+    if (!items.length) return { ok: false, why: `no ${r.meal || 'Dinner'} logged yet` };
+    const cal = items.reduce((s, f) => s + (f.calories || 0), 0);
+    return { ok: cal <= (r.max || 0), why: `${r.meal || 'Dinner'} ${fmtN(cal)} cal` };
+  }
+  return null;
+}
+// A box set by hand (true/false) wins; otherwise the imported data decides.
+function anchorState(d, i, manual = d?.anchors?.[i], c, k) {
+  const auto = autoAnchor(d, i, c, k ?? d?._k);
+  if (manual === true || manual === false) return { on: manual, manual: true, auto };
+  return { on: !!auto?.ok, manual: false, auto, pending: !!auto?.pending };
+}
+const anchorCount = (d, manual) => { const c = anchorCfg(); return c.names.reduce((n, _, i) => n + (anchorState(d, i, manual ? manual[i] : d?.anchors?.[i], c).on ? 1 : 0), 0); };
+const weekStart = k => addDays(k, -((keyToDate(k).getDay() + 6) % 7));   // weeks run Monday–Sunday
+
+const COACH_BACKFILL_FROM = '2026-09-01';
+
+const PLAN_FOODS_DEFAULT = [
+  'Kate Farms shake | bottle | 325 | 16 | 12 | | 38 | 6 | 18 | 260',
+  'Chicken breast (skinless, cooked) | oz | 47 | 8.8 | 1.0 | 0.3 | 0 | 0 | 0 | 21',
+  'Chicken thigh (skinless, cooked) | oz | 59 | 7.4 | 3.1 | 0.9 | 0 | 0 | 0 | 27',
+  'Salmon, farmed Atlantic (cooked) | oz | 58 | 6.2 | 3.4 | 0.7 | 0 | 0 | 0 | 17',
+  'Shrimp 16/20 (cooked) | oz | 28 | 6.8 | 0.1 | 0 | 0 | 0 | 0 | 31',
+  'Halibut (cooked) | oz | 31 | 6.4 | 0.6 | 0.1 | 0 | 0 | 0 | 20',
+  'Ground bison 90/10 (cooked) | oz | 60 | 7 | 3 | 1.2 | 0 | 0 | 0 | 25',
+  'Southwest salad kit | bag | 140 | 4 | 4 | 0 | 21 | 4 | 7 | 90',
+  'Broccoli Crunch salad kit | bag | 195 | 10 | 4 | 0 | 16 | 7 | 7 | 230',
+  'Everything salad kit | bag | 200 | 10 | 3 | 0 | 36 | 3 | 7 | 380',
+  'Mexican Street Corn salad kit | bag | 175 | 10 | 7 | 2 | 35 | 7 | 7 | 350',
+  'Steakhouse Wedge salad kit | bag | 180 | 8 | 9 | 2 | 21 | 4 | 7 | 470',
+].join('\n');
+const PLAN_DAY_DEFAULT = '2–3 Kate Farms shakes (daytime) + 1 full bag of salad + 8–12 oz cooked protein from the list';
+const TARGETS_DEFAULT = { fiberMin: 25, sodiumMax: 2300, satFatPctMax: 10, sugarMax: 50 };
+
+const coachCfg = () => {
+  const c = data.coachCfg || {};
+  return { apiKey: c.apiKey || '', scriptUrl: c.scriptUrl || '', email: c.email !== false,
+    autoReload: { on: c.autoReload?.on !== false, below: c.autoReload?.below ?? 5, amount: c.autoReload?.amount ?? 20 }, planDay: c.planDay || PLAN_DAY_DEFAULT,
+    planFoods: c.planFoods || PLAN_FOODS_DEFAULT, targets: { ...TARGETS_DEFAULT, ...(c.targets || {}) } };
+};
+
+const reviews = () => (data.reviews ||= {});
+
+const BODY_AREAS = ['Neck', 'Shoulder (left)', 'Shoulder (right)', 'Upper back', 'Lower back', 'Elbow / wrist / hand', 'Hip', 'Glutes', 'Hamstrings', 'Quads', 'Knee (left)', 'Knee (right)', 'Calves / shins', 'Ankle / foot', 'Other'];
+const BODY_KIND = { sore: 'Soreness', pain: 'Pain', stiff: 'Stiffness' };
+
+// Training load of one workout: Garmin's own figure when there is one. Otherwise an estimate: heart-rate-zone minutes
+// × zone number (Edwards' TRIMP, roughly on Garmin's scale), or minutes × 2 (an easy-to-moderate effort) with no heart rate.
+function workoutLoad(w) {
+  if (w.load) return { v: w.load, est: false };
+  if (w.zones) return { v: Math.round(w.zones.reduce((s, m, i) => s + m * (i + 1), 0)), est: true };
+  return { v: Math.round((w.durationMin || 0) * 2), est: true };
+}
+const dayLoad = k => (getDay(k)?.workouts || []).reduce((s, w) => s + workoutLoad(w).v, 0);
+const sumLoad = ks => Math.round(ks.reduce((s, k) => s + dayLoad(k), 0));
+const firstWorkoutDay = () => Object.keys(data.days).filter(k => data.days[k].workouts?.length).sort()[0] || null;
+
+// The last 7 days against your usual week (the 4 weeks before them): a common rule of thumb for spotting
+// load that rises faster than the body adapts. Needs 4 weeks of history.
+function loadStatus(k) {
+  const acute = sumLoad(windowKeys(k, 7)), first = firstWorkoutDay();
+  if (!first || first > addDays(k, -27)) return { acute, chronic: null, ratio: null, band: 'new', text: 'Needs 4 weeks of workouts to compare against' };
+  const chronic = Math.round(sumLoad(windowKeys(addDays(k, -7), 28)) / 4);
+  const ratio = chronic > 0 ? Math.round(acute / chronic * 100) / 100 : null;
+  const band = ratio == null ? 'new' : ratio > 1.5 ? 'spike' : ratio > 1.3 ? 'building' : ratio < 0.8 ? 'lighter' : 'steady';
+  const text = { new: 'No workouts in the 4 weeks before', spike: `A spike: ${ratio}× your usual week. Big jumps like this are when overuse injuries tend to start`, building: `Building fast: ${ratio}× your usual week. Fine for a week, not for several in a row`, lighter: `Lighter than usual: ${ratio}× your usual week`, steady: `In your usual range: ${ratio}× your usual week` }[band];
+  return { acute, chronic, ratio, band, text };
+}
+
+// Minutes by heart-rate zone: easy (zones 1–2), moderate (3), hard (4–5). Workouts without zones are counted separately.
+function intensityMix(ks) {
+  const m = { easy: 0, moderate: 0, hard: 0, noHr: 0 };
+  for (const k of ks) for (const w of getDay(k)?.workouts || []) {
+    if (w.zones) { m.easy += w.zones[0] + w.zones[1]; m.moderate += w.zones[2]; m.hard += w.zones[3] + w.zones[4]; }
+    else m.noHr += w.durationMin || 0;
+  }
+  for (const x in m) m[x] = Math.round(m[x]);
+  const zoned = m.easy + m.moderate + m.hard;
+  m.hardPct = zoned ? Math.round(m.hard / zoned * 100) : null;
+  return m;
+}
+
+const isStrength = w => !!w.sets?.length || /strength|weight|lift|resistance|gym/i.test(`${w.type} ${w.title}`);
+function strengthSummary(ks) {
+  const sessions = [], byEx = {};
+  for (const k of ks) for (const w of getDay(k)?.workouts || []) if (isStrength(w)) {
+    sessions.push({ k, w });
+    for (const s of w.sets || []) { const e = (byEx[s.name] ||= { sets: 0, reps: 0 }); e.sets += s.sets || 0; e.reps += s.reps || 0; }
+  }
+  return { sessions, byEx: Object.entries(byEx).sort((a, b) => b[1].sets - a[1].sets) };
+}
+
+// Pain that keeps coming back, climbs, or is severe. Soreness after training is expected and isn't flagged.
+function bodyFlags(k) {
+  const ks = windowKeys(k, 14), byArea = {};
+  for (const x of ks) for (const b of getDay(x)?.body || []) if (b.kind === 'pain') (byArea[b.area] ||= {})[x] = Math.max(byArea[b.area]?.[x] ?? 0, b.level);
+  const out = [];
+  for (const [area, days] of Object.entries(byArea)) {
+    const dk = Object.keys(days).sort(), levels = dk.map(x => days[x]), last = dk[dk.length - 1];
+    if (last < addDays(k, -2)) continue;   // nothing in the last 3 days: settled
+    let run = 1; for (let i = dk.length - 1; i > 0 && dk[i - 1] === addDays(dk[i], -1); i--) run++;
+    const recent = levels.slice(-3), rising = recent.length === 3 && recent[0] < recent[1] && recent[1] < recent[2];
+    const severe = levels[levels.length - 1] >= 7;
+    if (severe || run >= 3 || rising) out.push({ area, level: levels[levels.length - 1], severe,
+      text: `${area}: pain ${recent.join(' → ')}/10${run >= 3 ? `, ${run} days running` : ''}${rising ? ', getting worse' : ''}.` });
+  }
+  return out;
+}
+const BODY_ADVICE = 'Ease off whatever aggravates it. If it isn’t settling within a week or two, or it’s sharp, swollen, numb, or stops you bearing weight, see a physical therapist or doctor.';
+
+// Your usual (the 28 days before) for one measure, or null with fewer than 7 days of it.
+function usual(k, f) {
+  const v = windowKeys(addDays(k, -1), 28).map(x => f(getDay(x))).filter(x => x != null);
+  if (v.length < 7) return null;
+  const m = avg(v);
+  return { m, sd: Math.sqrt(avg(v.map(x => (x - m) ** 2))), n: v.length };
+}
+// Ready / normal / take it easy for day k, from last night's recovery against your own usual, recent load and the body log.
+// Not medical: a nudge for how hard to train.
+function readiness(k) {
+  const d = getDay(k), parts = [];
+  const add = (score, text) => parts.push({ score, text });
+  const garminHrv = d?.garmin?.hrvNight != null;
+  const hrvOf = x => garminHrv ? x?.garmin?.hrvNight ?? null : x?.health?.hrv ?? null, hv = hrvOf(d);
+  if (hv != null) {
+    const u = usual(k, hrvOf);
+    if (u) { const z = (hv - u.m) / Math.max(u.sd, u.m * 0.05), t = `HRV ${fmtN(hv)} ms (usual ${fmtN(u.m)})`;
+      add(z <= -1 ? -2 : z <= -0.5 ? -1 : z >= 0.5 ? 1 : 0, z <= -0.5 ? `${t}: lower than usual, a sign you haven’t fully recovered` : z >= 0.5 ? `${t}: higher than usual` : `${t}: normal`); }
+  }
+  const rhr = healthValue(d, 'restingHR');
+  if (rhr != null) {
+    const u = usual(k, x => healthValue(x, 'restingHR'));
+    if (u) { const z = (rhr - u.m) / Math.max(u.sd, 1.5), t = `Resting heart rate ${fmtN(rhr)} (usual ${fmtN(u.m)})`;
+      add(z >= 1 || rhr >= u.m + 5 ? -2 : z >= 0.5 ? -1 : z <= -0.5 ? 1 : 0, z >= 0.5 ? `${t}: up, which can mean stress, poor sleep, illness or hard training` : z <= -0.5 ? `${t}: lower than usual` : `${t}: normal`); }
+  }
+  const sl = sleepHours(d), sc = d?.sleep?.score;
+  if (sl != null) {
+    let s = sl < 6 ? -2 : sl < 7 ? -1 : sl >= 7.5 ? 1 : 0;
+    if (sc != null) s = Math.max(-2, Math.min(1, s + (sc < 50 ? -1 : sc >= 85 ? 1 : 0)));
+    add(s, `Sleep ${fmtN(sl, 1)} h${sc != null ? `, score ${sc}` : ''}${s < 0 ? ': short or poor' : s > 0 ? ': good' : ''}`);
+  }
+  // Body Battery is Garmin's own mix of HRV, stress and sleep, so it's only used when HRV is missing.
+  const bb = d?.garmin?.bodyBattery;
+  if (bb != null && hv == null) add(bb < 40 ? -1 : bb >= 80 ? 1 : 0, `Body Battery peaked at ${bb}${bb < 40 ? ': low' : ''}`);
+  const ls = loadStatus(k);
+  if (ls.band === 'spike') add(-1, `Training load: ${ls.text[0].toLowerCase()}${ls.text.slice(1)}`);
+  const y = addDays(k, -1), yl = dayLoad(y), usualDay = sumLoad(windowKeys(addDays(k, -2), 28)) / 28;
+  const yHard = (getDay(y)?.workouts || []).some(w => (w.teAnaerobic || 0) >= 3 || (w.teAerobic || 0) >= 4);
+  if ((usualDay > 0 && yl >= usualDay * 3 && yl >= 100) || yHard) add(-1, `Yesterday was a hard training day (load ${fmtN(yl)})`);
+  const body = [...(getDay(y)?.body || []), ...(d?.body || [])];
+  const pain = Math.max(0, ...body.filter(b => b.kind === 'pain').map(b => b.level)), sore = Math.max(0, ...body.filter(b => b.kind !== 'pain').map(b => b.level));
+  if (sore >= 7) add(-1, `Very sore (${sore}/10)`);
+  const flags = bodyFlags(k);
+  if (!parts.length && !pain) return null;
+  const score = parts.reduce((s, p) => s + p.score, 0);
+  const verdict = pain >= 7 || score <= -3 ? 'easy' : score >= 2 && !parts.some(p => p.score <= -2) && pain < 4 ? 'push' : 'normal';
+  const painNote = pain >= 4 ? `Pain logged (${pain}/10): keep training away from that area until it settles` : '';
+  return { verdict, score, parts, painNote, flags,
+    title: { push: 'Ready for a hard session', normal: 'Normal training', easy: 'Take it easy today' }[verdict],
+    hint: { push: 'Recovery looks good. A good day for intervals, a long effort or heavy lifting.', normal: 'Train as planned. Keep hard efforts to what the plan calls for.', easy: 'Choose an easy session, mobility work, a walk or rest.' }[verdict] };
+}
+
+// Trend weight = exponentially smoothed weight: each weigh-in moves the trend 10% of the way toward it,
+// so a salty dinner or a water-heavy morning barely moves it. Days without a weigh-in keep the trend.
+const TREND_ALPHA = 0.1;
+const weightCfg = () => {
+  const c = data.weightCfg || {};
+  return { heightIn: c.heightIn ?? null, goal: c.goal ?? null, start: c.start ?? null, startDate: c.startDate || null,
+    step: c.step ?? 5, rate: c.rate ?? 1, events: Array.isArray(c.events) ? c.events : [] };
+};
+function weightSeries() {
+  const unit = weightUnit();
+  const toU = d => (d.weightUnit || 'lb') === unit ? d.weight : unit === 'lb' ? d.weight * 2.20462 : d.weight / 2.20462;
+  const ks = Object.keys(data.days).filter(k => data.days[k].weight != null).sort();
+  if (!ks.length) return { unit, rows: [], byKey: {} };
+  const rows = [];
+  let t = null;
+  for (let k = ks[0]; k <= todayKey(); k = addDays(k, 1)) {
+    const d = data.days[k], w = d?.weight != null ? toU(d) : null;
+    if (w != null) t = t == null ? w : t + TREND_ALPHA * (w - t);
+    rows.push({ k, w, t });
+  }
+  return { unit, rows, byKey: Object.fromEntries(rows.map(r => [r.k, r])) };
+}
+const trendOn = (S, k) => { if (!S.rows.length || k < S.rows[0].k) return null; const r = S.byKey[k] || S.rows[S.rows.length - 1]; return r.t; };
+// Rate in units per week from the trend over the last n days (negative = losing).
+function trendRate(S, days, end = todayKey()) {
+  const a = trendOn(S, addDays(end, -days)), b = trendOn(S, end);
+  return a == null || b == null ? null : (b - a) / days * 7;
+}
+
+/* ================= report cards: grades worked out from the data by fixed rules ================= */
+// The app grades; Claude only writes the words. So the same data always gets the same grade, and a GPA means the same
+// thing in a week as in a year. Every number below is editable in Settings › Coach › Report card.
+const RUBRIC_DEFAULT = { proteinG: 100, calorieFloor: 1500, sessionsPerWeek: 4, sessionMinMinutes: 10, strengthPerWeek: 2, sleepHours: 7, bedtime: '22:00',
+  credits: { anchors: 3, nutrition: 3, logging: 1, training: 2, sleep: 2, assignments: 1 } };
+const rubric = () => { const r = data.coachCfg?.rubric || {}; return { ...RUBRIC_DEFAULT, ...r, credits: { ...RUBRIC_DEFAULT.credits, ...(r.credits || {}) } }; };
+const SUBJECTS = [['anchors', 'Daily anchors'], ['nutrition', 'Nutrition'], ['logging', 'Logging'], ['training', 'Training'], ['sleep', 'Sleep habits'], ['assignments', 'Assignments']];
+const GRADE_STEPS = [[97, 'A+', 4], [93, 'A', 4], [90, 'A-', 3.7], [87, 'B+', 3.3], [83, 'B', 3], [80, 'B-', 2.7], [77, 'C+', 2.3], [73, 'C', 2], [70, 'C-', 1.7], [67, 'D+', 1.3], [63, 'D', 1], [60, 'D-', 0.7], [0, 'F', 0]];
+const toGrade = score => { const g = GRADE_STEPS.find(([min]) => score >= min - 1e-9); return { grade: g[1], points: g[2] }; };
+const GPA_STEPS = [[3.85, 'A'], [3.5, 'A-'], [3.15, 'B+'], [2.85, 'B'], [2.5, 'B-'], [2.15, 'C+'], [1.85, 'C'], [1.5, 'C-'], [1.15, 'D+'], [0.85, 'D'], [0.5, 'D-'], [0, 'F']];
+const gpaLetter = gpa => GPA_STEPS.find(([min]) => gpa >= min - 1e-9)[1];
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const pct = x => Math.round(x * 100);
+// Full credit at or past the target; half credit within 10% of it; nothing beyond that.
+const atLeast = (v, t) => v >= t ? 1 : v >= t * 0.9 ? 0.5 : 0;
+const atMost = (v, t) => v <= t ? 1 : v <= t * 1.1 ? 0.5 : 0;
+const hhmm = s => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+// Minutes from the target bedtime, either way, across midnight.
+const bedOff = (start, target) => { const a = hhmm(start), b = hhmm(target); return a == null || b == null ? null : Math.abs(((a - b + 720) % 1440 + 1440) % 1440 - 720); };
+
+// A subject's score from weighted parts; parts without data (score null) drop out and the rest are re-weighted.
+function scoreParts(parts) {
+  const live = parts.filter(p => p.score != null), w = live.reduce((s, p) => s + p.weight, 0);
+  return w ? Math.round(live.reduce((s, p) => s + p.score * p.weight, 0) / w * 1000) / 10 : null;
+}
+function gradeSubjects(start, end) {
+  const R = rubric(), ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey());
+  const n = ks.length, weeks = n / 7, D = ks.map(k => [k, getDay(k)]), out = {};
+  if (!n) return out;
+  // Daily anchors: boxes ticked against the weekly goal, scaled to the period.
+  { const c = anchorCfg(), got = D.reduce((s, [, d]) => s + anchorCount(d), 0), goal = c.target * weeks;
+    out.anchors = { parts: [{ name: 'Boxes ticked vs goal', weight: 1, score: clamp01(got / goal), detail: `${got} of a goal of ${Math.round(goal)} (${c.target} a week)` }] }; }
+  // Nutrition: food quality on fully logged days. Calories are graded under the anchors (Day Pack, Dinner Boundary).
+  { const t = coachCfg().targets, full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).map(([k, d]) => totals(d));
+    const share = f => full.length ? full.reduce((s, x) => s + f(x), 0) / full.length : null;
+    const hit = f => `${full.filter(x => f(x) === 1).length} of ${full.length} days`;
+    const pr = x => atLeast(x.protein, R.proteinG), fi = x => atLeast(x.fiber, t.fiberMin), so = x => atMost(x.sodium, t.sodiumMax);
+    const sf = x => x.calIn ? atMost(x.satFat * 9 / x.calIn * 100, t.satFatPctMax) : 0, su = x => atMost(x.sugar, t.sugarMax), fl = x => atLeast(x.calIn, R.calorieFloor);
+    const enough = full.length >= Math.max(3, Math.ceil(n * 4 / 7));
+    out.nutrition = enough ? { parts: [
+      { name: `Protein ≥ ${R.proteinG} g`, weight: 25, score: share(pr), detail: hit(pr) },
+      { name: `Fiber ≥ ${t.fiberMin} g`, weight: 20, score: share(fi), detail: hit(fi) },
+      { name: `Sodium ≤ ${fmtN(t.sodiumMax)} mg`, weight: 20, score: share(so), detail: hit(so) },
+      { name: `Saturated fat ≤ ${t.satFatPctMax}% of calories`, weight: 15, score: share(sf), detail: hit(sf) },
+      { name: `Sugars ≤ ${t.sugarMax} g`, weight: 10, score: share(su), detail: hit(su) },
+      { name: `Calories ≥ ${fmtN(R.calorieFloor)} (safety floor)`, weight: 10, score: share(fl), detail: hit(fl) }] }
+      : { incomplete: `only ${full.length} fully logged day${full.length === 1 ? '' : 's'} (needs ${Math.max(3, Math.ceil(n * 4 / 7))})` }; }
+  // Logging: without it, skipping the log on bad days would raise the Nutrition grade.
+  { const full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).length;
+    out.logging = { parts: [{ name: 'Days fully logged in Lose It', weight: 1, score: full / n, detail: `${full} of ${n} days` }] }; }
+  // Training: anything from Garmin or Strava of at least the minimum length is a session.
+  { const ws = D.flatMap(([k, d]) => (d?.workouts || []).filter(w => ['garmin', 'strava'].includes(w.source) && (w.durationMin || 0) >= R.sessionMinMinutes).map(w => ({ k, w })));
+    const goal = R.sessionsPerWeek * weeks, sGoal = R.strengthPerWeek * weeks, strength = ws.filter(x => isStrength(x.w)).length;
+    // Load: share of the period's 7-day blocks that sat in the steady range (half credit for building fast or a bit light).
+    const blocks = []; for (let e = end; e >= addDays(start, 6); e = addDays(e, -7)) { const ls = loadStatus(e); if (ls.ratio != null) blocks.push(ls); }
+    const loadScore = blocks.length ? blocks.reduce((s, b) => s + (b.ratio >= 0.8 && b.ratio <= 1.3 ? 1 : (b.ratio >= 0.6 && b.ratio < 0.8) || (b.ratio > 1.3 && b.ratio <= 1.5) ? 0.5 : 0), 0) / blocks.length : null;
+    const mix = intensityMix(ks), hard = mix.hardPct;
+    out.training = { parts: [
+      { name: `Sessions (${R.sessionsPerWeek} a week, ${R.sessionMinMinutes}+ min)`, weight: 35, score: clamp01(ws.length / goal), detail: `${ws.length} of ${Math.round(goal)}` },
+      { name: `Strength (${R.strengthPerWeek} a week)`, weight: 30, score: clamp01(strength / sGoal), detail: `${strength} of ${Math.round(sGoal)}` },
+      { name: 'Load vs usual week (0.8–1.3×)', weight: 20, score: loadScore, detail: blocks.length ? blocks.map(b => b.ratio + '×').reverse().join(', ') : 'needs 4 weeks of history' },
+      { name: 'Hard share of zone minutes (≤ 25%)', weight: 15, score: hard == null ? null : hard <= 25 ? 1 : hard <= 35 ? 0.5 : 0, detail: hard == null ? 'no heart-rate zones' : `${hard}% hard` }] }; }
+  // Sleep habits: hours asleep and going to bed on time. Needs data for half the nights.
+  { const nights = D.filter(([, d]) => sleepHours(d) != null).map(([, d]) => d.sleep), T = R.sleepHours;
+    if (nights.length < Math.ceil(n / 2)) out.sleep = { incomplete: `sleep recorded on ${nights.length} of ${n} nights` };
+    else {
+      const avgH = avg(nights.map(s => s.hours)), offs = nights.map(s => bedOff(s.start, R.bedtime)).filter(x => x != null);
+      out.sleep = { parts: [
+        { name: `Average sleep (target ${T} h)`, weight: 50, score: clamp01((avgH - (T - 1)) / 1), detail: `${fmtN(avgH, 1)} h` },
+        { name: `Nights of ${T} h or more`, weight: 25, score: nights.filter(s => s.hours >= T).length / nights.length, detail: `${nights.filter(s => s.hours >= T).length} of ${nights.length}` },
+        { name: `In bed near ${R.bedtime} (±30 min)`, weight: 25, score: offs.length >= Math.ceil(nights.length / 2) ? avg(offs.map(o => clamp01((90 - o) / 60))) : null, detail: offs.length ? `typically ${Math.round(avg(offs))} min off; ${offs.filter(o => o <= 30).length} of ${offs.length} nights within 30 min` : 'no bedtimes recorded' }] };
+    }
+  }
+  for (const [key, name] of SUBJECTS) if (out[key]) out[key].name = name;
+  return out;
+}
+// Finish a card: grade each subject, add the assignments Claude marked, and work out the GPA.
+function finishCard(subjects, marks) {
+  const R = rubric(), card = { subjects: [], credits: 0, creditsAll: 0 };
+  if (marks) subjects.assignments = marks.length ? { name: 'Assignments', parts: [{ name: 'Last period’s assignments', weight: 1, score: marks.reduce((s, m) => s + (m.status === 'done' ? 1 : m.status === 'partly' ? 0.5 : 0), 0) / marks.length, detail: `${marks.filter(m => m.status === 'done').length} done, ${marks.filter(m => m.status === 'partly').length} partly, ${marks.filter(m => m.status === 'missed').length} missed` }] }
+    : { name: 'Assignments', incomplete: 'no assignments were set for this period' };
+  let pts = 0;
+  for (const [key, name] of SUBJECTS) {
+    const s = subjects[key]; if (!s) continue;
+    const credits = R.credits[key] || 0, score = s.incomplete ? null : scoreParts(s.parts);
+    card.creditsAll += credits;
+    const g = score == null ? null : toGrade(score);
+    card.subjects.push({ key, name, credits, score, grade: g ? g.grade : 'I', points: g?.points ?? null, incomplete: s.incomplete || (score == null ? 'no data' : ''), parts: (s.parts || []).map(p => ({ ...p, score: p.score == null ? null : pct(p.score) })) });
+    if (g && credits) { pts += g.points * credits; card.credits += credits; }
+  }
+  card.gpa = card.credits ? Math.round(pts / card.credits * 100) / 100 : null;
+  card.grade = card.gpa == null ? 'I' : gpaLetter(card.gpa);
+  return card;
+}
+// Results, not choices: tracked next to the grades, never graded.
+function periodOutcomes(start, end) {
+  const ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey()), D = ks.map(getDay);
+  const S = weightSeries(), a = trendOn(S, addDays(start, -1)) ?? trendOn(S, start), b = trendOn(S, ks[ks.length - 1] || end), w = weightCfg();
+  const av = f => { const v = D.map(f).filter(x => x != null); return v.length ? Math.round(avg(v) * 10) / 10 : null; };
+  const perWeek = a != null && b != null && ks.length ? Math.round((b - a) / ks.length * 7 * 100) / 100 : null;
+  return { weight_change: a != null && b != null ? Math.round((b - a) * 10) / 10 : null, weight_unit: S.unit, weight_rate_per_week: perWeek, committed_rate_per_week: w.rate ?? null,
+    hrv_overnight_garmin: av(d => d?.garmin?.hrvNight), hrv_apple: av(d => d?.health?.hrv), resting_hr: av(d => healthValue(d, 'restingHR')),
+    mood: av(d => d?.feel?.mood), energy: av(d => d?.feel?.energy), stress: av(d => d?.feel?.stress), pain_flags: ks.length ? bodyFlags(ks[ks.length - 1]).map(f => f.text) : [] };
+}
+
+const LEVELS = { week: 'Weekly', month: 'Monthly', quarter: 'Quarterly', year: 'Yearly', adhoc: 'On demand' };
+const lastOfMonth = (y, m) => dateKey(new Date(y, m, 0));   // m is 1-12
+// The period of a kind that contains day k: [start, end, key].
+function periodOf(kind, k) {
+  const [y, m] = k.split('-').map(Number);
+  if (kind === 'week') { const s = weekStart(k); return [s, addDays(s, 6), 'week:' + s]; }
+  if (kind === 'month') return [`${k.slice(0, 7)}-01`, lastOfMonth(y, m), 'month:' + k.slice(0, 7)];
+  if (kind === 'quarter') { const q = Math.ceil(m / 3), sm = (q - 1) * 3 + 1; return [`${y}-${String(sm).padStart(2, '0')}-01`, lastOfMonth(y, sm + 2), `quarter:${y}-Q${q}`]; }
+  return [`${y}-01-01`, `${y}-12-31`, 'year:' + y];
+}
+const prevPeriod = (kind, start) => periodOf(kind, addDays(start, -1));
+const periodLabel = (kind, start, end) => kind === 'month' ? keyToDate(start).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  : kind === 'quarter' ? `Q${Math.ceil(+start.slice(5, 7) / 3)} ${start.slice(0, 4)}` : kind === 'year' ? start.slice(0, 4) : fmtRange(start, end);
+// Data starts when the logs do, so a quarter or year that began before then is graded from that day.
+const dataStart = () => { const ks = Object.keys(data.days).filter(k => data.days[k].food?.length || data.days[k].healthFood).sort(); return ks[0] && ks[0] > COACH_BACKFILL_FROM ? ks[0] : COACH_BACKFILL_FROM; };
+const gradedFrom = start => start < dataStart() ? dataStart() : start;
+const reportOf = (kind, start) => { const r = reviews()[periodOf(kind, start)[2]]; return r && !r.deleted && r.status === 'done' ? r : null; };
+// The cards are rules-based, so any period's card can be worked out on the spot (without assignments).
+const quickCard = (start, end) => finishCard(gradeSubjects(gradedFrom(start), end), null);
+// Foods behind each nutrition problem over a period, for months and longer (days are too many to send).
+function foodDrivers(ks) {
+  const by = {};
+  for (const k of ks) for (const f of getDay(k)?.food || []) { const e = (by[f.name] ||= { n: 0, cal: 0, sodium: 0, satFat: 0, sugar: 0, protein: 0, fiber: 0 }); e.n++; for (const x of ['sodium', 'satFat', 'sugar', 'protein', 'fiber']) e[x] += f[x] || 0; e.cal += f.calories || 0; }
+  // Ranked by total (what drove the period), with the per-serving figure so a rare but heavy food stands out too.
+  const top = (x, n = 6) => Object.entries(by).filter(([, e]) => e[x] > 0).sort((a, b) => b[1][x] - a[1][x]).slice(0, n).map(([name, e]) => `${name}: ${fmtN(e[x] / e.n)} per serving × ${e.n} = ${fmtN(e[x])}`);
+  return { most_sodium_mg: top('sodium'), most_sat_fat_g: top('satFat'), most_sugar_g: top('sugar'), most_protein_g: top('protein'), most_fiber_g: top('fiber'), most_logged: Object.entries(by).sort((a, b) => b[1].n - a[1].n).slice(0, 10).map(([n, e]) => `${n} (${e.n}×)`) };
+}
+

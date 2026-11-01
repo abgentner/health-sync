@@ -1,12 +1,12 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.2** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.2.1** · October 31, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
 > ✏️ `YOUR-USERNAME` means your GitHub username (yours is `abgentner`).
 
-**You'll need:** a computer, a personal Gmail, about an hour in total, and the release files (`index.html`, `config.js`, `email-to-drive.gs` and the `.md` files).
+**You'll need:** a computer, a personal Gmail, about an hour in total, and the release files (`index.html`, `core.js`, `importers.js`, `rules.js`, `tests.html`, `config.js`, `email-to-drive.gs` and the `.md` files).
 
 ## Step 1 — Get a personal Google (Gmail) account
 
@@ -69,7 +69,7 @@ You're now on your repository's page. Its address is `https://github.com/YOUR-US
 ### 3b. Upload the app files
 
 1. Near the top right of the page, click the **Add file** button, then **Upload files**.
-2. Drag in **`index.html`**, **`config.js`**, **`email-to-drive.gs`**, **`README.md`**, **`SETUP.md`**, **`ALTERNATIVES.md`** and **`CHANGELOG.md`**. Or click **choose your files** and pick them.
+2. Drag in **`index.html`**, **`core.js`**, **`importers.js`**, **`rules.js`**, **`tests.html`**, **`config.js`**, **`email-to-drive.gs`**, **`README.md`**, **`SETUP.md`**, **`ALTERNATIVES.md`** and **`CHANGELOG.md`**. Or click **choose your files** and pick them.
    - It's fine to replace the README that GitHub made for you.
 3. Wait until all the files show in the list.
 4. Scroll down and click the green **Commit changes** button.
@@ -441,7 +441,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 **First, let the script receive data (one time, about 5 minutes, on your computer):**
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.2, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with the new **`email-to-drive.gs`** (v3.2.1, the same version as the app; the receiver needs v1.9 or later) and click **💾 Save**.
 2. Click **Deploy** (blue, top right) → **New deployment**.
 3. Click the **⚙ gear** next to "Select type" → **Web app**.
 4. Fill in:
@@ -527,7 +527,7 @@ That's it. Health Sync writes the report cards for every week, month and quarter
 
 The email comes from your own Google script, so it needs the script's v2.0 code or later:
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.2, the same version as the app) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.2.1, the same version as the app) and click **💾 Save**.
 2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
    - Google asks for permission again, this time to **send email as you**. Allow it.
    - Check that you received a test email.
@@ -597,7 +597,7 @@ You need **Step 9 done first** (the script).
 
 1. Open your project at **https://script.google.com** (**Health Sync email saver**).
 2. Click in the code, press **Cmd+A** / **Ctrl+A**, and press **Delete**.
-3. Paste in the new **`email-to-drive.gs`** (v3.2, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
+3. Paste in the new **`email-to-drive.gs`** (v3.2.1, the same version as the app; Garmin needs v2.12.1 or later). Click **💾 Save**.
 
 ### 13c. Add your key (privately)
 
@@ -635,7 +635,7 @@ You need **Step 9 done first** (the script).
 - **A run takes 1–3 minutes,** because the script pauses between requests to stay gentle with Garmin. The Execution log shows each step as it goes, for example:
 
   ```
-  Health Sync script v3.2
+  Health Sync script v3.2.1
   Email: looking for new Lose It and Garmin report emails…
   Email: saved 0 attachment(s) from 0 email(s).
   Strava: checking for new workouts…

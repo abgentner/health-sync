@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.2** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.2.1** · October 31, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -380,7 +380,7 @@ A table with one row per day. **Click any column header to sort** (click again t
 
 ## Updating the app
 
-Each release is either pushed straight to GitHub (when Claude works in your copy of the repository) or comes as a Desktop folder named **Health Sync vX.Y**, whose `index.html`, `email-to-drive.gs` and `.md` files you upload to GitHub. **Never upload `config.js`**, because your GitHub copy holds your Client ID.
+Each release is either pushed straight to GitHub (when Claude works in your copy of the repository) or comes as a Desktop folder named **Health Sync vX.Y**, whose files you upload to GitHub: `index.html`, `core.js`, `importers.js`, `rules.js`, `tests.html`, `email-to-drive.gs` and the `.md` files. **Upload them together.** The app's four files only work as a set from the same version. **Never upload `config.js`**, because your GitHub copy holds your Client ID.
 
 1. Go to `https://github.com/YOUR-USERNAME/health-sync`
 2. Click **Add file → Upload files**.
@@ -506,6 +506,15 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 ---
 
-## Regression tests (for releases)
+## Tests (for releases)
 
-Before each release, the importers are checked against **your real sample files** (Lose It PDF and CSV, Health Auto Export ZIP, daily, minute, hourly and weekly files, and Garmin files): 131 app checks and 56 script checks as of v2.13, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". **v3.0, v3.1 and v3.2** were made on the work Mac. Their new checks (31 in v3.0, 25 in v3.1, 29 in v3.2) ran against sample files built in each format, but they aren't in the home suite yet, and the suite wasn't run for these versions. The test page and your files live **only on your Mac** (Desktop › **Health Sync tests**). They're never uploaded to GitHub, because they contain your health data.
+**`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** Run it before each release.
+
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend, and the report-card grades, GPA and period dates. That's 52 checks as of v3.2.1.
+- **It has no health data in it,** so it's safe on GitHub and public.
+- **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
+- **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.
+
+**How the app is split:** `index.html` holds the screens, Drive and the Coach. **`core.js`** holds shared helpers and the data model. **`importers.js`** reads Lose It, Apple Health, Garmin and Strava files. **`rules.js`** holds everything worked out from the data: anchors, training load, readiness, the weight trend and report-card grades. The tests load the last three directly.
+
+**The real-file suite** on your Mac (Desktop › **Health Sync tests**) checks the same importers against your own exported files, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". It lives only on your Mac because it contains your health data. It was last run for v2.13. Run it on the home Mac when you can.

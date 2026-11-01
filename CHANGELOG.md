@@ -4,11 +4,12 @@
 
 | File | Where to see its version |
 |---|---|
-| **App** (`index.html`) | At the bottom of every page, and **Settings → About** |
+| **App** (`index.html`, with `core.js`, `importers.js`, `rules.js`) | At the bottom of every page, and **Settings → About**. `index.html` loads the other three with the same version in their address (`core.js?v=3.2.1`), so a phone never mixes old and new files |
+| **Tests** (`tests.html`) | Uses whatever `core.js`, `importers.js` and `rules.js` sit next to it |
 | **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
 | **README / SETUP / ALTERNATIVES** | The line at the top of each file |
 | **CHANGELOG** | Its newest entry |
-| **Your copies** | The Desktop folder name, like **Health Sync v3.2** |
+| **Your copies** | The Desktop folder name, like **Health Sync v3.2.1** |
 
 ### How versions are numbered
 
@@ -20,6 +21,33 @@
 **Paste the script every release**, even if only its number changed, so everything stays on one version (README › Updating the app). Before v3.0 the script had its own number, which is why older entries below mention script versions such as 2.12.1.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
+
+### v3.2.1 (October 31, 2026)
+
+- **New: `tests.html`, a test page anyone can run.** Open it, and 52 checks run against made-up sample files, each shown green or red. They cover every importer, which source wins, keeping one copy of each workout, training load, readiness, pain flags, the weight trend and the report-card grades. It contains no health data, so it lives on GitHub, and either computer can check a release before it goes out (README › Tests).
+- **The app is split into four files, so the tests can load the logic without the screens:**
+  - `core.js`: helpers and the data model
+  - `importers.js`: Lose It, Apple Health, Garmin, Strava
+  - `rules.js`: anchors, training load and readiness, weight trend, report-card grades
+  - `index.html`: screens, Drive and the Coach
+
+  The code was moved by a script, block for block, not retyped. **Nothing changes in what the app does.**
+- **What the tests caught straight away:** three small helpers (`avg`, `windowKeys`, `plural`) that the moved code needed were still in the screen code. The app worked only because everything happened to be loaded together. They're in `core.js` now.
+- I checked that the tests can fail: breaking which source wins, or how load is worked out, turns the matching checks red with a clear message.
+- **Releasing now means:** bump the version in every file, including the `?v=` on the three script tags in `index.html`; run `tests.html`; and upload or push all the app files together.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `index.html` | Split: loads `core.js`, `importers.js` and `rules.js`, keeps the screens. No change in behaviour |
+  | `core.js`, `importers.js`, `rules.js` | **New files,** moved from `index.html` |
+  | `tests.html` | **New** |
+  | `README.md` | New Tests section, and how the files are split; which files to upload |
+  | `SETUP.md` | The file list for a fresh setup; version line |
+  | `CHANGELOG.md` | This entry, and the files table at the top |
+  | `email-to-drive.gs` | **Version number only** (3.2 → 3.2.1). **Paste it** so Data health shows the same version. |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `config.js` | Not changed (it has no version) |
 
 ### v3.2 (October 31, 2026)
 
