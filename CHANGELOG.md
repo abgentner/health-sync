@@ -17,6 +17,7 @@
 - **Major (3.0, 4.0…):** a big change in how Health Sync works, such as where its data comes from, its architecture or a redesign. Rare, and agreed beforehand.
 - **Minor (3.1, 3.2…):** a new feature or screen.
 - **Patch (3.0.1…):** fixes and small tweaks to something that already exists. Bundled when possible.
+- **Docs-only fixes** to the release just shipped keep its number, and are noted in its entry as a docs follow-up. That way you don't paste the script again for a wording change. Any change to code gets a new number.
 
 **Paste the script every release**, even if only its number changed, so everything stays on one version (README › Updating the app). Before v3.0 the script had its own number, which is why older entries below mention script versions such as 2.12.1.
 
