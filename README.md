@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.3.1** · November 1, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.3.2** · November 2, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 

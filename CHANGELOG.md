@@ -33,6 +33,21 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.3.2 (November 2, 2026)
+
+- **Fixed: Garmin day history stopped moving back while workouts were loading.** Each hourly run has 2 minutes for history, and it did workouts first. Each old workout takes about 6 seconds (its detail plus the original watch file), so about 10 workouts used up the time, and the days never got a turn. Your log showed *workouts 585–594 checked* while days stayed at Sep 29 for a week. Now each run loads **a week of days first**, then workouts with whatever time is left. Both keep moving, and the run stays inside Google's 90-minutes-a-day limit.
+- Tests: the script suite on the work Mac (`script-tests.html`, which runs the real script against a stand-in Google and a fake Garmin) has a new check: with workouts still to load, every hourly run moves the days back by a week. It fails on 3.3.1. `tests.html` doesn't load the script, so it has no change except its version check.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `email-to-drive.gs` | History loads a week of days first, then workouts. **Paste it** (README › Updating the app). |
+  | `SETUP.md` | Step 13: how history loads, and the example log |
+  | `index.html` | **Version number only** (with the four `?v=` script tags) |
+  | `README.md` | **Version number only** |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `CHANGELOG.md` | This entry |
+
 ### v3.3.1 (November 1, 2026)
 
 - **Fixed: a save could wipe what another device logged that day.** A save replaced the whole day in Drive with this device's copy. So if the Mac had been open for hours and imported Apple Health for today, drinks, mood or food logged on the phone for today were lost. Now each save compares this device's copy with how it was when it last loaded or saved, and writes **only the fields it changed**, one field at a time (inside an entry too, so mood from one device and stress from another both stay). If both devices change the same field, the last save wins. Food and workout lists are taken whole.

@@ -1,6 +1,6 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 3.3.1
+ * Version 3.3.2
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
@@ -28,7 +28,7 @@
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '3.3.1';   // printed at the start of every run
+const SCRIPT_VERSION = '3.3.2';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -384,26 +384,16 @@ function syncGarmin() {
   console.log(`Garmin: up to date${fresh ? ` · ${fresh} new workout${fresh === 1 ? '' : 's'}` : ''} · ${garminHistoryLine_()}`);
 }
 
-// History, newest first: workouts page back through Garmin's list, and days go back a week at a time.
+// History, newest first: days go back a week at a time, and workouts page back through Garmin's list.
 // Each run shares a fixed allowance of requests between them, so history never floods Garmin.
 function garminHistory_(t0, seconds, allowance) {
   const p = props_(), start = garminRequests_;
   const left = () => seconds * 1000 - (Date.now() - t0) > 30e3 && garminRequests_ - start < allowance;
   const stopAt = (p.getProperty('GARMIN_HISTORY_FROM') || '').trim();   // optional: don't go further back than this date
   while (left() && (p.getProperty('GARMIN_ACT_DONE') !== 'yes' || p.getProperty('GARMIN_HISTORY_DONE') !== 'yes')) {
-    if (p.getProperty('GARMIN_ACT_DONE') !== 'yes') {
-      const offset = Number(p.getProperty('GARMIN_ACT_OFFSET') || 0);
-      const page = garminGetAll_([`/activitylist-service/activities/search/activities?start=${offset}&limit=${GARMIN_PAGE}`])[0];
-      if (page.code >= 300) throw new Error(`Garmin workouts list failed (${page.code}): ${page.text.slice(0, 160)}`);
-      const list = Array.isArray(page.json) ? page.json : [], index = garminIndex_();
-      let done = 0;
-      for (const a of list) { if (!index.saved[a.activityId]) { if (!left()) break; garminSaveActivity_(a, true, index); } done++; }
-      garminSaveIndex_(index);
-      p.setProperty('GARMIN_ACT_OFFSET', String(offset + done));
-      if (done === list.length && list.length < GARMIN_PAGE) p.setProperty('GARMIN_ACT_DONE', 'yes');
-      if (done) console.log(`Garmin history: ${done === 1 ? `workout ${offset + 1}` : `workouts ${offset + 1}–${offset + done}`} checked`);
-    }
-    if (left() && p.getProperty('GARMIN_HISTORY_DONE') !== 'yes') {
+    // A week of days first, so the days keep moving back every hour even while hundreds of old workouts
+    // (about 6 seconds each, with their watch files) are still loading; workouts get the rest of the time.
+    if (p.getProperty('GARMIN_HISTORY_DONE') !== 'yes') {
       const to = p.getProperty('GARMIN_HISTORY_TO') || garminAddDays_(garminToday_(), -GARMIN_RECENT_DAYS);
       let from = garminAddDays_(to, 1 - GARMIN_CHUNK_DAYS);
       if (stopAt && from < stopAt) from = stopAt;
@@ -418,6 +408,18 @@ function garminHistory_(t0, seconds, allowance) {
       const oldestWorkout = p.getProperty('GARMIN_ACT_DONE') === 'yes' ? garminOldestWorkout_() : null;
       const pastWorkouts = p.getProperty('GARMIN_ACT_DONE') === 'yes' && (!oldestWorkout || from < oldestWorkout);
       if ((empty >= GARMIN_EMPTY_DAYS_TO_STOP && pastWorkouts) || (stopAt && from <= stopAt) || from < '2006-01-01') p.setProperty('GARMIN_HISTORY_DONE', 'yes');
+    }
+    if (left() && p.getProperty('GARMIN_ACT_DONE') !== 'yes') {
+      const offset = Number(p.getProperty('GARMIN_ACT_OFFSET') || 0);
+      const page = garminGetAll_([`/activitylist-service/activities/search/activities?start=${offset}&limit=${GARMIN_PAGE}`])[0];
+      if (page.code >= 300) throw new Error(`Garmin workouts list failed (${page.code}): ${page.text.slice(0, 160)}`);
+      const list = Array.isArray(page.json) ? page.json : [], index = garminIndex_();
+      let done = 0;
+      for (const a of list) { if (!index.saved[a.activityId]) { if (!left()) break; garminSaveActivity_(a, true, index); } done++; }
+      garminSaveIndex_(index);
+      p.setProperty('GARMIN_ACT_OFFSET', String(offset + done));
+      if (done === list.length && list.length < GARMIN_PAGE) p.setProperty('GARMIN_ACT_DONE', 'yes');
+      if (done) console.log(`Garmin history: ${done === 1 ? `workout ${offset + 1}` : `workouts ${offset + 1}–${offset + done}`} checked`);
     }
   }
 }

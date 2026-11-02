@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.3.1** · November 1, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.3.2** · November 2, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -630,7 +630,7 @@ You need **Step 9 done first** (the script).
    - **Import results** also has a line like *"Garmin folder: read 46 workout files — 40 workouts with heart-rate zones or training load"*, and the **Training** tab shows readiness, load and your workouts with their zones. (Readiness needs about a week of history and the load comparison 4 weeks; both fill in as history loads.)
    - As the script loads more history each hour, later syncs pick it up by themselves.
 
-**That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then loads a slice of your history, newest first: about 2 weeks of days plus some workouts each hour, so roughly **a year of history a day**. It keeps going until it's past your oldest Garmin workout, so months without the watch don't stop it early. Import › Data health shows how far back it has got.
+**That's it.** Every hour, the script re-reads the last 3 days (sleep and late watch syncs land after the fact) and any new workouts. It then loads a slice of your history, newest first: **a week of days first**, then as many old workouts as fit in the time left (each takes a few seconds, because it fetches the watch file too). Days keep moving back every hour even while your workouts are still loading. It keeps going until it's past your oldest Garmin workout, so months without the watch don't stop it early. Import › Data health shows how far back it has got.
 
 - **A run takes 1–3 minutes,** because the script pauses between requests to stay gentle with Garmin. The Execution log shows each step as it goes, for example:
 
@@ -642,8 +642,8 @@ You need **Step 9 done first** (the script).
   Strava: nothing new.
   Garmin: reading the last 3 days and new workouts…
   Garmin: last 3 days saved (35 s). Loading history for up to 2 minutes…
-  Garmin history: workouts 1–20 checked
   Garmin history: 2026-09-22 to 2026-09-28 saved (7 days with data)
+  Garmin history: workouts 1–10 checked
   Garmin: up to date · history: days loading (back to 2026-09-22), workouts loading (46 saved)
   Data health: checking each source…
   Data health: status saved for the app · no problems.
