@@ -82,7 +82,8 @@
   - One version everywhere: fails if the app, the four script tags, the script or any doc has a different version. That rule used to rely on remembering.
   - Checked: putting the old whole-day save back makes 4 of the new checks fail, and a mismatched version fails the version check.
 - **Follow-up, same release:** GitHub's test run now also starts the real app (this-computer-only mode, a made-up day), saves an edit, and fails on any page error. Before, that check only existed on one computer. CI only, no app change, so it's still 3.3.1.
-- **Docs follow-up, same release:** the real-file suite moves to a private repository, `abgentner/health-sync-real-tests`, which runs it nightly against the live app. The old Desktop suite on the home Mac couldn't be found, so it's being rebuilt from a fresh week of real exports. The README's Tests section says where it is.
+- **Docs follow-up, same release:** the real-file suite moves to a private repository, `abgentner/health-sync-real-tests`, which runs it nightly against the live app. The README's Tests section says where it is.
+- **Docs follow-up (Nov 3):** the old suite wasn't lost; it was on the work Mac. Both full suites are now in the private repository and pass on 3.4: 133 app checks against your real files (three updated for 3.4's new anchor rules) and 59 script checks.
 - **Files in this release:**
 
   | File | What changed |
