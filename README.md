@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.3.2** · November 2, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.4** · November 2, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -296,20 +296,24 @@ Your plan is saved in your Google Drive data file, alongside everything else, an
 
 Your plan's **4 daily anchor boxes**, with a weekly goal of **23 out of 28** (about 80%, the same as the old 17 of 21 with three boxes):
 
-| Box | Checks itself automatically when… |
-|---|---|
-| **Day Pack** | Your **daytime calories** (breakfast + lunch + snacks, everything except dinner) are **1,200 or less** |
-| **Dinner Boundary** | Your Lose It **Dinner** adds up to **750 calories or less** |
-| **Movement** | You have **at least 10 minutes** of workouts that day (from Garmin, Lose It or typed in) |
-| **Steps** | You have **7,500 steps or more** (Apple Health's count, which merges your iPhone and Garmin) |
+| Box | Checks itself automatically when… | Or… |
+|---|---|---|
+| **Day Pack** | Your **daytime calories** (breakfast + lunch + snacks, everything except dinner) are **1,200 or less** | The whole day is within your **day's calorie goal** (1,950) |
+| **Dinner Boundary** | Your Lose It **Dinner** adds up to **750 calories or less** | The whole day is within your **day's calorie goal** (1,950) |
+| **Movement** | You have **at least 20 minutes** of workouts that day (anything recorded: Garmin, Strava, Lose It or typed in, walks included) | |
+| **Steps** | You have **7,500 steps or more** (Apple Health's count, which merges your iPhone and Garmin) | **5,000 or more is half a box** (½) |
 
-- **Steps today:** until you reach 7,500, the box shows your progress, like **… 5,200 of 7,500 steps so far**, rather than a miss. It ticks itself as soon as you get there.
-- **Changing the number:** **Settings › Daily anchors**, Box 4: *Auto: steps*, at least ___ steps. The weekly goal is there too.
+- **The day's calorie goal** ticks **both** meal boxes, however the calories were split. A big lunch and a light dinner count, as long as the day stays within the goal. It starts at your two meal limits added up (1,200 + 750 = 1,950), and you can change it in **Settings › Daily anchors**; 0 turns it off.
+  - It only applies on days at or above your **calorie floor (1,500)**. Otherwise logging only breakfast, or barely eating, would tick both. On those days each meal box is judged on its own, as before.
+- **Half boxes:** a ½ box counts 0.5 toward the week, so weekly totals can read **22½ of 28**. The bars and dots show it half filled, and report cards count it as half.
+- **Steps today:** until you reach 7,500, the box shows your progress, like **… 5,200 of 7,500 steps so far · half a box already**, rather than a miss. It ticks itself as soon as you get there.
+- **Changing the numbers:** in **Settings › Daily anchors**, Box 4 (*Auto: steps*) has the full and half step counts, and Box 3 has the workout minutes. The weekly goal and the day's calorie goal are there too.
+- **Saved settings from before v3.4 are upgraded once.** Movement becomes 20 minutes, Steps gets half credit at 5,000, and reminders still at their old wording are updated. Reminders you wrote yourself are kept.
 
 **Overriding a box:**
 
-- Each box in **Log today** says why it's checked or not, for example *"Auto · 32 min of exercise"*.
-- **Click a box to override it.** For example, tick Dinner Boundary if you stuck to the one-plate rule but Lose It didn't log dinner. It then says **"Set by hand"**. Click **Save day**.
+- Each box in **Log today** says why it's checked or not, for example *"Auto · 32 min of exercise"* or *"Auto · Day 1,840 of 1,950 cal · within the day's goal"*.
+- **Click a box to override it.** A box set by hand counts as a full box or nothing, never a half. For example, tick Dinner Boundary if you stuck to the one-plate rule but Lose It didn't log dinner. It then says **"Set by hand"**. Click **Save day**.
 - To go back to automatic, click **use imported data** on that box, or click the box back to whatever the data says.
 - **Food boxes wait for Lose It.** Day Pack and Dinner Boundary show **… Waiting for Lose It** for today, and for yesterday until its report arrives (usually by morning). Then they're judged. Movement ticks as soon as a workout arrives.
 

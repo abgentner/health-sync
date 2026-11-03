@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.3.2 -->
+<!-- Health Sync app · version 3.4 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -215,6 +215,8 @@ tbody tr:hover{background:var(--surface-2)}
 .anchor.on{border-color:var(--c-anchor);background:color-mix(in oklab,var(--c-anchor) 8%,var(--surface))}
 .anchor.on .ck{background:var(--c-anchor);border-color:var(--c-anchor)}
 .anchor.pend .ck{border-style:dashed;color:var(--muted);font-weight:600}
+.anchor.half{border-color:color-mix(in oklab,var(--c-anchor) 55%,var(--border))}
+.anchor.half .ck{background:linear-gradient(90deg,var(--c-anchor) 50%,transparent 50%);border-color:var(--c-anchor);color:var(--text)}
 .anchor.pend .an-src{color:var(--muted)}
 .an-sum{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:center;padding:4px 0 18px;margin-bottom:16px;border-bottom:1px solid var(--border)}
 .an-big{font-size:30px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
@@ -223,6 +225,7 @@ tbody tr:hover{background:var(--surface-2)}
 .an-bar{display:flex;gap:3px;margin-top:10px;max-width:520px}
 .an-bar i{flex:1;height:10px;border-radius:3px;background:var(--surface-2);border:1px solid var(--border)}
 .an-bar i.f{background:var(--c-anchor);border-color:var(--c-anchor)}
+.an-bar i.h,.an-week .dots i.h{background:linear-gradient(90deg,var(--c-anchor) 50%,var(--surface-2) 50%);border-color:var(--c-anchor)}
 .an-bar i.goal{margin-right:8px}
 .an-bar i.buf{border-style:dashed}
 .an-week{display:grid;grid-template-columns:repeat(7,30px);gap:6px;text-align:center}
@@ -843,6 +846,10 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div class="row" style="margin-top:14px">
       <label for="s-an-goal" style="margin:0">Weekly goal</label>
       <input type="number" id="s-an-goal" min="1" style="width:90px"><span class="muted small" id="s-an-goal-of"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label for="s-an-day" style="margin:0">Day's calorie goal</label>
+      <input type="number" id="s-an-day" min="0" step="50" style="width:90px"><span class="muted small">calories or fewer for the whole day ticks every meal box (on days at or above your calorie floor). Empty = off.</span>
       <button class="btn primary small" id="s-an-save" style="margin-left:auto">Save anchors</button>
     </div>
   </div>
@@ -888,13 +895,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.3.2"></script>
-<script src="importers.js?v=3.3.2"></script>
-<script src="rules.js?v=3.3.2"></script>
-<script src="sync.js?v=3.3.2"></script>
+<script src="core.js?v=3.4"></script>
+<script src="importers.js?v=3.4"></script>
+<script src="rules.js?v=3.4"></script>
+<script src="sync.js?v=3.4"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.3.2';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.4';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -1408,12 +1415,12 @@ function renderAnchorBoxes() {
     const src = st.manual
       ? `<div class="an-src">Set by hand${st.auto ? ` · <a href="#" data-reset="${i}">use imported data</a>` : ''}</div>`
       : st.auto ? `<div class="an-src">Auto · ${esc(st.auto.why)}</div>` : '';
-    return `<button type="button" class="anchor${st.on ? ' on' : ''}${st.pending ? ' pend' : ''}" data-i="${i}" aria-pressed="${st.on}">
-    <span class="ck">${st.on ? '✓' : st.pending ? '…' : ''}</span><span><div class="an-n">${esc(n)}</div>${c.hints[i] ? `<div class="an-h">${esc(c.hints[i])}</div>` : ''}${src}</span></button>`;
+    return `<button type="button" class="anchor${st.on ? ' on' : ''}${st.half ? ' half' : ''}${st.pending ? ' pend' : ''}" data-i="${i}" aria-pressed="${st.on ? 'true' : st.half ? 'mixed' : 'false'}">
+    <span class="ck">${st.on ? '✓' : st.half ? '½' : st.pending ? '…' : ''}</span><span><div class="an-n">${esc(n)}</div>${c.hints[i] ? `<div class="an-h">${esc(c.hints[i])}</div>` : ''}${src}</span></button>`;
   }).join('');
   const ws = weekStart(logDate);
   let got = 0; for (let i = 0; i < 7; i++) { const k = addDays(ws, i); got += k === logDate ? anchorCount(d, anchorDraft) : anchorCount(getDay(k)); }
-  $('#an-log-week').textContent = `This week: ${got} of ${c.names.length * 7} · goal ${c.target}`;
+  $('#an-log-week').textContent = `This week: ${boxN(got)} of ${c.names.length * 7} · goal ${c.target}`;
 }
 
 function weekTotal(ws) { let n = 0; for (let i = 0; i < 7; i++) n += anchorCount(getDay(addDays(ws, i))); return n; }
@@ -1425,18 +1432,19 @@ function renderAnchorSummary() {
   const daysLeft = today < ws ? 7 : today > end ? 0 : Math.round((keyToDate(end) - keyToDate(today)) / 864e5) + 1;
   const need = Math.max(0, goal - got);
   const msg = got >= goal ? `🎉 Goal reached — ${Math.round(got / max * 100)}% this week.`
-    : daysLeft === 0 ? `Finished at ${got} of ${max} (${Math.round(got / max * 100)}%). New week, fresh boxes.`
-    : need > daysLeft * per ? `${need} more to reach ${goal}. Every box still counts — just pick up the next one.`
-    : `${need} more to reach ${goal} · ${plural(daysLeft, 'day')} left${daysLeft < 7 ? ' (including today)' : ''}.`;
-  const cells = Array.from({ length: max }, (_, i) => `<i class="${i < got ? 'f' : ''}${i === goal - 1 ? ' goal' : ''}${i >= goal ? ' buf' : ''}"></i>`).join('');
+    : daysLeft === 0 ? `Finished at ${boxN(got)} of ${max} (${Math.round(got / max * 100)}%). New week, fresh boxes.`
+    : need > daysLeft * per ? `${boxN(need)} more to reach ${goal}. Every box still counts — just pick up the next one.`
+    : `${boxN(need)} more to reach ${goal} · ${plural(daysLeft, 'day')} left${daysLeft < 7 ? ' (including today)' : ''}.`;
+  const fill = (j, n) => j < Math.floor(n) ? 'f' : j < n ? 'h' : '';
+  const cells = Array.from({ length: max }, (_, i) => `<i class="${fill(i, got)}${i === goal - 1 ? ' goal' : ''}${i >= goal ? ' buf' : ''}"></i>`).join('');
   const dl = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const week = Array.from({ length: 7 }, (_, i) => {
     const k = addDays(ws, i), n = anchorCount(getDay(k));
-    return `<div title="${esc(fmtDay(k))}: ${n} of ${per}"><div class="dl${k === today ? ' today' : ''}">${dl[i]}</div><div class="dots">${Array.from({ length: per }, (_, j) => `<i class="${j < n ? 'f' : ''}"></i>`).join('')}</div></div>`;
+    return `<div title="${esc(fmtDay(k))}: ${boxN(n)} of ${per}"><div class="dl${k === today ? ' today' : ''}">${dl[i]}</div><div class="dots">${Array.from({ length: per }, (_, j) => `<i class="${fill(j, n)}"></i>`).join('')}</div></div>`;
   }).join('');
   $('#an-sum').innerHTML = `<div>
       <div class="small" style="font-weight:600;color:var(--text-2)">Daily anchors · week of ${esc(fmtDay(ws, { month: 'short', day: 'numeric' }))}</div>
-      <div class="an-big">${got}<span class="u">of ${max} boxes · goal ${goal} (${Math.round(goal / max * 100)}%)</span></div>
+      <div class="an-big">${boxN(got)}<span class="u">of ${max} boxes · goal ${goal} (${Math.round(goal / max * 100)}%)</span></div>
       <div class="an-msg">${msg}</div>
       <div class="an-bar" aria-hidden="true">${cells}</div>
       ${max > goal ? `<div class="muted small" style="margin-top:6px">The ${max - goal} dashed boxes are your weekly buffer for real life.</div>` : ''}
@@ -1488,8 +1496,8 @@ function renderAnchorSettings() {
     return `<div><label>Box ${i + 1}</label><input type="text" data-an-name="${i}" value="${esc(n)}" placeholder="Name"><input type="text" data-an-hint="${i}" value="${esc(c.hints[i] || '')}" placeholder="Short reminder (optional)" style="margin-top:6px">${sel(i, r.type)}
       <div class="small muted rule-f" data-rule="${i}" style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <span data-show="budget"><select data-an-bmeals="${i}" style="width:auto">${[['daytime', 'Daytime (all but dinner)'], ['all', 'Whole day']].map(([v, l]) => `<option value="${v}"${(r.type === 'budget' ? r.meals : 'daytime') === v ? ' selected' : ''}>${l}</option>`).join('')}</select> at most <input type="number" data-an-bmax="${i}" value="${r.type === 'budget' ? r.max : 1200}" min="0" style="width:90px"> calories</span>
-        <span data-show="steps">At least <input type="number" data-an-smin="${i}" value="${r.type === 'steps' ? r.min : 7500}" min="0" step="500" style="width:90px"> steps that day</span>
-        <span data-show="workout">At least <input type="number" data-an-wmin="${i}" value="${r.type === 'workout' ? r.min : 10}" min="0" style="width:70px"> min of workouts that day</span>
+        <span data-show="steps">At least <input type="number" data-an-smin="${i}" value="${r.type === 'steps' ? r.min : 7500}" min="0" step="500" style="width:90px"> steps that day · half a box at <input type="number" data-an-shalf="${i}" value="${r.type === 'steps' ? r.half ?? '' : 5000}" min="0" step="500" style="width:90px" placeholder="off"></span>
+        <span data-show="workout">At least <input type="number" data-an-wmin="${i}" value="${r.type === 'workout' ? r.min : 20}" min="0" style="width:70px"> min of workouts that day</span>
         <span data-show="food">At least <input type="number" data-an-fmin="${i}" value="${r.type === 'food' ? r.min : 3}" min="1" style="width:60px"> foods containing <input type="text" data-an-words="${i}" value="${esc(r.type === 'food' ? r.words : '')}" placeholder="words, separated by commas"></span>
         <span data-show="meal"><input type="text" data-an-meal="${i}" value="${esc(r.type === 'meal' ? r.meal : 'Dinner')}" style="width:110px"> at most <input type="number" data-an-max="${i}" value="${r.type === 'meal' ? r.max : 750}" min="0" style="width:80px"> calories</span>
       </div></div>`;
@@ -1497,6 +1505,7 @@ function renderAnchorSettings() {
   const showRule = i => { const t = $(`[data-an-type="${i}"]`).value; $$(`[data-rule="${i}"] [data-show]`).forEach(el => el.hidden = el.dataset.show !== t); };
   c.names.forEach((_, i) => { showRule(i); $(`[data-an-type="${i}"]`).onchange = () => showRule(i); });
   $('#s-an-goal').value = c.target;
+  $('#s-an-day').value = c.dayGoal || '';
   $('#s-an-goal-of').textContent = `out of ${c.names.length * 7} boxes a week`;
 }
 async function saveAnchorSettings() {
@@ -1505,14 +1514,15 @@ async function saveAnchorSettings() {
   const rules = names.map((_, i) => {
     const t = $(`[data-an-type="${i}"]`).value, v = sel => num($(sel).value);
     if (t === 'budget') return { type: t, meals: $(`[data-an-bmeals="${i}"]`).value, max: v(`[data-an-bmax="${i}"]`) ?? 1200 };
-    if (t === 'workout') return { type: t, min: v(`[data-an-wmin="${i}"]`) ?? 10 };
-    if (t === 'steps') return { type: t, min: v(`[data-an-smin="${i}"]`) ?? 7500 };
+    if (t === 'workout') return { type: t, min: v(`[data-an-wmin="${i}"]`) ?? 20 };
+    if (t === 'steps') return { type: t, min: v(`[data-an-smin="${i}"]`) ?? 7500, half: v(`[data-an-shalf="${i}"]`) ?? null };
     if (t === 'food') return { type: t, min: v(`[data-an-fmin="${i}"]`) ?? 1, words: $(`[data-an-words="${i}"]`).value };
     if (t === 'meal') return { type: t, meal: $(`[data-an-meal="${i}"]`).value.trim() || 'Dinner', max: v(`[data-an-max="${i}"]`) ?? 750 };
     return { type: 'none' };
   });
   const target = Math.max(1, Math.min(names.length * 7, Math.round(num($('#s-an-goal').value) || ANCHOR_DEFAULTS.target)));
-  data.anchorCfg = { names, hints, rules, target, v: 2 };
+  const dayGoal = num($('#s-an-day').value);
+  data.anchorCfg = { names, hints, rules, target, dayGoal: dayGoal > 0 ? dayGoal : 0, v: 3 };
   planDirty = true;
   await runTask(persist);
   if (!planDirty) { toast('Anchors saved.'); render(); }
@@ -1803,7 +1813,7 @@ function dayDigest(k) {
       ...(w.sets?.length ? { strength_sets: w.sets.map(x => `${x.name}: ${x.sets ?? '?'} sets, ${x.reps ?? '?'} reps`) } : {}) }; }),
     body_log: d?.body?.length ? d.body.map(b => `${b.area}: ${BODY_KIND[b.kind] || b.kind} ${b.level}/10${b.note ? ` (${b.note})` : ''}`) : null,
     readiness: (() => { const r = readiness(k); return r ? `${r.title}: ${r.parts.map(p => p.text).concat(r.painNote || []).join('; ')}` : null; })(),
-    anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
+    anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.half ? 'half (counts 0.5)' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
     mood: d?.feel?.mood ?? null, energy: d?.feel?.energy ?? null, stress: d?.feel?.stress ?? null, tags: d?.feel?.tags?.length ? d.feel.tags : null, notes: d?.feel?.notes || null,
   };
 }
@@ -1814,7 +1824,7 @@ function periodStats(ks) {
   const c = anchorCfg();
   return {
     days: ks.length, days_food_logged: food.length,
-    anchors: `${ks.reduce((n, k) => n + anchorCount(getDay(k)), 0)} of ${c.names.length * ks.length}`,
+    anchors: `${boxN(ks.reduce((n, k) => n + anchorCount(getDay(k)), 0))} of ${c.names.length * ks.length}`,
     avg_steps: a(v(d => d?.steps)), avg_sleep_h: a(v(sleepHours)), avg_resting_hr: a(v(d => healthValue(d, 'restingHR'))),
     avg_calories_logged_days: a(food.map(t => t.calIn)), avg_protein_g: a(food.map(t => t.protein)), avg_fiber_g: a(food.map(t => t.fiber)), avg_sodium_mg: a(food.map(t => t.sodium)),
     vitamins_minerals_avg_pct_dv: (() => { const Dm = D.filter(d => d?.micros); if (!Dm.length) return null; return Object.fromEntries(MICROS.filter(m => m.dv).map(m => [m.name, Dm.map(d => d.micros[m.key]).filter(v => v != null)]).filter(([, a]) => a.length).map(([n, a]) => { const m = MICROS.find(x => x.name === n); return [n, Math.round(avg(a) / m.dv * 100) + '%']; })); })(),
@@ -2919,7 +2929,7 @@ function metricColumns(key) {
     case 'sleep': return [['Score', d => d.sleep?.score ?? '—'], ['Source', d => esc(srcLabel(d.sleep?.source, d.sleep?.via))]];
     case 'steps': return [['Source', d => esc(srcLabel(d.stepsSource, d.stepsVia))]];
     case 'weight': return [['Source', d => esc(srcLabel(d.weightSource, d.weightVia))]];
-    case 'anchor': return anchorCfg().names.map((nm, i) => [nm, d => anchorState(d, i).on ? '✓' : '·']);
+    case 'anchor': return anchorCfg().names.map((nm, i) => [nm, d => { const s = anchorState(d, i); return s.on ? '✓' : s.half ? '½' : '·'; }]);
   }
   return [];
 }
@@ -3028,7 +3038,7 @@ function metricExtra(key, keys, vals, color, unit) {
   }
   if (key === 'anchor') {
     const c = anchorCfg();
-    const per = c.names.map((nm, i) => [nm, D.filter(d => anchorState(d, i, undefined, c).on).length]);
+    const per = c.names.map((nm, i) => [nm, D.reduce((n, d) => n + anchorState(d, i, undefined, c).value, 0)]);
     const weeks = [...new Set(keys.map(weekStart))].filter(ws => addDays(ws, 6) < todayKey() && ws >= keys[0]);
     const met = weeks.filter(ws => weekTotal(ws) >= c.target).length;
     let streak = 0; for (const ws of [...weeks].reverse()) { if (weekTotal(ws) >= c.target) streak++; else break; }

@@ -35,7 +35,10 @@ try {
     await startApp('local'); day('2026-10-01').steps = 9; touch('2026-10-01'); await persist();
     return JSON.parse(localStorage.getItem('hs-local-data')).days['2026-10-01'].steps;
   });
-  const appOk = saved === 9 && !errors.length;
+  // Half credit shows on the real screen: 6,000 steps today draws a ½ box in Log today.
+  const half = await app.evaluate(() => { logDate = todayKey(); day(logDate).steps = 6000; render(); return document.querySelector('#an-boxes .anchor.half .ck')?.textContent; });
+  if (half !== '½') console.error(`FAIL  app start-up: no ½ box for 6,000 steps (got ${JSON.stringify(half)})`);
+  const appOk = saved === 9 && half === '½' && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

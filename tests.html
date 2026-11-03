@@ -349,6 +349,52 @@ describe('Garmin folder: newest-file mark', () => {
   test('saved data keeps reflections, the Garmin mark and the problems log', () => { const n = normalize({ reflections: { '2026-09-28': { inWay: 'x' } }, garminSeen: { days: 't', parser: 1 }, errors: [{ id: 1 }], errorsClearedAt: 'c' }); eq([!!n.reflections['2026-09-28'], n.garminSeen.days, n.errors.length, n.errorsClearedAt], [true, 't', 1, 'c']); });
 });
 
+/* ================= daily anchors: other ways to fill a box ================= */
+describe('Daily anchors: other ways to fill a box', () => {
+  const A = '2026-09-10';   // a finished day, with its Lose It food final
+  const eat = (...meals) => { const d = day(A); d.food = meals.map(([meal, calories]) => ({ name: meal, meal, calories, source: 'loseit' })); return getDay(A); };
+  const box = name => anchorCfg().names.indexOf(name);
+  const st = name => anchorState(getDay(A), box(name));
+  test('the day’s calorie goal defaults to the two meal limits added up (1,200 + 750)', () => { fresh(); eq(anchorCfg().dayGoal, 1950); });
+  test('within the day’s goal ticks both meal boxes, even with a big daytime', () => {
+    fresh(); eat(['Breakfast', 700], ['Lunch', 700], ['Dinner', 400]);
+    eq([st('Day Pack').on, st('Dinner Boundary').on], [true, true]); ok(/within the day’s goal/.test(st('Day Pack').auto.why), 'says why', st('Day Pack').auto.why);
+  });
+  test('within the day’s goal ticks both, even with a big dinner', () => { fresh(); eat(['Lunch', 600], ['Dinner', 1200]); eq([st('Day Pack').on, st('Dinner Boundary').on], [true, true]); });
+  test('over the day’s goal: each meal box is judged on its own again', () => {
+    fresh(); eat(['Lunch', 1100], ['Dinner', 900]);
+    eq([st('Day Pack').on, st('Dinner Boundary').on], [true, false]);
+  });
+  test('a day under the calorie floor (half a day logged) can’t tick both through the day’s goal', () => {
+    fresh(); eat(['Breakfast', 500]);
+    eq([st('Day Pack').on, st('Dinner Boundary').on], [true, false]);
+  });
+  test('the day’s goal can be switched off (0)', () => { fresh(); data.anchorCfg = { ...ANCHOR_DEFAULTS, dayGoal: 0 }; eat(['Lunch', 1400], ['Dinner', 400]); eq(st('Day Pack').on, false); });
+  test('steps: 7,500 is a full box, 5,000 is half, under 5,000 is nothing', () => {
+    fresh(); const v = s => { day(A).steps = s; return [st('Steps').value, st('Steps').half]; };
+    eq([v(7600), v(5200), v(4900)], [[1, false], [0.5, true], [0, false]]);
+  });
+  test('workouts: 20 minutes counts, 19 doesn’t', () => {
+    fresh(); const v = m => { day(A).workouts = [{ title: 'Walk', durationMin: m }]; return st('Movement').on; };
+    eq([v(20), v(19)], [true, false]);
+  });
+  test('a day’s count adds the half box: 1,800 cal + 25 min + 6,000 steps = 3½', () => {
+    fresh(); eat(['Lunch', 1200], ['Dinner', 600]); day(A).workouts = [{ durationMin: 25 }]; day(A).steps = 6000;
+    eq(anchorCount(getDay(A)), 3.5); eq(boxN(anchorCount(getDay(A))), '3½');
+  });
+  test('a box set by hand still wins over half credit', () => {
+    fresh(); day(A).steps = 6000;
+    eq([anchorState(getDay(A), box('Steps'), true).value, anchorState(getDay(A), box('Steps'), false).value], [1, 0]);
+  });
+  test('saved older settings are upgraded once: 20-min workouts, half at 5,000, reminders still at the old default', () => {
+    fresh(); data.anchorCfg = { names: ['Day Pack', 'Dinner Boundary', 'Movement', 'Steps'], hints: ['Shakes at 7, 11 & 3 · daytime calorie budget', 'My own dinner note', '25–30 min workout, 30-min walk, or the 10-min minimum', '7,500 steps or more'],
+      rules: [{ type: 'budget', meals: 'daytime', max: 1100 }, { type: 'meal', meal: 'Dinner', max: 700 }, { type: 'workout', min: 10 }, { type: 'steps', min: 7500 }], target: 23, v: 2 };
+    const c = anchorCfg();
+    eq([c.rules[2].min, c.rules[3].half, c.dayGoal, c.hints[1], c.hints[2]], [20, 5000, 1800, 'My own dinner note', '20 min or more of any workout or walk']);
+  });
+  test('weekly totals show halves: 22.5 → “22½”, 0.5 → “½”', () => eq([boxN(22.5), boxN(0.5), boxN(23)], ['22½', '½', '23']));
+});
+
 /* ================= saving and merging (sync.js) ================= */
 // A pretend Google Drive: one saved copy that "the other device" can change directly.
 function memStore(init) {

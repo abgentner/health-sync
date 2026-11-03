@@ -33,6 +33,29 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.4 (November 2, 2026)
+
+- **New: other ways to fill the daily anchor boxes.**
+  - **Day Pack and Dinner Boundary:** staying within the **day's calorie goal** ticks both, however the calories were split between meals. The goal starts at the two meal limits added up (1,200 + 750 = 1,950); change it in Settings › Daily anchors, or set 0 to turn it off. It only applies on days at or above the 1,500 calorie floor, so a half-logged or barely-eaten day can't tick both.
+  - **Steps:** still 7,500 for a full box. **5,000 or more is half a box.**
+  - **Movement:** **20 minutes** of any recorded workout counts. It was 10.
+- **Half boxes count 0.5** everywhere: the week's total (for example 22½ of 28), the bars and dots (half filled), the anchors detail page, report-card grades and what the Coach is told.
+- **Saved settings are upgraded once:** Movement becomes 20 minutes, Steps gets half credit at 5,000, and reminders still at their old default wording are updated. Reminders you wrote yourself are kept.
+- Tests: 116 checks, up from 104: the day's calorie goal (both directions, over the goal, under the floor, switched off), full, half and no step credit, 20 versus 19 minutes, a 3½-box day, hand-set boxes beating half credit, upgrading saved settings, and showing halves. GitHub's app start-up check also confirms a ½ box appears for 6,000 steps.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `rules.js` | Day's calorie goal, half step credit, 20-minute Movement, settings upgrade, half boxes in counts and grades |
+  | `index.html` | ½ boxes, half-filled bars and dots, totals like 22½, new settings (half steps, day's calorie goal); version and script tags |
+  | `tests.html` | 12 new checks (116 in all) |
+  | `.github/run-tests.mjs` | App start-up check looks for the ½ box |
+  | `README.md` | Daily anchors: the "Or…" column, day's calorie goal, half boxes, upgrade of saved settings |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.3.2 → 3.4). **Paste it** so Data health shows the same version. |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | `core.js`, `importers.js`, `sync.js`, `config.js` | Not changed |
+
 ### v3.3.2 (November 2, 2026)
 
 - **Fixed: Garmin day history stopped moving back while workouts were loading.** Each hourly run has 2 minutes for history, and it did workouts first. Each old workout takes about 6 seconds (its detail plus the original watch file), so about 10 workouts used up the time, and the days never got a turn. Your log showed *workouts 585–594 checked* while days stayed at Sep 29 for a week. Now each run loads **a week of days first**, then workouts with whatever time is left. Both keep moving, and the run stays inside Google's 90-minutes-a-day limit.

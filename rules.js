@@ -1,20 +1,22 @@
 'use strict';
 // Health Sync · rules worked out from the data: daily anchors, training load and readiness, weight trend, report-card grades.
 
-const STEPS_BOX = { name: 'Steps', hint: '7,500 steps or more', rule: { type: 'steps', min: 7500 } };
+const STEPS_BOX = { name: 'Steps', hint: '7,500 steps · 5,000 = half', rule: { type: 'steps', min: 7500, half: 5000 } };
 const ANCHOR_DEFAULTS = {
   names: ['Day Pack', 'Dinner Boundary', 'Movement', STEPS_BOX.name],
-  hints: ['Shakes at 7, 11 & 3 · daytime calorie budget', '8 oz protein · 2 cups veggies · 1 cup starch · one plate', '25–30 min workout, 30-min walk, or the 10-min minimum', STEPS_BOX.hint],
+  hints: ['Shakes at 7, 11 & 3 · daytime calorie budget · or the day’s calorie goal', '8 oz protein · 2 cups veggies · 1 cup starch · one plate · or the day’s calorie goal', '20 min or more of any workout or walk', STEPS_BOX.hint],
   // How each box can be checked automatically from imported data.
   rules: [
     { type: 'budget', meals: 'daytime', max: 1200 },
     { type: 'meal', meal: 'Dinner', max: 750 },
-    { type: 'workout', min: 10 },
+    { type: 'workout', min: 20 },
     STEPS_BOX.rule,
   ],
   target: 23,   // of 28 (about 80%, as 17 of 21 was with three boxes)
-  v: 2,
+  dayGoal: null,   // whole-day calories that tick every meal box; null = the meal boxes' limits added up
+  v: 3,
 };
+const OLD_HINTS = { 'Shakes at 7, 11 & 3 · daytime calorie budget': 0, '8 oz protein · 2 cups veggies · 1 cup starch · one plate': 1, '25–30 min workout, 30-min walk, or the 10-min minimum': 2, '7,500 steps or more': 3 };
 const anchorCfg = () => {
   const c = { ...ANCHOR_DEFAULTS, ...(data.anchorCfg || {}) };
   // v2.13: a fourth box for steps. Saved three-box settings get it added once, and the old 17-of-21 goal becomes 23 of 28.
@@ -29,6 +31,14 @@ const anchorCfg = () => {
   const r0 = c.rules[0];
   if (r0?.type === 'food' && r0.words === 'kate farms, naked whey, shake' && r0.min === 3) c.rules[0] = { ...ANCHOR_DEFAULTS.rules[0] };
   if (c.hints?.[0] === 'Shakes at 7 AM, 11 AM & 3 PM') c.hints = [ANCHOR_DEFAULTS.hints[0], ...c.hints.slice(1)];
+  // v3.4: other ways to fill a box. Saved settings get them once: the day's calorie goal ticks the meal boxes,
+  // 5,000 steps is half a box, and any 20 minutes of workouts counts. Reminders still at an old default are updated.
+  if (!(c.v >= 3)) {
+    c.rules = c.rules.map(r => r.type === 'steps' && r.half == null ? { ...r, half: 5000 } : r.type === 'workout' ? { ...r, min: 20 } : r);
+    c.hints = (c.hints || []).map(h => h in OLD_HINTS ? ANCHOR_DEFAULTS.hints[OLD_HINTS[h]] : h);
+    c.v = 3;
+  }
+  if (c.dayGoal == null) c.dayGoal = c.rules.filter(r => r.type === 'budget' && r.meals !== 'all' || r.type === 'meal').reduce((s, r) => s + (r.max || 0), 0) || null;
   return c;
 };
 
@@ -45,8 +55,10 @@ function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
   if (r.type === 'steps') {
     const s = d?.steps, goal = r.min || 0, today = k && k >= todayKey();
     if (s != null && s >= goal) return { ok: true, why: `${fmtN(s)} steps` };
+    const half = r.half && s != null && s >= r.half;
     // Today can still get there: show progress instead of a miss.
-    if (today) return { ok: false, pending: true, why: s != null ? `${fmtN(s)} of ${fmtN(goal)} steps so far` : 'no steps yet today' };
+    if (today) return { ok: false, half, pending: true, why: s != null ? `${fmtN(s)} of ${fmtN(goal)} steps so far${half ? ' · half a box already' : ''}` : 'no steps yet today' };
+    if (half) return { ok: false, half: true, why: `${fmtN(s)} steps · half a box (${fmtN(r.half)}+)` };
     return { ok: false, why: s != null ? `${fmtN(s)} of ${fmtN(goal)} steps` : 'no steps recorded' };
   }
   if (r.type === 'workout') {
@@ -59,6 +71,12 @@ function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
     const words = String(r.words || '').toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
     const n = d.food.filter(f => words.some(w => String(f.name).toLowerCase().includes(w))).length;
     return { ok: n >= (r.min || 1), why: `${n} matching food entr${n === 1 ? 'y' : 'ies'}` };
+  }
+  // Meal boxes: staying within the day's calorie goal ticks them all, whatever the split between meals.
+  // Only for a day at or above the calorie floor, so logging half a day (or barely eating) can't tick both.
+  if ((r.type === 'budget' || r.type === 'meal') && c.dayGoal && d?.food?.length) {
+    const day = d.food.reduce((s, f) => s + (f.calories || 0), 0), floor = rubric().calorieFloor;
+    if (day <= c.dayGoal && day >= floor) return { ok: true, why: `Day ${fmtN(day)} of ${fmtN(c.dayGoal)} cal · within the day’s goal` };
   }
   if (r.type === 'budget') {
     if (!d?.food?.length) return { ok: false, why: 'no food logged yet' };
@@ -76,12 +94,15 @@ function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
   return null;
 }
 // A box set by hand (true/false) wins; otherwise the imported data decides.
+// value: 1 for a ticked box, 0.5 for half credit (5,000 steps), 0 otherwise.
 function anchorState(d, i, manual = d?.anchors?.[i], c, k) {
   const auto = autoAnchor(d, i, c, k ?? d?._k);
-  if (manual === true || manual === false) return { on: manual, manual: true, auto };
-  return { on: !!auto?.ok, manual: false, auto, pending: !!auto?.pending };
+  if (manual === true || manual === false) return { on: manual, value: manual ? 1 : 0, manual: true, auto };
+  const half = !auto?.ok && !!auto?.half;
+  return { on: !!auto?.ok, half, value: auto?.ok ? 1 : half ? 0.5 : 0, manual: false, auto, pending: !!auto?.pending };
 }
-const anchorCount = (d, manual) => { const c = anchorCfg(); return c.names.reduce((n, _, i) => n + (anchorState(d, i, manual ? manual[i] : d?.anchors?.[i], c).on ? 1 : 0), 0); };
+const anchorCount = (d, manual) => { const c = anchorCfg(); return c.names.reduce((n, _, i) => n + anchorState(d, i, manual ? manual[i] : d?.anchors?.[i], c).value, 0); };
+const boxN = n => n % 1 ? `${Math.floor(n) || ''}½` : String(n);   // 22.5 boxes → "22½"
 const weekStart = k => addDays(k, -((keyToDate(k).getDay() + 6) % 7));   // weeks run Monday–Sunday
 
 const COACH_BACKFILL_FROM = '2026-09-01';
@@ -391,7 +412,7 @@ function gradeSubjects(start, end) {
   if (!n) return out;
   // Daily anchors: boxes ticked against the weekly goal, scaled to the period.
   { const c = anchorCfg(), got = D.reduce((s, [, d]) => s + anchorCount(d), 0), goal = c.target * weeks;
-    out.anchors = { parts: [{ name: 'Boxes ticked vs goal', weight: 1, score: clamp01(got / goal), detail: `${got} of a goal of ${Math.round(goal)} (${c.target} a week)` }] }; }
+    out.anchors = { parts: [{ name: 'Boxes ticked vs goal', weight: 1, score: clamp01(got / goal), detail: `${boxN(got)} of a goal of ${Math.round(goal)} (${c.target} a week)` }] }; }
   // Nutrition: food quality on fully logged days. Calories are graded under the anchors (Day Pack, Dinner Boundary).
   { const t = coachCfg().targets, full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).map(([k, d]) => totals(d));
     const share = f => full.length ? full.reduce((s, x) => s + f(x), 0) / full.length : null;
