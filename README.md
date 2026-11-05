@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.4** · November 2, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.4.1** · November 5, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -77,11 +77,11 @@ The Sleep, Steps and Weight pages show where each day's value came from, includi
 | **Garmin** | Updated in the last few hours; shows when your watch last synced, how far back history has loaded, and when the key expires | Watch not synced for 12 h (amber; email after a day), key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber with the time it resumes, no email) |
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
 | **Steps, Sleep, Weight, Resting heart rate, Food** | The newest automatic value is from yesterday or the day before (weight: within the last week) | Steps, sleep, resting heart rate and food: newest value 3–4 days old (amber) or older (red). Weight: over a week old (amber) or over two weeks (red). Each row says what to check |
-| **Weight-loss pace** | A safe pace, or no weight-loss data | Amber: over 1.25% of body weight a week across the last 2 weeks, or over twice your committed rate. Red: over 1% a week across 4 weeks (see Weight page) |
 
 The measure rows exist because a source can keep delivering files while one measure inside them stops. For example, Health Auto Export can keep updating while its file has no sleep in it. The app checks these rows when it's open; they don't send alert emails.
 
 - When anything is amber or red, a **⚠ data issue** chip appears at the top of every screen. Tap it to open this panel.
+- Data health is only about your data arriving. Your **weight-loss pace** is a health alert, so it has its own **♥** chip instead (Weight › Pace alarm).
 - **Alert emails:** your Google script checks every hour, even when the app is closed. It emails you **once a day per problem** if Lose It or Health Auto Export goes quiet for 36 hours, if Health Auto Export switches to minute data, or if Strava fails.
 
 ### Days to check (catching up after travel)
@@ -169,7 +169,7 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
 
 Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale → Apple Health → Health Auto Export**. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
 
-- **Pace alarm:** losing faster than about **1% of body weight a week for 4 weeks** costs muscle as well as fat. The page then shows **Losing too fast** in red, and Data health turns red. Over **1.25% a week across the last 2 weeks** only, or over twice your committed rate, shows **Watch your pace** in amber. The pace is a straight line fitted through your actual weigh-ins, because the smoothed trend reacts too slowly to warn in time. Daily water swings of a couple of pounds don't set it off. It needs 3 weeks of weigh-ins, with at least 6 in the last 2 weeks. The fix it suggests: eat a little more on very low days, keep protein at target, and keep strength training.
+- **Pace alarm:** losing faster than about **1% of body weight a week for 4 weeks** costs muscle as well as fat. The Weight page then shows **Losing too fast** in red, and a red **♥ Losing too fast** chip appears at the top of every screen; tap it to open the Weight page. It isn't counted as a data issue. Over **1.25% a week across the last 2 weeks** only, or over twice your committed rate, shows **Watch your pace** in amber, with an amber ♥ chip. The pace is a straight line fitted through your actual weigh-ins, because the smoothed trend reacts too slowly to warn in time. Daily water swings of a couple of pounds don't set it off. It needs 3 weeks of weigh-ins, with at least 6 in the last 2 weeks. The fix it suggests: eat a little more on very low days, keep protein at target, and keep strength training.
 
 - **Trend weight:** a smoothed weight that moves 10% of the way toward each new weigh-in. It ignores day-to-day water swings (1–4 lb is normal) and shows what's really happening. The **Weight tile** on the Dashboard and the **Coach** both use it.
 - **Chart:** your weigh-ins as faint dots, the trend as a bold line, and a **dashed projection** to your goal at the selected rate.
@@ -539,7 +539,7 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 **`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 104 checks as of v3.3.1. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 117 checks as of v3.4.1. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.

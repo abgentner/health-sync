@@ -306,6 +306,12 @@ describe('Weight-loss pace alarm', () => {
     fresh(); for (let i = 35; i >= 0; i -= 2) { const d = day(addDays('2026-10-04', -i)); d.weightUnit = 'lb'; d.weight = 200 - (35 - i) * 0.4; }
     eq(weightPace('2026-10-04').status, 'fast');
   });
+  test('it is a health alert of its own, not a data issue', () => {
+    losing(2.6); const a = paceAlert('2026-10-04'); eq([a.level, a.label], ['bad', 'Losing too fast']);
+    losing(1); eq(paceAlert('2026-10-04'), null);
+    fresh(); for (let i = 35; i >= 0; i--) { const d = day(addDays('2026-10-04', -i)); d.weightUnit = 'lb'; d.weight = i > 14 ? 200 - (35 - i) * 0.1 : 198 - (14 - i) * 0.4; }
+    eq(paceAlert('2026-10-04').level, 'warn');
+  });
 });
 
 describe('Alcohol', () => {

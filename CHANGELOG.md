@@ -33,6 +33,25 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.4.1 (November 5, 2026)
+
+- **Fixed: losing weight too fast showed up as a "data issue".** The pace alarm is about your health, not about data arriving, so it no longer counts in Data health or the **⚠ data issue** chip. It has its own chip at the top of every screen instead: red **♥ Losing too fast**, or amber **♥ Watch your pace**. Tap it to open the Weight page, which explains the pace and what to do. The alarm's rules haven't changed.
+- Tests: 117 checks, up from 116: the alarm gives a red or amber health alert of its own, and none at a safe pace. GitHub's app start-up check also confirms the ♥ chip appears and Data health has no pace row. The real-file suites in the private repository were run against this version too.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `rules.js` | `paceAlert`: the pace alarm as a health alert |
+  | `index.html` | Pace removed from Data health; new ♥ chip that opens the Weight page; version and script tags |
+  | `tests.html` | 1 new check (117 in all) |
+  | `.github/run-tests.mjs` | App start-up check: 5 weeks of fast loss shows the red ♥ chip, and Data health has no pace row |
+  | `README.md` | Data health and Pace alarm: the ♥ chip |
+  | `SETUP.md` | Step 12c no longer names an old script version |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.4 → 3.4.1). **Paste it** so Data health shows the same version. |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `core.js`, `importers.js`, `sync.js`, `config.js` | Not changed |
+
 ### v3.4 (November 2, 2026)
 
 - **New: other ways to fill the daily anchor boxes.**

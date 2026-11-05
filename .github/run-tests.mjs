@@ -38,7 +38,15 @@ try {
   // Half credit shows on the real screen: 6,000 steps today draws a ½ box in Log today.
   const half = await app.evaluate(() => { logDate = todayKey(); day(logDate).steps = 6000; render(); return document.querySelector('#an-boxes .anchor.half .ck')?.textContent; });
   if (half !== '½') console.error(`FAIL  app start-up: no ½ box for 6,000 steps (got ${JSON.stringify(half)})`);
-  const appOk = saved === 9 && half === '½' && !errors.length;
+  // Losing 3 lb a week for 5 weeks shows the red ♥ health chip, and it isn't counted as a data issue.
+  const pace = await app.evaluate(() => {
+    for (let i = 35; i >= 0; i--) { const d = day(addDays(todayKey(), -i)); d.weightUnit = 'lb'; d.weight = Math.round((200 - 3 / 7 * (35 - i)) * 10) / 10; }
+    render(); const pc = document.querySelector('#pc'), hc = document.querySelector('#hc');
+    return [!pc.hidden && pc.textContent, healthRows().some(r => /pace/i.test(r[1])), hc.hidden || !/data issue/.test(hc.textContent) || hc.className];
+  });
+  const paceOk = pace[0] === '♥ Losing too fast' && pace[1] === false;
+  if (!paceOk) console.error(`FAIL  app start-up: pace chip ${JSON.stringify(pace)}, expected "♥ Losing too fast" and no pace row in Data health`);
+  const appOk = saved === 9 && half === '½' && paceOk && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

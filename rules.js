@@ -308,6 +308,13 @@ function weightPace(k = todayKey()) {
   return { status, text, fix, rate14: r14, rate28: r28, pct14: p14, pct28: p28 };
 }
 
+// The pace alarm is about your health, not your data, so it gets its own chip at the top of the app (♥ Losing too fast)
+// instead of counting as a data issue. Tapping it opens the Weight page.
+function paceAlert(k = todayKey()) {
+  const p = weightPace(k);
+  return p && p.status !== 'ok' ? { level: p.status === 'fast' ? 'bad' : 'warn', label: p.status === 'fast' ? 'Losing too fast' : 'Watch your pace', text: p.text } : null;
+}
+
 /* ---- alcohol ---- */
 // Drinks for a day: typed in by hand first, then Apple Health ("Number of Alcoholic Beverages"), then Lose It foods that are drinks.
 const DRINK_RX = /\b(beer|ipa|lager|pilsner|stout|porter|ale|wine|merlot|cabernet|pinot|chardonnay|sauvignon|riesling|ros[eé]|prosecco|champagne|cava|vodka|whiske?y|bourbon|scotch|rum|tequila|mezcal|gin|cocktail|margarita|martini|mojito|negroni|old fashioned|spritz|sangria|hard seltzer|white claw|truly|hard cider|sake|soju)\b/i;

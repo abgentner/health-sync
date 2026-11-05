@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.4** · November 2, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.4.1** · November 5, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -527,7 +527,7 @@ That's it. Health Sync writes the report cards for every week, month and quarter
 
 The email comes from your own Google script, so it needs the script's v2.0 code or later:
 
-1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (v3.3, the same version as the app) and click **💾 Save**.
+1. At **script.google.com**, open **Health Sync email saver**. Replace all the code with **`email-to-drive.gs`** (the same version as the app) and click **💾 Save**.
 2. Choose **`emailTest`** in the function dropdown and click **▶ Run**.
    - Google asks for permission again, this time to **send email as you**. Allow it.
    - Check that you received a test email.

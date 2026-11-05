@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.4 -->
+<!-- Health Sync app · version 3.4.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -319,9 +319,10 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .rv-row summary:hover{background:var(--surface-2)}
 .rv-body{padding:4px 16px 16px}
 .rv-inc textarea{width:100%}
-.health-chip{margin-left:auto;border:0;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;background:var(--warn-bg);color:var(--warn-ink)}
+.hdr-chips{margin-left:auto;display:flex;align-items:center;gap:6px;min-width:0}
+.health-chip{white-space:nowrap;border:0;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;background:var(--warn-bg);color:var(--warn-ink)}
 .health-chip.bad{background:color-mix(in oklab,var(--bad) 15%,var(--surface));color:var(--bad)}
-.health-chip:not([hidden])+.status{margin-left:0}
+.hdr-chips:has(.health-chip:not([hidden]))+.status{margin-left:0}
 .dh{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border)}
 .dh:first-child{border-top:0}
 .dh i{flex:none;width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--muted)}
@@ -440,7 +441,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   <div class="wrap">
     <div class="hdr">
       <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a78d6"/><stop offset="1" stop-color="#5b54d6"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lg)"/><path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Health Sync</div>
-      <button class="health-chip" id="hc" hidden title="A data source is late — open Import for details"></button>
+      <span class="hdr-chips"><button class="health-chip" id="pc" hidden title="Your weight-loss pace: open the Weight page"></button><button class="health-chip" id="hc" hidden title="A data source is late — open Import for details"></button></span>
       <div class="status" title=""><span class="dot" id="st-dot"></span><span class="lbl" id="st-lbl">Ready</span></div>
       <button class="btn small" id="btn-sync" title="Reload data and check the Drive Inbox">Sync</button>
     </div>
@@ -895,13 +896,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.4"></script>
-<script src="importers.js?v=3.4"></script>
-<script src="rules.js?v=3.4"></script>
-<script src="sync.js?v=3.4"></script>
+<script src="core.js?v=3.4.1"></script>
+<script src="importers.js?v=3.4.1"></script>
+<script src="rules.js?v=3.4.1"></script>
+<script src="sync.js?v=3.4.1"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.4';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.4.1';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -2502,8 +2503,6 @@ function healthRows() {
     rows.push([s.error ? 'bad' : s.connected ? 'ok' : 'gray', 'Strava', s.connected ? `Connected${s.lastNewAt ? ` · last new workout saved ${H(since(s.lastNewAt))}` : ''}` : 'Not connected', s.error ? `Sync failed: ${s.error} — run stravaCheck in the script.` : '']);
     rows.push(garminRow(st.garmin, H, since));
   }
-  const wp = weightPace();
-  if (wp) rows.push([wp.status === 'fast' ? 'bad' : wp.status === 'watch' ? 'warn' : 'ok', 'Weight-loss pace', wp.text, wp.fix]);
   // Each measure on its own: a source can keep delivering files while one measure inside them stops (for example sleep).
   // [name, has it, days a gap is normal, what to check, only shown once it has ever arrived]
   const yest = addDays(todayKey(), -1);
@@ -2582,6 +2581,10 @@ function renderHealth() {
   hc.hidden = !(bad || warn);
   hc.className = 'health-chip' + (bad ? ' bad' : '');
   hc.textContent = `⚠ ${plural(bad + warn, 'data issue')}`;
+  // Weight-loss pace is a health alert, not a data issue (paceAlert in rules.js).
+  const pa = paceAlert(), pc = $('#pc');
+  pc.hidden = !pa;
+  if (pa) { pc.className = 'health-chip' + (pa.level === 'bad' ? ' bad' : ''); pc.textContent = `♥ ${pa.label}`; pc.title = `${pa.text} Tap for the Weight page.`; }
 }
 
 
@@ -3404,6 +3407,7 @@ $('#tab-coach').addEventListener('click', async e => {
 });
 
 $('#hc').onclick = () => goTab('imp');
+$('#pc').onclick = () => openMetric('weight');
 $('#er-clear').onclick = async () => { data.errors = []; data.errorsClearedAt = new Date().toISOString(); errorsDirty = true; renderErrors(); await savePersist(); };
 
 $('#m-weight').addEventListener('click', async e => {
