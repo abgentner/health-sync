@@ -288,14 +288,28 @@ function trendRate(S, days, end = todayKey()) {
   const a = trendOn(S, addDays(end, -days)), b = trendOn(S, end);
   return a == null || b == null ? null : (b - a) / days * 7;
 }
-// Units a week for forecasts: the trend over 30 days, or (when the trend doesn't go back that far, e.g. just after a
-// long gap) a straight line through the last 4 weeks of weigh-ins.
+// Units a week for forecasts, from actual weigh-ins: a straight line through the last 4 weeks of them (at least 4),
+// or the trend over 30 days when there are too few. The trend lags when weight moves fast, so it's only the fallback.
 function weightRate(S, k = todayKey()) {
-  const r = trendRate(S, 30, k);
-  if (r != null) return r;
   const f = weighInSlope(k, 28);
-  return f.n >= 4 ? f.rate : null;
+  return f.n >= 4 && f.rate != null ? f.rate : trendRate(S, 30, k);
 }
+// The three prediction rates, all from your weigh-ins. Forecasts start at the latest weigh-in (`base`), like Progress.
+//   commit: the rate you committed to · current: the last 4 weeks of weigh-ins · overall: your average loss a week since
+//   the start (start weight to latest weigh-in).
+function weightRates(k = todayKey()) {
+  const S = weightSeries(), G = weightGoals(S), A = weighInAge(k);
+  if (!A) return null;
+  const weeks = G.startDate ? (keyToDate(A.k) - keyToDate(G.startDate)) / 864e5 / 7 : 0;
+  const toGoal = G.goal == null ? -1 : Math.sign(G.goal - A.w) || -1;
+  return { base: A.w, baseK: A.k, unit: S.unit,
+    commit: G.rate ? Math.abs(G.rate) * toGoal : null,
+    current: weightRate(S, k),
+    overall: G.start != null && weeks >= 1 ? (A.w - G.start) / weeks : null };
+}
+// When a forecast at `rate` reaches weight w, or what it says on day k2. Null if the rate isn't heading toward w.
+const forecastDay = (R, rate, w, k = todayKey()) => rate == null || Math.abs(rate) < 0.01 || Math.sign(rate) !== Math.sign(w - R.base) ? null : addDays(k, Math.max(1, Math.round((w - R.base) / rate * 7 - (keyToDate(k) - keyToDate(R.baseK)) / 864e5)));
+const forecastWeight = (R, rate, k2) => rate == null ? null : R.base + rate * (keyToDate(k2) - keyToDate(R.baseK)) / 864e5 / 7;
 function weightGoals(S) {
   const c = weightCfg(), first = S.rows.find(r => r.w != null);
   const start = c.start ?? first?.w ?? null, startDate = c.startDate || first?.k || null;
@@ -334,10 +348,10 @@ function weightMilestones(k = todayKey()) {
   for (; losing ? m > G.goal + 1e-9 : m < G.goal - 1e-9; m += losing ? -step : step) ws.push(Math.round(m * 10) / 10);
   ws.push(G.goal);
   const cur = A.w, rows = S.rows.filter(r => r.k <= k && (!G.startDate || r.k >= G.startDate));
-  const rate = weightRate(S, k), toward = rate != null && Math.abs(rate) > 0.01 && (losing ? rate < 0 : rate > 0);
+  const R = weightRates(k), rate = R.current;
   const items = ws.map((w, i) => {
     const hit = rows.find(r => before(r.w, w) || before(r.t, w));
-    return { w, n: i + 1, goal: i === ws.length - 1, reached: hit ? hit.k : null, eta: !hit && toward ? addDays(k, Math.max(1, Math.round((w - cur) / rate * 7))) : null };
+    return { w, n: i + 1, goal: i === ws.length - 1, reached: hit ? hit.k : null, eta: hit ? null : forecastDay(R, rate, w, k) };
   });
   const ni = items.findIndex(x => !x.reached), next = ni < 0 ? null : items[ni], prevW = ni <= 0 ? G.start : items[ni - 1].w;
   const total = Math.abs(G.start - G.goal), done = Math.max(0, Math.min(total, losing ? G.start - cur : cur - G.start));

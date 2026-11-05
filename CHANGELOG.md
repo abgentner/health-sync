@@ -33,6 +33,29 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.5.2 (November 5, 2026)
+
+- **Fixed: Predictions disagreed with your weigh-ins.** They started from the trend weight (several pounds behind when losing fast), still listed 270 after you'd weighed in under it, and "Overall" was worked out from the trend too. Now:
+  - Predictions start from your **latest weigh-in**, and list only the milestones still ahead (the same ones as Progress).
+  - **Last 4 weeks** (now the default): a straight line through your weigh-ins from the last 4 weeks.
+  - **Average:** your average loss a week since your start date, from your start weight to your latest weigh-in.
+  - **Commitment:** the rate you set.
+  - Progress's forecast dates use the Last 4 weeks rate too, so the two cards match. The chart's dashed projection starts at your latest weigh-in.
+- **Changed: Weight page layout.** On a computer, Progress (the long card with every milestone) has its own column, and Trend change, Last 10 days, BMI and Predictions pack beside it instead of stretching to its height. Goals and settings sits underneath across the page. On a phone everything stacks as before.
+- Tests: 126 checks, up from 125: predictions start at the latest weigh-in; the last-4-weeks and average rates both come out at the real 3.5 lb a week while the trend says less; a forecast date and weight; gaining never reaches the goal; and Progress and Predictions give the same date. Screenshots checked in dark mode at desktop and phone sizes, with data shaped like yours. The real-file suites were run too.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `rules.js` | `weightRate` prefers the weigh-in line; `weightRates`, `forecastDay`, `forecastWeight` |
+  | `index.html` | Predictions card and chart projection from the latest weigh-in; two-column Weight layout; version and script tags |
+  | `tests.html` | 1 new check (126 in all) |
+  | `README.md` | Predictions and layout |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.5.1 → 3.5.2). **Paste it** so Data health shows the same version. |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | `core.js`, `importers.js`, `sync.js`, `config.js`, `.github/` | Not changed |
+
 ### v3.5.1 (November 5, 2026)
 
 - **Fixed: the Progress gauge was drawn wrong** once you were more than halfway through a milestone: the arc swung round the outside of the circle. Arcs on a half-circle gauge now always bend the short way. (The same drawing code is used by the BMI gauge.)

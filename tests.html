@@ -352,6 +352,17 @@ describe('Latest weigh-in and milestones', () => {
     ok(weightMilestones().next.eta, 'forecast dates come back', weightMilestones().next);
   });
   test('no goal → no milestones', () => { weighs(1, 0); eq(weightMilestones(), null); });
+  test('predictions start at the latest weigh-in, at rates from weigh-ins and the average loss', () => {
+    fresh(); const t = todayKey(); for (let i = 28; i >= 0; i--) { const d = day(addDays(t, -i)); d.weightUnit = 'lb'; d.weight = Math.round((274.8 - 0.5 * (28 - i)) * 10) / 10; }
+    data.weightCfg = { goal: 200, start: 274.8, startDate: addDays(t, -28), step: 5, rate: 1.5 };
+    const R = weightRates(); eq([R.base, R.baseK, R.commit], [260.8, t, -1.5]);
+    ok(Math.abs(R.current + 3.5) < 0.01, 'last 4 weeks: 3.5 lb a week from the weigh-ins (the lagging trend says less)', [R.current, trendRate(weightSeries(), 30)]);
+    ok(Math.abs(R.overall + 3.5) < 0.01, 'average since the start: 14 lb in 4 weeks', R.overall);
+    eq(forecastDay(R, R.current, 253.8), addDays(t, 14));   // 7 lb at 3.5 a week
+    eq(forecastDay(R, 1, 253.8), null);                      // gaining never gets there
+    eq(Math.round(forecastWeight(R, R.current, addDays(t, 7)) * 10) / 10, 257.3);
+    eq(weightMilestones().items.find(x => x.w === 255).eta, forecastDay(R, R.current, 255));   // Progress and Predictions agree
+  });
 });
 
 describe('Alcohol', () => {

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.5.1 -->
+<!-- Health Sync app · version 3.5.2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -328,7 +328,10 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .dh i{flex:none;width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--muted)}
 .dh i.ok{background:var(--good)} .dh i.warn,.dh i.gap{background:#d79a00} .dh i.bad{background:var(--bad)}
 .dh b{font-weight:600} .dh .fix{font-size:13px;color:var(--text-2);margin-top:2px}
-.wt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
+.wt-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px;align-items:start}
+.wt-grid.no-prog{grid-template-columns:1fr}
+.wt-side{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px;align-items:start}
+@media (max-width:900px){.wt-grid{grid-template-columns:1fr}}
 .wt-card{margin:0}
 .wt-gauge{position:relative;max-width:300px;margin:0 auto}
 .wt-gauge svg{width:100%;display:block}
@@ -366,9 +369,10 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .wt-ms b{flex:1;height:2px;background:var(--border)}
 .wt-seg{display:flex;width:100%} .wt-seg button{flex:1;display:flex;flex-direction:column;align-items:center}
 .wt-seg small{font-size:11px;opacity:.8}
+.wt-seg button{min-width:0;padding-left:4px;padding-right:4px;white-space:nowrap}
 .sw2{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px}
 .wt-set summary{cursor:pointer;list-style:none} .wt-set summary::-webkit-details-marker{display:none}
-.wt-set{grid-column:1/-1}
+.wt-set{margin-top:12px}
 .partial-note{margin:0 0 6px;padding:6px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);font-size:12.5px}
 .rd{border-radius:12px;padding:12px 14px;margin-bottom:10px;border:1px solid var(--border)}
 .rd-v{font-size:19px;font-weight:750;letter-spacing:-.01em}
@@ -913,13 +917,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.5.1"></script>
-<script src="importers.js?v=3.5.1"></script>
-<script src="rules.js?v=3.5.1"></script>
-<script src="sync.js?v=3.5.1"></script>
+<script src="core.js?v=3.5.2"></script>
+<script src="importers.js?v=3.5.2"></script>
+<script src="rules.js?v=3.5.2"></script>
+<script src="sync.js?v=3.5.2"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.5.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.5.2';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -2606,7 +2610,7 @@ function renderHealth() {
 const BMI_CATS = [['Underweight', 0, 18.5, 'var(--c-steps)'], ['Normal', 18.5, 25, 'var(--good)'], ['Overweight', 25, 30, '#d79a00'], ['Obese class I', 30, 35, 'var(--c-cal)'], ['Obese class II', 35, 40, 'var(--bad)'], ['Obese class III', 40, 99, 'var(--c-mood)']];
 const bmiOf = (w, unit, hIn) => w == null || !hIn ? null : (unit === 'kg' ? w * 2.20462 : w) * 703 / (hIn * hIn);
 const weightForBmi = (b, unit, hIn) => { const lb = b * hIn * hIn / 703; return unit === 'kg' ? lb / 2.20462 : lb; };
-let predMode = 'commit';
+let predMode = 'current';   // predictions start on your recent weigh-ins (Last 4 weeks)
 
 // Arc helper: 180° gauge from left to right; frac 0..1
 function arcPath(cx, cy, r, f0, f1) {
@@ -2637,10 +2641,11 @@ function renderWeightExtras() {
 
   // --- progress, the way Happy Scale shows it: the current milestone, the whole way, and every milestone with its date
   const P = weightMilestones(today);
+  let progCard = '';
   if (P) {
     const dt = k => esc(fmtDay(k, { month: 'short', day: 'numeric', year: k.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric' }));
     const ticks = P.items.slice(0, -1).map(x => `<i style="left:${(Math.abs(P.start - x.w) / P.total * 100).toFixed(1)}%" class="${x.reached ? 'on' : ''}"></i>`).join('');
-    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Progress</h2><span class="muted small">${f1(P.start)} → ${f1(P.goal)} ${u}${P.startDate ? ` · since ${fmtDay(P.startDate, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</span></div>
+    progCard = (`<div class="card wt-card"><div class="card-h"><h2>Progress</h2><span class="muted small">${f1(P.start)} → ${f1(P.goal)} ${u}${P.startDate ? ` · since ${fmtDay(P.startDate, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</span></div>
       <div class="wt-gauge"><svg viewBox="0 0 220 124" aria-hidden="true"><path d="${arcPath(110, 112, 92, 0, 1)}" class="g-track"/>${P.within > 0.002 ? `<path d="${arcPath(110, 112, 92, 0, Math.min(P.within, 0.999))}" class="g-fill"/>` : ''}</svg>
         <div class="wt-gauge-in">${P.next ? `<div class="muted small">${P.next.goal ? 'Goal' : `Milestone ${P.next.n} of ${P.items.length}`}</div><div class="wt-big">${f1(P.toNext)}<span class="u"> ${u}</span></div><div class="muted small">to ${f1(P.next.w)}${P.next.eta ? ` · about ${dt(P.next.eta)}` : ''}</div>` : `<div class="wt-big">🎉</div><div class="muted small">Goal reached</div>`}</div></div>
       <div class="wt-bar"><div class="fill" style="width:${(P.frac * 100).toFixed(1)}%"></div>${ticks}</div>
@@ -2649,7 +2654,7 @@ function renderWeightExtras() {
       <div class="sub-h" style="margin-top:14px">Milestones</div>
       <div class="list wt-mlist">${P.items.map(x => `<div class="li${x.next ? ' next' : ''}${x.reached ? ' done' : ''}"><span class="n"><span class="wt-mk">${x.reached ? '✓' : x.next ? '●' : '○'}</span><b>${f1(x.w)} ${u}</b> <span class="muted small">${x.goal ? 'Goal' : `Milestone ${x.n}`}</span></span><span class="x small">${x.reached ? `reached ${dt(x.reached)}` : x.next ? `<b>${f1(P.toNext)} ${u} to go</b>${x.eta ? ` · about ${dt(x.eta)}` : ''}` : x.eta ? `about ${dt(x.eta)}` : '<span class="muted">—</span>'}</span></div>`).join('')}</div>
       <div class="muted small" style="margin-top:6px">A milestone counts the first day you weigh in at or under it. Progress is measured from your latest weigh-in (${f1(P.current)} ${u}). Forecast dates use your recent rate (${P.rate == null ? '—' : `${sgn(P.rate)} ${u}/week`}).</div></div>`);
-  } else if (A) cards.push(`<div class="card wt-card"><div class="card-h"><h2>Progress</h2></div><p class="muted" style="margin:0">Add your goal weight in <b>Goals and settings</b> below to see milestones and progress.</p></div>`);
+  } else if (A) progCard = (`<div class="card wt-card"><div class="card-h"><h2>Progress</h2></div><p class="muted" style="margin:0">Add your goal weight in <b>Goals and settings</b> below to see milestones and progress.</p></div>`);
 
   // --- change in trend over standard windows
   const ch = d => { const a = trendOn(S, addDays(today, -d)); return a == null ? null : trendNow - a; };
@@ -2683,31 +2688,26 @@ function renderWeightExtras() {
       <div class="muted small" style="margin-top:6px">BMI is a rough screen: it doesn't tell muscle from fat. Your body fat % (from Withings) is a better guide when it's available.</div></div>`);
   }
 
-  // --- predictions
-  if (G.goal != null) {
-    const rates = { commit: -Math.abs(G.rate) * (G.goal < trendNow ? 1 : -1), current: weightRate(S), overall: G.start != null && G.startDate ? (trendNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : null };
-    const r = rates[predMode];
-    const rows = [];
-    const toward = r != null && Math.abs(r) > 0.01 && Math.sign(r) === Math.sign(G.goal - trendNow);
-    const dateFor = w => toward ? addDays(today, Math.round((w - trendNow) / r * 7)) : null;
-    const weightOn = k => r == null ? null : trendNow + r * ((keyToDate(k) - keyToDate(today)) / 864e5) / 7;
-    // upcoming milestones and the goal
-    const losing = G.goal < trendNow;
-    for (let m = Math.ceil(trendNow / G.step) * G.step; losing ? m > G.goal : m < G.goal; m += losing ? -G.step : G.step) { if (Math.abs(m - trendNow) > 0.05 && (losing ? m < trendNow : m > trendNow)) rows.push({ w: m, label: 'Milestone', k: dateFor(m) }); }
-    rows.push({ w: G.goal, label: 'Goal', k: dateFor(G.goal), goal: true });
-    for (const e of G.events) if (e.date >= today) rows.push({ w: weightOn(e.date), label: e.name, k: e.date, event: true });
+  // --- predictions: from your latest weigh-in, at a rate from your weigh-ins (or your commitment)
+  const R = weightRates(today);
+  if (G.goal != null && R) {
+    const r = R[predMode], rows = [];
+    const ahead = P ? P.items.filter(x => !x.reached) : [{ w: G.goal, goal: true }];
+    for (const x of ahead) rows.push({ w: x.w, label: x.goal ? 'Goal' : `Milestone ${x.n}`, k: forecastDay(R, r, x.w, today), goal: x.goal });
+    for (const e of G.events) if (e.date >= today) rows.push({ w: forecastWeight(R, r, e.date), label: e.name, k: e.date, event: true });
     rows.sort((a, b) => (a.k || '9999').localeCompare(b.k || '9999'));
+    const toward = forecastDay(R, r, G.goal, today) != null;
     const inW = k => { const d = Math.round((keyToDate(k) - keyToDate(today)) / 864e5); return d < 14 ? plural(d, 'day') : d < 70 ? plural(Math.round(d / 7), 'week') : plural(Math.round(d / 30.4), 'month'); };
-    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Predictions</h2></div>
-      <div class="seg wt-seg" id="wt-pred">${[['commit', 'Commitment', rates.commit], ['current', 'Current rate', rates.current], ['overall', 'Overall rate', rates.overall]].map(([k, l, v]) => `<button data-p="${k}" class="${predMode === k ? 'on' : ''}">${l}<small>${v == null ? '—' : sgn(v)}</small></button>`).join('')}</div>
-      <p class="small" style="margin:10px 0 6px">${r == null ? 'Not enough weigh-ins yet for this rate.' : toward ? `At ${sgn(r)} ${u}/week, here's the forecast:` : `At ${sgn(r)} ${u}/week you're not moving toward your goal, so only event-date weights are shown.`}</p>
+    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Predictions</h2><span class="muted small">from ${f1(R.base)} ${u} on ${esc(fmtDay(R.baseK, { month: 'short', day: 'numeric' }))}</span></div>
+      <div class="seg wt-seg" id="wt-pred">${[['current', 'Last 4 weeks', R.current], ['overall', 'Average', R.overall], ['commit', 'Commitment', R.commit]].map(([k, l, v]) => `<button data-p="${k}" class="${predMode === k ? 'on' : ''}">${l}<small>${v == null ? '—' : `${sgn(v)}/wk`}</small></button>`).join('')}</div>
+      <p class="small" style="margin:10px 0 6px">${r == null ? 'Not enough weigh-ins yet for this rate.' : toward ? `At ${sgn(r)} ${u} a week from your latest weigh-in:` : `At ${sgn(r)} ${u} a week you're not moving toward your goal, so only event-date weights are shown.`}</p>
       <div class="list">${rows.filter(x => x.w != null).slice(0, 12).map(x => `<div class="li"><span class="n"><b>${f1(x.w)} ${u}</b> <span class="muted small">${esc(x.label)}</span></span><span class="x small">${x.k ? `${esc(fmtDay(x.k, { month: 'short', day: 'numeric', year: 'numeric' }))} <span class="muted">· in ${inW(x.k)}</span>` : '<span class="muted">—</span>'}</span></div>`).join('')}</div>
-      <div class="muted small" style="margin-top:6px">Predictions follow the trend line in a straight line, so they get rougher the further out they go.</div></div>`);
+      <div class="muted small" style="margin-top:6px"><b>Last 4 weeks</b> is a straight line through your recent weigh-ins; <b>Average</b> is everything you've lost since the start, per week; <b>Commitment</b> is the rate you set. Both are straight lines, so dates further out are rougher.</div></div>`);
   }
 
   // --- goals and settings (editable here)
   const hFt = G.heightIn ? Math.floor(G.heightIn / 12) : '', hIn = G.heightIn ? Math.round((G.heightIn % 12) * 10) / 10 : '';
-  cards.push(`<details class="card wt-card wt-set"${G.goal == null || !G.heightIn ? ' open' : ''}><summary><h2 style="display:inline">Goals and settings</h2> <span class="muted small">${G.goal == null || !G.heightIn ? '— add your goal and height to see progress, BMI and predictions' : 'edit'}</span></summary>
+  const setCard = (`<details class="card wt-card wt-set"${G.goal == null || !G.heightIn ? ' open' : ''}><summary><h2 style="display:inline">Goals and settings</h2> <span class="muted small">${G.goal == null || !G.heightIn ? '— add your goal and height to see progress, BMI and predictions' : 'edit'}</span></summary>
     <div class="form-grid" style="margin-top:12px">
       <div><label>Goal weight (${u})</label><input type="number" step="0.1" id="wg-goal" value="${G.goal ?? ''}"></div>
       <div><label>Height</label><div class="row" style="flex-wrap:nowrap"><input type="number" id="wg-ft" value="${hFt}" placeholder="ft" style="width:70px"> ft <input type="number" step="0.5" id="wg-in" value="${hIn}" placeholder="in" style="width:80px"> in</div></div>
@@ -2721,7 +2721,9 @@ function renderWeightExtras() {
     <div class="row" style="margin-top:8px"><input type="text" id="wg-ename" placeholder="Event name" class="grow"><input type="date" id="wg-edate" style="width:auto"><button class="btn small" id="wg-eadd">Add event</button></div>
     <div class="row" style="margin-top:12px"><button class="btn primary small" id="wg-save" style="margin-left:auto">Save</button></div></details>`);
   top.innerHTML = latestCard + paceNote;
-  box.innerHTML = `<div class="wt-grid">${cards.join('')}</div>`;
+  // Progress (long, with every milestone) gets its own column; the smaller cards pack beside it in their own grid,
+  // so they don't stretch to its height. On a phone everything stacks.
+  box.innerHTML = `<div class="wt-grid${progCard ? '' : ' no-prog'}">${progCard ? `<div class="wt-col">${progCard}</div>` : ''}<div class="wt-side">${cards.join('')}</div></div>${setCard}`;
 }
 
 async function saveWeightCfg(extra = {}) {
@@ -2739,13 +2741,14 @@ function weightChartData(keys) {
   const S = weightSeries(), G = weightGoals(S), today = todayKey();
   const raw = keys.map(k => S.byKey[k]?.w ?? null), trend = keys.map(k => S.byKey[k]?.t ?? null);
   const labels = keys.slice(), proj = keys.map(() => null);
-  const end = keys[keys.length - 1], tNow = trendOn(S, today);
-  if (end >= today && G.goal != null && tNow != null) {
-    const r = predMode === 'current' ? weightRate(S) : predMode === 'overall' && G.start != null && G.startDate ? (tNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : -Math.abs(G.rate) * (G.goal < tNow ? 1 : -1);
-    if (r && Math.sign(r) === Math.sign(G.goal - tNow)) {
-      const daysToGoal = Math.round((G.goal - tNow) / r * 7), extend = Math.min(daysToGoal, Math.max(14, Math.round(keys.length * 0.6)));
-      proj[proj.length - 1] = tNow;
-      for (let i = 1; i <= extend; i++) { labels.push(addDays(end, i)); raw.push(null); trend.push(null); proj.push(tNow + r * i / 7); }
+  const end = keys[keys.length - 1], R = weightRates(today);
+  // The dashed projection starts at your latest weigh-in and follows the selected prediction rate (see weightRates).
+  if (end >= today && G.goal != null && R) {
+    const r = R[predMode], from = forecastWeight(R, r, today);
+    if (r && forecastDay(R, r, G.goal, today)) {
+      const daysToGoal = Math.round((G.goal - from) / r * 7), extend = Math.min(daysToGoal, Math.max(14, Math.round(keys.length * 0.6)));
+      proj[proj.length - 1] = from;
+      for (let i = 1; i <= extend; i++) { labels.push(addDays(end, i)); raw.push(null); trend.push(null); proj.push(from + r * i / 7); }
     }
   }
   return { labels, raw, trend, proj, unit: S.unit };
