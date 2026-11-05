@@ -33,6 +33,30 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.5 (November 5, 2026)
+
+- **New: your latest weigh-in, front and center, with how old it is.**
+  - **Weight page:** a large *Latest weigh-in* card at the top, with the date and its age. Up to 2 days old it's current; from 3 days it's amber (*getting old*); from a week it's red and says *you've probably changed since then*, with an estimate of where your trend likely is now at your pace before it. The trend weight sits beside it.
+  - **Dashboard Weight tile:** leads with the latest weigh-in and its age (red *weigh in* after a week), with the trend underneath. On the average views the tile keeps the trend and adds the latest weigh-in and its age.
+- **New: Progress works like Happy Scale.**
+  - The arc now fills through the **current milestone**, with pounds to go and its forecast date in the middle. It used to show the whole way to the goal.
+  - A start-to-goal bar with a tick for each milestone and the % done.
+  - **Every milestone is listed**: the date you reached it, the next one highlighted with pounds to go, and a forecast date for each one ahead (at your last 30 days' rate). Before, milestones were unlabeled dots.
+  - A milestone counts when your trend weight reaches it, not one low reading.
+- Tests: 124 checks, up from 117: fresh, getting-old and out-of-date weigh-ins, the estimate after 10 days, the latest weigh-in rather than the trend, milestones with dates reached, pounds to go and forecasts, one low reading not counting, and no goal. The real-file suites in the private repository were run against this version too. The new screens were checked in screenshots at desktop and phone sizes, with made-up weigh-ins.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `rules.js` | `weighInAge` and `weightMilestones`; `weightGoals` moved here from `index.html` |
+  | `index.html` | Latest weigh-in card, new Progress card and milestone list, Weight tile shows the latest weigh-in and its age; version and script tags |
+  | `tests.html` | 7 new checks (124 in all) |
+  | `README.md` | Weight page: latest weigh-in, Progress, milestones |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.4.1 → 3.5). **Paste it** so Data health shows the same version. |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | `core.js`, `importers.js`, `sync.js`, `config.js`, `.github/` | Not changed |
+
 ### v3.4.1 (November 5, 2026)
 
 - **Fixed: losing weight too fast showed up as a "data issue".** The pace alarm is about your health, not about data arriving, so it no longer counts in Data health or the **⚠ data issue** chip. It has its own chip at the top of every screen instead: red **♥ Losing too fast**, or amber **♥ Watch your pace**. Tap it to open the Weight page, which explains the pace and what to do. The alarm's rules haven't changed.

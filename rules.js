@@ -280,6 +280,56 @@ function trendRate(S, days, end = todayKey()) {
   const a = trendOn(S, addDays(end, -days)), b = trendOn(S, end);
   return a == null || b == null ? null : (b - a) / days * 7;
 }
+function weightGoals(S) {
+  const c = weightCfg(), first = S.rows.find(r => r.w != null);
+  const start = c.start ?? first?.w ?? null, startDate = c.startDate || first?.k || null;
+  return { ...c, start, startDate };
+}
+const daysAgo = n => n === 0 ? 'today' : n === 1 ? 'yesterday' : n < 14 ? `${n} days ago` : n < 60 ? `${Math.round(n / 7)} weeks ago` : `${Math.round(n / 30.4)} months ago`;
+
+// The latest weigh-in and how old it is. Weight moves by your weekly rate and water swings day to day, so after a few
+// days the number is a memory rather than a reading: 'fresh' up to 2 days, 'aging' 3–6 days, 'stale' from a week.
+// For an old reading, `estimate` is where the trend has probably got to since, at the 30-day rate before it.
+function weighInAge(k = todayKey()) {
+  const S = weightSeries(), last = [...S.rows].reverse().find(r => r.k <= k && r.w != null);
+  if (!last) return null;
+  const days = Math.round((keyToDate(k) - keyToDate(last.k)) / 864e5), u = S.unit;
+  const level = days <= 2 ? 'fresh' : days < 7 ? 'aging' : 'stale';
+  const rate = trendRate(S, 30, last.k), estimate = level !== 'fresh' && rate != null && last.t != null ? last.t + rate * days / 7 : null;
+  const age = days < 14 ? plural(days, 'day') : days < 60 ? plural(Math.round(days / 7), 'week') : plural(Math.round(days / 30.4), 'month');
+  const note = level === 'fresh' ? ''
+    : level === 'aging' ? `${age} old. Step on the scale for a current reading.`
+    : `${age} old: you’ve probably changed since then. Step on the scale for a current reading.`;
+  return { k: last.k, w: last.w, t: last.t, unit: u, days, ago: daysAgo(days), level, note,
+    estimate, estimateText: estimate != null && Math.abs(estimate - last.t) >= 0.1 ? `At your pace before it, your trend is probably about ${fmtN(estimate, 1)} ${u} now.` : '' };
+}
+
+// Milestones the way Happy Scale shows them: round numbers every `step` from the start toward the goal (e.g. 205, 200,
+// 195 … goal). Each has the day the trend first reached it, or a forecast day at the 30-day rate. `within` is how far
+// through the current milestone you are (from the last one reached, or the start, to the next).
+function weightMilestones(k = todayKey()) {
+  const S = weightSeries(), G = weightGoals(S), t = trendOn(S, k);
+  if (G.goal == null || G.start == null || G.start === G.goal || t == null) return null;
+  const losing = G.goal < G.start, step = G.step || 5, before = (a, b) => losing ? a <= b + 1e-9 : a >= b - 1e-9;
+  const ws = [];
+  let m = losing ? Math.floor(G.start / step) * step : Math.ceil(G.start / step) * step;
+  if (Math.abs(m - G.start) < 0.05) m += losing ? -step : step;
+  for (; losing ? m > G.goal + 1e-9 : m < G.goal - 1e-9; m += losing ? -step : step) ws.push(Math.round(m * 10) / 10);
+  ws.push(G.goal);
+  const rows = S.rows.filter(r => r.k <= k && (!G.startDate || r.k >= G.startDate) && r.t != null);
+  const rate = trendRate(S, 30, k), toward = rate != null && Math.abs(rate) > 0.01 && (losing ? rate < 0 : rate > 0);
+  const items = ws.map((w, i) => {
+    const hit = before(t, w) ? rows.find(r => before(r.t, w)) : null;
+    return { w, n: i + 1, goal: i === ws.length - 1, reached: hit ? hit.k : null, eta: !hit && toward ? addDays(k, Math.round((w - t) / rate * 7)) : null };
+  });
+  const ni = items.findIndex(x => !x.reached), next = ni < 0 ? null : items[ni], prevW = ni <= 0 ? G.start : items[ni - 1].w;
+  const total = Math.abs(G.start - G.goal), done = Math.max(0, Math.min(total, losing ? G.start - t : t - G.start));
+  if (next) next.next = true;
+  return { unit: S.unit, start: G.start, startDate: G.startDate, goal: G.goal, step, losing, trend: t, rate, items, next,
+    reached: items.filter(x => x.reached).length, prevW, toNext: next ? Math.abs(t - next.w) : 0,
+    within: next ? Math.max(0, Math.min(1, (losing ? prevW - t : t - prevW) / Math.abs(prevW - next.w))) : 1,
+    total, done, frac: done / total, toGo: Math.max(0, total - done) };
+}
 // Losing faster than about 1% of body weight a week, for weeks, costs muscle as well as fat. The pace is a straight line
 // fitted through the actual weigh-ins (the smoothed trend lags by about 10 days, so it would warn far too late).
 // 'fast' = over 1% a week across 4 weeks (steady enough despite daily water swings); 'watch' = over 1.25% across the

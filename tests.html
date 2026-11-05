@@ -314,6 +314,34 @@ describe('Weight-loss pace alarm', () => {
   });
 });
 
+describe('Latest weigh-in and milestones', () => {
+  // Weigh-ins every day from 210 lb, losing `perWeek` lb a week, the last one `lastAgo` days before today.
+  function weighs(perWeek, lastAgo, days = 70) { fresh(); const t = todayKey(); for (let i = days; i >= lastAgo; i--) { const d = day(addDays(t, -i)); d.weightUnit = 'lb'; d.weight = Math.round((210 - perWeek / 7 * (days - i)) * 10) / 10; } }
+  test('a weigh-in from today or yesterday is fresh, with no warning', () => { weighs(1, 1); const a = weighInAge(); eq([a.level, a.ago, a.note], ['fresh', 'yesterday', '']); });
+  test('3 to 6 days old is getting old', () => { weighs(1, 4); const a = weighInAge(); eq([a.level, a.ago], ['aging', '4 days ago']); ok(/4 days old/.test(a.note), 'says how old', a); });
+  test('a week or more says you have probably changed, with an estimate', () => {
+    weighs(2, 10); const a = weighInAge(); eq(a.level, 'stale'); ok(/probably changed/.test(a.note), 'says so', a);
+    ok(a.estimate < a.t && a.t - a.estimate > 2 && a.t - a.estimate < 4, 'estimate follows the 2 lb/week pace for 10 days (about 2.9 lb)', a);
+  });
+  test('the latest weigh-in, not the trend, is what it shows', () => { weighs(1, 0); const a = weighInAge(); eq(a.w, day(todayKey()).weight); ok(a.t !== a.w, 'trend differs', a); });
+  test('milestones: dates reached, the next one with lb to go, forecasts after it', () => {
+    weighs(1.5, 0, 140); data.weightCfg = { goal: 180, start: 210, startDate: addDays(todayKey(), -140), step: 5 };
+    const P = weightMilestones();
+    eq(P.items.map(x => x.w), [205, 200, 195, 190, 185, 180]);
+    ok(P.items.filter(x => x.reached).every(x => x.reached <= todayKey()) && P.items[0].reached, 'reached ones have dates', P.items);
+    ok(P.next && !P.next.reached && P.next.eta > todayKey(), 'next one has a forecast date', P.next);
+    ok(Math.abs(P.toNext - (P.trend - P.next.w)) < 0.01 && P.within >= 0 && P.within <= 1, 'lb to go and progress within the milestone', P);
+    ok(P.items.filter(x => !x.reached).every(x => x.eta), 'every one ahead has a forecast', P.items);
+    eq(P.items[P.items.length - 1].goal, true);
+  });
+  test('a milestone needs the trend to reach it, not one low reading', () => {
+    fresh(); const t = todayKey(); for (let i = 30; i >= 0; i--) { const d = day(addDays(t, -i)); d.weightUnit = 'lb'; d.weight = i === 3 ? 203 : 206; }
+    data.weightCfg = { goal: 180, start: 207, startDate: addDays(t, -30), step: 5 };
+    eq(weightMilestones().items[0].reached, null);
+  });
+  test('no goal → no milestones', () => { weighs(1, 0); eq(weightMilestones(), null); });
+});
+
 describe('Alcohol', () => {
   const foods = list => { fresh(); const d = day('2026-09-20'); d.food = list.map(([name, qty, units]) => ({ id: name, source: 'loseit', name, qty, units, calories: 150 })); return d; };
   test('drinks are counted from Lose It foods, by quantity', () => eq(loseItDrinks(foods([['Lagunitas IPA', 2, 'bottle'], ['Red wine', 1, 'glass'], ['Chicken bowl', 1, 'bowl']])), 3));

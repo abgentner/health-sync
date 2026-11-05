@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.4.1** · November 5, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.5** · November 5, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -169,11 +169,17 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
 
 Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale → Apple Health → Health Auto Export**. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
 
+- **Latest weigh-in (top of the page):** your most recent reading, large, with its date and how old it is. Up to 2 days old it's current. From **3 days** it turns amber ("getting old"). From **a week** it turns red: it says you've probably changed since then, and estimates where your trend likely is now at your pace before it. The trend weight sits beside it. The Dashboard's Weight tile also leads with the latest weigh-in and its age (red "weigh in" after a week), with the trend underneath.
 - **Pace alarm:** losing faster than about **1% of body weight a week for 4 weeks** costs muscle as well as fat. The Weight page then shows **Losing too fast** in red, and a red **♥ Losing too fast** chip appears at the top of every screen; tap it to open the Weight page. It isn't counted as a data issue. Over **1.25% a week across the last 2 weeks** only, or over twice your committed rate, shows **Watch your pace** in amber, with an amber ♥ chip. The pace is a straight line fitted through your actual weigh-ins, because the smoothed trend reacts too slowly to warn in time. Daily water swings of a couple of pounds don't set it off. It needs 3 weeks of weigh-ins, with at least 6 in the last 2 weeks. The fix it suggests: eat a little more on very low days, keep protein at target, and keep strength training.
 
-- **Trend weight:** a smoothed weight that moves 10% of the way toward each new weigh-in. It ignores day-to-day water swings (1–4 lb is normal) and shows what's really happening. The **Weight tile** on the Dashboard and the **Coach** both use it.
+- **Trend weight:** a smoothed weight that moves 10% of the way toward each new weigh-in. It ignores day-to-day water swings (1–4 lb is normal) and shows what's really happening. Progress, milestones, predictions and the **Coach** all use it.
 - **Chart:** your weigh-ins as faint dots, the trend as a bold line, and a **dashed projection** to your goal at the selected rate.
-- **Progress:** an arc from your start weight to your goal, with % complete, amount to go, and **milestones** on round numbers (every 5 lb by default).
+- **Progress** (like Happy Scale): **milestones** sit on round numbers between your start and goal (every 5 lb by default).
+  - The **arc** fills as you work through the **current milestone**, with the pounds to go and its forecast date in the middle ("3.4 lb to 185 · about Dec 2").
+  - A **bar** shows the whole way from start to goal, with a tick for each milestone and the % done.
+  - Lost, milestones reached (for example 5 of 7) and amount to go.
+  - **Every milestone is listed:** ✓ with the date you reached it, the next one highlighted with pounds to go, and a forecast date for each one ahead.
+  - A milestone counts when your **trend** weight reaches it, not one low morning. Forecasts use your last 30 days' rate.
 - **Trend change:** trend weight change over 7 days, 30 days, 90 days and all time, plus your rate per week.
 - **Last 10 days:** high, latest, trend and low, so a heavy morning has context.
 - **Body mass index:** a BMI gauge for your trend weight, and the weight range for each category at your height. BMI is a rough screen that doesn't separate muscle from fat, so body fat % from Withings is a better guide.
@@ -539,7 +545,7 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 **`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 117 checks as of v3.4.1. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 124 checks as of v3.5. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.
