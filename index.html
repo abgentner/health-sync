@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.5.2 -->
+<!-- Health Sync app · version 3.6 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -154,6 +154,7 @@ main{padding-top:28px!important}
 .scale button{border:1px solid var(--border);background:var(--surface);border-radius:12px;min-width:48px;height:46px;cursor:pointer;font-size:22px;transition:transform .1s,background .15s,border-color .15s}
 .scale button:hover{transform:translateY(-1px);border-color:var(--accent)}
 .scale.num button{font-size:15px;font-weight:650}
+.pv{display:flex;align-items:center;gap:8px} .pv-k{color:var(--muted);font-size:15px;min-width:14px;text-align:center} .pv .scale button{min-width:38px;height:38px;padding:0 8px}
 .scale button.on{border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:var(--accent-ink);box-shadow:0 2px 8px color-mix(in oklab,var(--accent) 35%,transparent)}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px}
 
@@ -697,6 +698,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
       <div><label>Energy</label><div class="scale num" id="f-energy"></div></div>
       <div><label>Stress</label><div class="scale num" id="f-stress"></div></div>
       <div><label for="f-sleep">Sleep (hours)</label><input type="number" id="f-sleep" min="0" max="24" step="0.25" placeholder="e.g. 7.5"></div>
+      <div><label>Private</label><div class="pv" id="f-pv"><span class="pv-k" aria-hidden="true">↗</span><span class="scale num" data-pv="i"><button type="button" data-v="me" aria-label="Private mark one: me">Me</button><button type="button" data-v="her" aria-label="Private mark one: her">Her</button></span><span class="pv-k" aria-hidden="true">♡</span><span class="scale num" data-pv="c"><button type="button" data-v="1" aria-label="Private mark two: yes">Y</button><button type="button" data-v="0" aria-label="Private mark two: no">N</button></span></div></div>
       <div><label for="f-drinks">Alcoholic drinks</label><input type="number" id="f-drinks" min="0" max="30" step="1" placeholder="0"><div class="muted small" id="f-drinks-auto" style="margin-top:3px"></div></div>
     </div>
     <div style="margin-top:14px"><label for="f-tags">Tags <span class="muted">(comma separated, e.g. sore, motivated, headache)</span></label><input type="text" id="f-tags"><div class="chips" id="f-tagsugg"></div></div>
@@ -917,13 +919,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.5.2"></script>
-<script src="importers.js?v=3.5.2"></script>
-<script src="rules.js?v=3.5.2"></script>
-<script src="sync.js?v=3.5.2"></script>
+<script src="core.js?v=3.6"></script>
+<script src="importers.js?v=3.6"></script>
+<script src="rules.js?v=3.6"></script>
+<script src="sync.js?v=3.6"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.5.2';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.6';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -1345,7 +1347,8 @@ function draw(id, type, labels, values, fmt, yOpts = {}) {
 }
 
 /* ---- Log tab ---- */
-let feelDraft = {};
+let feelDraft = {}, pvDraft = {};
+const pvVal = b => b.dataset.v === '1' ? true : b.dataset.v === '0' ? false : b.dataset.v;
 function scaleUI(el, field, labels) {
   el.innerHTML = labels.map((l, i) => `<button type="button" data-v="${i + 1}" aria-label="${field} ${i + 1}">${l}</button>`).join('');
   el.onclick = e => {
@@ -1356,6 +1359,7 @@ function scaleUI(el, field, labels) {
 }
 function paintScales() {
   for (const f of ['mood', 'energy', 'stress']) $$(`#f-${f} button`).forEach(b => b.classList.toggle('on', +b.dataset.v === feelDraft[f]));
+  $$('#f-pv [data-pv]').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', pvDraft[g.dataset.pv] != null && pvDraft[g.dataset.pv] === pvVal(b))));
 }
 let logDirty = false;
 function markLogDirty() { logDirty = true; $('#l-msg').textContent = 'Unsaved changes'; }
@@ -1366,6 +1370,7 @@ function renderLog() {
   const d = getDay(logDate);
   const f = d?.feel || {};
   feelDraft = { mood: f.mood || null, energy: f.energy || null, stress: f.stress || null };
+  pvDraft = { i: d?.pv?.i ?? null, c: d?.pv?.c ?? null };
   anchorDraft = anchorCfg().names.map((_, i) => typeof d?.anchors?.[i] === 'boolean' ? d.anchors[i] : null);
   renderAnchorBoxes();
   paintScales();
@@ -1403,6 +1408,7 @@ async function saveLogDay() {
   const notes = $('#f-notes').value.trim();
   const feel = { mood: feelDraft.mood || null, energy: feelDraft.energy || null, stress: feelDraft.stress || null, tags, notes };
   if (hasFeel(feel)) d.feel = feel; else delete d.feel;
+  if (hasPv(pvDraft)) d.pv = { i: pvDraft.i, c: pvDraft.c }; else delete d.pv;
   if (anchorDraft.some(v => v != null)) d.anchors = anchorDraft.slice(); else delete d.anchors;
   const sl = num($('#f-sleep').value);
   if (sl != null) d.sleep = { ...(d.sleep || {}), hours: sl, source: d.sleep?.hours === sl ? d.sleep.source : 'manual' };
@@ -1671,13 +1677,14 @@ async function moveEntries(to) {
   const manualFood = src?.food.filter(f => f.source === 'manual') || [];
   const manualWk = src?.workouts.filter(w => w.source === 'manual') || [];
   const mWeight = src?.weightSource === 'manual', mSteps = src?.stepsSource === 'manual', mSleep = src?.sleep?.source === 'manual';
-  if (!src || (!hasFeel(src.feel) && !src.anchors?.some(v => v != null) && !manualFood.length && !manualWk.length && !mWeight && !mSteps && !mSleep && !src.body?.length)) { toast('Nothing you entered by hand on this day to move.'); return; }
+  if (!src || (!hasFeel(src.feel) && !hasPv(src.pv) && !src.anchors?.some(v => v != null) && !manualFood.length && !manualWk.length && !mWeight && !mSteps && !mSleep && !src.body?.length)) { toast('Nothing you entered by hand on this day to move.'); return; }
   const dst = getDay(to);
   const toName = fmtDay(to, { weekday: 'short', month: 'short', day: 'numeric' });
   if (hasFeel(src.feel) && hasFeel(dst?.feel) && !confirm(`${toName} already has feelings logged. Replace them with this day's?`)) return;
   const d = day(to);
   if (hasFeel(src.feel)) { d.feel = src.feel; delete src.feel; }
   if (src.anchors?.some(v => v != null)) { d.anchors = src.anchors; delete src.anchors; }
+  if (hasPv(src.pv)) { d.pv = src.pv; delete src.pv; }
   d.food.push(...manualFood); src.food = src.food.filter(f => f.source !== 'manual');
   d.workouts.push(...manualWk); src.workouts = src.workouts.filter(w => w.source !== 'manual');
   if (mWeight) { d.weight = src.weight; d.weightUnit = src.weightUnit; d.weightSource = 'manual'; delete src.weight; delete src.weightUnit; delete src.weightSource; }
@@ -1691,9 +1698,9 @@ async function moveEntries(to) {
 }
 async function deleteFeelings() {
   const d = getDay(logDate);
-  if (!hasFeel(d?.feel)) { toast('No feelings logged on this day.'); return; }
+  if (!hasFeel(d?.feel) && !hasPv(d?.pv)) { toast('No feelings logged on this day.'); return; }
   if (!confirm(`Delete the mood, energy, stress, tags and notes for ${fmtDay(logDate, { weekday: 'long', month: 'long', day: 'numeric' })}?`)) return;
-  logDirty = false; delete d.feel; touch(logDate);
+  logDirty = false; delete d.feel; delete d.pv; touch(logDate);
   await runTask(persist);
   renderLog(); renderDash(); renderHist(); toast('Feelings deleted.');
 }
@@ -1834,6 +1841,7 @@ function dayDigest(k) {
     readiness: (() => { const r = readiness(k); return r ? `${r.title}: ${r.parts.map(p => p.text).concat(r.painNote || []).join('; ')}` : null; })(),
     anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.half ? 'half (counts 0.5)' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
     mood: d?.feel?.mood ?? null, energy: d?.feel?.energy ?? null, stress: d?.feel?.stress ?? null, tags: d?.feel?.tags?.length ? d.feel.tags : null, notes: d?.feel?.notes || null,
+    intimacy: pvOf(d),
   };
 }
 function periodStats(ks) {
@@ -1850,6 +1858,7 @@ function periodStats(ks) {
     workouts: D.reduce((n, d) => n + (d?.workouts?.length || 0), 0), exercise_min: Math.round(T.reduce((n, t) => n + t.exMin, 0)),
     weight_trend: (() => { const S = weightSeries(), a = ks.map(k => trendOn(S, k)).find(v => v != null), b = trendOn(S, ks[ks.length - 1]), r = weightRate(S, ks[ks.length - 1]); return a == null || b == null ? null : `${a.toFixed(1)} → ${b.toFixed(1)} ${S.unit} (trend; recent rate ${r == null ? 'n/a' : r.toFixed(2)} ${S.unit}/week)`; })(),
     weight_first_last: (() => { const w = D.filter(d => d?.weight != null); return w.length ? `${w[0].weight} → ${w[w.length - 1].weight} ${w[0].weightUnit || 'lb'}` : null; })(),
+    intimacy: intimacySummary(ks),
   };
 }
 function buildDigest(start, end, opts = {}) {
@@ -1881,6 +1890,8 @@ function buildDigest(start, end, opts = {}) {
 }
 
 const COACH_SYSTEM = `You are the coach inside Health Sync, a personal health app. Each review covers one period of the user's own data: food logged in Lose It, steps/sleep/heart rate/HRV from Garmin (directly and via Apple Health), workouts from Garmin and Strava with heart-rate zones and training load, a body log of soreness and pain, mood notes, and the daily "anchor" habit boxes from their plan. You write a review they read in the app and by email.
+
+intimacy (on days and in this_period.intimacy) comes from two private marks the user logs: who started it (user or partner) and whether it happened. A declined day is one the user started and it didn't happen. Treat declines as weighing on the user's mood and attitude: compare the mood, energy and stress on and after declined days with other days (mood_after_declined vs mood_other_days), and say so plainly when it shows. Note who starts it how often, without judging either person. Refer to it discreetly as intimacy, never in explicit terms, in a sentence or two, and only when there is something to say.
 
 Voice: matter-of-fact and specific. No flattery, no cheerleading, no filler. State what happened with the numbers that show it. Be blunt only when something was genuinely bad (for example, most days missed or a target missed by a wide margin), and even then stay constructive. Write to the user as "you".
 
@@ -1939,7 +1950,7 @@ your_why is what the user is doing this for, in their own words. Where it fits, 
 
 your_reflections are the user's own notes on the week: what got in the way and what helped. Use them. If something outside their control explains a shortfall (illness, travel, family), say so in that subject's criticism and make the suggestion fit it. The grades stay as they are. Build on what they say helped.
 
-patterns_last_90_days are rules-based comparisons of evenings against the next day (for example drinks against sleep and HRV). Mention one only when it explains something in this period, and call it a pattern, not proof. outcomes.weight_loss_pace: if its status is fast or watch, say so plainly in outcomes_comment, with the fix (eat a little more on very low days, keep protein and strength work).
+patterns_last_90_days are rules-based comparisons of evenings against the next day (for example drinks against sleep and HRV). Mention one only when it explains something in this period, and call it a pattern, not proof. intimacy (on days and in this_period.intimacy) comes from two private marks the user logs: who started it (user or partner) and whether it happened. A declined day is one the user started and it didn't happen. Treat declines as weighing on the user's mood and attitude: compare the mood, energy and stress on and after declined days with other days (mood_after_declined vs mood_other_days), and say so plainly when it shows. Note who starts it how often, without judging either person. Refer to it discreetly as intimacy, never in explicit terms, in a sentence or two, and only when there is something to say. outcomes.weight_loss_pace: if its status is fast or watch, say so plainly in outcomes_comment, with the fix (eat a little more on very low days, keep protein and strength work).
 
 If question is present, answer it directly in question_answer with the data; otherwise return an empty string. headline: one line, under 12 words, the most important thing about the period.`;
 const SUBJECT_TEXT = { type: 'object', additionalProperties: false, required: ['praise', 'criticism', 'suggestion'], properties: { praise: { type: 'string' }, criticism: { type: 'string' }, suggestion: { type: 'string' } } };
@@ -3168,6 +3179,12 @@ async function boot() {
   $$('.app-ver').forEach(el => el.textContent = 'v' + APP_VERSION);
   applyTheme();
   scaleUI($('#f-mood'), 'mood', MOODS);
+  // The two private marks: ↗ Me or Her, ♡ yes or no; tap the lit one again to clear it.
+  $('#f-pv').onclick = e => {
+    const b = e.target.closest('button'), g = b?.closest('[data-pv]'); if (!g) return;
+    const v = pvVal(b), k = g.dataset.pv; pvDraft[k] = pvDraft[k] === v ? null : v;
+    paintScales(); markLogDirty();
+  };
   scaleUI($('#f-energy'), 'energy', ['1', '2', '3', '4', '5']);
   scaleUI($('#f-stress'), 'stress', ['1', '2', '3', '4', '5']);
 

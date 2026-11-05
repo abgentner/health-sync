@@ -412,6 +412,25 @@ function loseItDrinks(d) {
 }
 const drinksOf = d => d?.drinks ?? d?.health?.drinks ?? (d?.food?.length ? loseItDrinks(d) : null);
 
+/* ---- the private marks over a period (Log today › Private) ---- */
+// Counts for the Coach and summaries, and mood/energy/stress on days you started it and it didn't happen (declined),
+// and the day after, against all other logged days.
+function intimacySummary(ks) {
+  const D = ks.map(k => [k, getDay(k)]), marked = D.filter(([, d]) => hasPv(d?.pv));
+  if (!marked.length) return null;
+  const av = arr => arr.length ? Math.round(avg(arr) * 10) / 10 : null;
+  const declined = new Set(marked.filter(([, d]) => pvDeclined(d)).map(([k]) => k));
+  const after = new Set([...declined].map(k => addDays(k, 1)));
+  const feel = (f, pick) => av(D.filter(([k]) => pick(k)).map(([, d]) => d?.feel?.[f]).filter(v => v != null));
+  return { days_marked: marked.length,
+    initiated_by_user: marked.filter(([, d]) => d.pv.i === 'me').length, initiated_by_partner: marked.filter(([, d]) => d.pv.i === 'her').length,
+    happened: marked.filter(([, d]) => d.pv.c === true).length, declined_when_user_initiated: declined.size,
+    mood_on_declined_days: feel('mood', k => declined.has(k)), mood_after_declined: feel('mood', k => after.has(k)),
+    mood_other_days: feel('mood', k => !declined.has(k) && !after.has(k)),
+    energy_after_declined: feel('energy', k => after.has(k)), energy_other_days: feel('energy', k => !declined.has(k) && !after.has(k)),
+    stress_after_declined: feel('stress', k => after.has(k)), stress_other_days: feel('stress', k => !declined.has(k) && !after.has(k)) };
+}
+
 /* ---- patterns: what an evening does to the next day ---- */
 // For each habit on day d (drinks, a big dinner, a salty day…), compare the next night and morning (sleep, HRV,
 // resting heart rate, how you felt, the scale) with days without it. A pattern, not proof: it shows only with at least
@@ -423,6 +442,7 @@ const PATTERN_FACTORS = [
   { key: 'salty', name: 'a salty day', test: d => { const t = totals(d); return t.hasNutr && t.hasFood ? t.sodium > coachCfg().targets.sodiumMax : null; }, label: 'days over your sodium limit' },
   { key: 'sugary', name: 'a sugary day', test: d => { const t = totals(d); return t.hasNutr && t.hasFood ? t.sugar > coachCfg().targets.sugarMax : null; }, label: 'days over your sugar limit' },
   { key: 'underEat', name: 'under-eating', test: d => { const t = totals(d); return t.hasFood ? t.calIn < rubric().calorieFloor : null; }, label: `days under your calorie floor` },
+  { key: 'pvDeclined', name: '↗ Me · ♡ N', test: d => (d?.pv?.i === 'me' ? d.pv.c === false : null), label: 'days marked ↗ Me · ♡ N' },
   { key: 'lateWorkout', name: 'a late workout', test: d => (d?.workouts?.length ? d.workouts.some(w => (minsOf(w.start) ?? 0) >= 19 * 60) : null), label: 'days with a workout after 7 pm' },
 ];
 const PATTERN_OUTCOMES = [

@@ -50,7 +50,17 @@ try {
   const arc = await app.evaluate(() => arcPath(110, 112, 92, 0, 0.8));
   const arcOk = / A92 92 0 0 1 /.test(arc);
   if (!arcOk) console.error(`FAIL  app start-up: gauge arc past halfway is drawn the long way round: ${arc}`);
-  const appOk = saved === 9 && half === '½' && paceOk && arcOk && !errors.length;
+  // The private marks on Log today save, and reach the Coach (dayDigest is what Claude is sent about a day).
+  const pv = await app.evaluate(async () => {
+    logDate = todayKey(); renderLog();
+    document.querySelector('#f-pv [data-pv="i"] button[data-v="me"]').click();
+    document.querySelector('#f-pv [data-pv="c"] button[data-v="0"]').click();
+    await saveLogDay();
+    return [JSON.stringify(data.days[todayKey()].pv), JSON.stringify(dayDigest(todayKey()).intimacy)];
+  });
+  const pvOk = pv[0] === '{"i":"me","c":false}' && pv[1] === '{"initiated_by":"user","happened":false}';
+  if (!pvOk) console.error(`FAIL  app start-up: private marks ${JSON.stringify(pv)}, expected saved {"i":"me","c":false} and sent to the Coach as initiated_by user, happened false`);
+  const appOk = saved === 9 && half === '½' && paceOk && arcOk && pvOk && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

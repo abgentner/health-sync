@@ -33,6 +33,27 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.6 (November 5, 2026)
+
+- **New: two private marks on Log today.** In the Feelings card, **Private** has two marks with no words on them: **↗** is **Me** or **Her**, and **♡** is **Y** or **N**. Tap the lit one again to clear it. They're saved with your data in Drive and sync between devices field by field; *Move* and *Delete feelings* include them. They aren't shown elsewhere on screen, and aren't graded.
+- **The Coach uses them.** Each day it's sent who started it and whether it happened; each period, the counts (started by you, by her, happened, and ↗ Me · ♡ N), with your average mood on those days and the day after, and energy and stress the day after, against your other days. Weekly reviews and report cards are asked to treat ↗ Me · ♡ N as weighing on mood and attitude, say so plainly when the numbers show it, and keep the wording discreet.
+- **Patterns:** "days marked ↗ Me · ♡ N" is compared with the days it happened, against the next day's sleep, HRV, energy and mood, like drinks and late workouts. It shows only with at least 5 days each way.
+- Tests: 135 checks, up from 126: a day with only these marks is kept, unset marks keep nothing, a "no" counts, two devices' marks merge, what the Coach is sent for a day, the period counts, mood and stress on and after ↗ Me · ♡ N days against other days, nothing sent when nothing is marked, and the Pattern. GitHub's app start-up check also taps the marks on the real Log today page, saves, and confirms what the Coach is sent. Screenshots checked at desktop (dark) and phone (light) sizes. The real-file suites were run too. No Coach review was written in testing, so the wording Claude uses hasn't been seen yet.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `core.js` | `hasPv`, `pvOf`, `pvDeclined`; a day with only private marks is kept |
+  | `rules.js` | `intimacySummary` for the Coach; the ↗ Me · ♡ N pattern |
+  | `index.html` | The marks on Log today, saving, Move and Delete feelings; sent to the Coach per day and per period; Coach instructions; version and script tags |
+  | `tests.html` | 9 new checks (135 in all) |
+  | `.github/run-tests.mjs` | App start-up check for the marks |
+  | `README.md` | Log today › Private |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.5.2 → 3.6). **Paste it** so Data health shows the same version. |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | `importers.js`, `sync.js`, `config.js` | Not changed |
+
 ### v3.5.2 (November 5, 2026)
 
 - **Fixed: Predictions disagreed with your weigh-ins.** They started from the trend weight (several pounds behind when losing fast), still listed 270 after you'd weighed in under it, and "Overall" was worked out from the trend too. Now:

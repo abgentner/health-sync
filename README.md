@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.5.2** · November 5, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.6** · November 5, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -366,6 +366,8 @@ The **Daily anchors** boxes are at the top (see above). Below them, record your 
 
 **Body:** log anything sore, stiff or painful. Pick the area, choose **Soreness** (muscle, after training), **Pain** (sharp, in a joint, or not from training) or **Stiffness**, give it 0–10, add a note if you like ("worse on stairs"), and click **Add**. Log it again on the following days, even if it's lower, so the app can see whether it's settling. Readiness and the Coach use it, and the Training tab flags pain that keeps coming back.
 
+**Private** (in Feelings): two personal marks with no words on them, whose meaning is yours. **↗** is **Me** or **Her**; **♡** is **Y** or **N**. Tap the lit one again to clear it. They're saved with your data in Google Drive and aren't shown elsewhere on screen, except as a **Pattern** worded only as "↗ Me · ♡ N" if one shows up. **The Coach sees them**: who started it, whether it happened, and the counts for the period. It's asked to compare your mood, energy and stress on and after ↗ Me · ♡ N days with other days, and to mention it discreetly and only when there's something to say. They aren't graded.
+
 **Alcoholic drinks** (next to Sleep): leave it blank and the app counts drinks for you. It uses Apple Health's *Number of Alcoholic Beverages* if Health Auto Export sends it, or otherwise the drinks in your Lose It log, by quantity (a beer, a glass of wine, a cocktail). Foods that only sound like drinks, such as root beer, beer-battered fish or red wine vinegar, are left out. Type a number to override it, including **0** for a dry day. Drinks feed Patterns, Body & recovery and the Coach.
 
 **Fix a mistake** (at the bottom of the Log today screen):
@@ -551,7 +553,7 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 **`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 126 checks as of v3.5.2. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 135 checks as of v3.6. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.

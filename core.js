@@ -82,7 +82,8 @@ function download(name, text, type) {
 
 /* ================= data model ================= */
 // data.days["YYYY-MM-DD"] = { steps, stepsSource, weight, weightUnit, weightSource,
-//   sleep:{hours, score, source}, food:[...], workouts:[...], feel:{mood,energy,stress,tags,notes} }
+//   sleep:{hours, score, source}, food:[...], workouts:[...], feel:{mood,energy,stress,tags,notes},
+//   pv:{i, c} (two private marks from Log today: i = who started it, 'me' or 'her'; c = whether it happened, true/false) }
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
@@ -120,10 +121,14 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null && !d.body?.length && d.drinks == null) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null && !d.body?.length && d.drinks == null && !hasPv(d.pv)) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
+const hasPv = p => !!p && (p.i === 'me' || p.i === 'her' || typeof p.c === 'boolean');
+// The private marks for the Coach and summaries. 'declined' = you started it and it didn't happen.
+const pvOf = d => hasPv(d?.pv) ? { initiated_by: d.pv.i === 'me' ? 'user' : d.pv.i === 'her' ? 'partner' : null, happened: typeof d.pv.c === 'boolean' ? d.pv.c : null } : null;
+const pvDeclined = d => d?.pv?.i === 'me' && d.pv.c === false;
 
 const NUTRIENTS = [
   { key: 'protein', name: 'Protein', u: 'g' }, { key: 'carbs', name: 'Carbs', u: 'g' }, { key: 'fat', name: 'Fat', u: 'g' },

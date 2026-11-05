@@ -365,6 +365,45 @@ describe('Latest weigh-in and milestones', () => {
   });
 });
 
+describe('Private marks (Log today)', () => {
+  test('a day with only private marks is kept', () => { fresh(); day('2026-10-20').pv = { i: 'her', c: null }; touch('2026-10-20'); ok(data.days['2026-10-20'], 'kept', data.days); });
+  test('no marks set → nothing kept', () => { fresh(); day('2026-10-20').pv = { i: null, c: null }; ok(!hasPv(data.days['2026-10-20'].pv), 'unset', null); });
+  test('a "no" counts as set', () => eq(hasPv({ i: null, c: false }), true));
+  test('marks from two devices merge field by field', () => {
+    const v = merge3({ pv: { i: 'me', c: null } }, { pv: { i: null, c: true } }, { pv: { i: null, c: null } });
+    eq(v.pv, { i: 'me', c: true });
+  });
+  test('the Coach gets who started it and whether it happened', () => {
+    eq(pvOf({ pv: { i: 'me', c: false } }), { initiated_by: 'user', happened: false });
+    eq(pvOf({ pv: { i: 'her', c: true } }), { initiated_by: 'partner', happened: true });
+    eq(pvOf({}), null);
+  });
+  // Two weeks: on 4 days you started it and it didn't happen (mood 2 that day, 2 the next), 2 days she started it and it
+  // did, the rest mood 4.
+  function fortnight() {
+    fresh(); const ks = windowKeys('2026-10-14', 14);
+    ks.forEach(k => { day(k).feel = { mood: 4, energy: 4, stress: 2 }; });
+    for (const i of [1, 4, 7, 10]) { day(ks[i]).pv = { i: 'me', c: false }; day(ks[i]).feel.mood = 2; day(ks[i + 1]).feel = { mood: 2, energy: 3, stress: 4 }; }
+    for (const i of [3, 13]) day(ks[i]).pv = { i: 'her', c: true };
+    return ks;
+  }
+  test('the period summary counts who started it, what happened and the declines', () => {
+    const s = intimacySummary(fortnight());
+    eq([s.days_marked, s.initiated_by_user, s.initiated_by_partner, s.happened, s.declined_when_user_initiated], [6, 4, 2, 2, 4]);
+  });
+  test('declines are set against mood: on and after them, against other days', () => {
+    const s = intimacySummary(fortnight());
+    eq([s.mood_on_declined_days, s.mood_after_declined, s.mood_other_days, s.stress_after_declined, s.stress_other_days], [2, 2, 4, 4, 2]);
+  });
+  test('no marks in the period → nothing sent', () => { fresh(); eq(intimacySummary(windowKeys('2026-10-14', 7)), null); });
+  test('Patterns compares the next day after a decline with the days it happened', () => {
+    fresh(); const ks = windowKeys('2026-10-30', 30);
+    ks.forEach((k, i) => { if (i % 3) return; const d = day(k), declined = i % 2 === 0; d.pv = { i: 'me', c: !declined }; day(addDays(k, 1)).feel = { mood: declined ? 2 : 4, energy: 3 }; });
+    const p = findPatterns('2026-10-31').find(x => x.factor === 'pvDeclined');
+    ok(p && p.worse && /next-day mood/.test(p.text) && /↗ Me · ♡ N/.test(p.text), 'shows lower next-day mood, discreetly worded', p);
+  });
+});
+
 describe('Alcohol', () => {
   const foods = list => { fresh(); const d = day('2026-09-20'); d.food = list.map(([name, qty, units]) => ({ id: name, source: 'loseit', name, qty, units, calories: 150 })); return d; };
   test('drinks are counted from Lose It foods, by quantity', () => eq(loseItDrinks(foods([['Lagunitas IPA', 2, 'bottle'], ['Red wine', 1, 'glass'], ['Chicken bowl', 1, 'bowl']])), 3));
