@@ -46,7 +46,11 @@ try {
   });
   const paceOk = pace[0] === '♥ Losing too fast' && pace[1] === false;
   if (!paceOk) console.error(`FAIL  app start-up: pace chip ${JSON.stringify(pace)}, expected "♥ Losing too fast" and no pace row in Data health`);
-  const appOk = saved === 9 && half === '½' && paceOk && !errors.length;
+  // A gauge arc 80% of the way round still bends the short way (the 3.5 gauge swung round the wrong side past halfway).
+  const arc = await app.evaluate(() => arcPath(110, 112, 92, 0, 0.8));
+  const arcOk = / A92 92 0 0 1 /.test(arc);
+  if (!arcOk) console.error(`FAIL  app start-up: gauge arc past halfway is drawn the long way round: ${arc}`);
+  const appOk = saved === 9 && half === '½' && paceOk && arcOk && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

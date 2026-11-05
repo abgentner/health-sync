@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.5 -->
+<!-- Health Sync app · version 3.5.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -913,13 +913,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.5"></script>
-<script src="importers.js?v=3.5"></script>
-<script src="rules.js?v=3.5"></script>
-<script src="sync.js?v=3.5"></script>
+<script src="core.js?v=3.5.1"></script>
+<script src="importers.js?v=3.5.1"></script>
+<script src="rules.js?v=3.5.1"></script>
+<script src="sync.js?v=3.5.1"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.5';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.5.1';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -1844,7 +1844,7 @@ function periodStats(ks) {
     avg_calories_logged_days: a(food.map(t => t.calIn)), avg_protein_g: a(food.map(t => t.protein)), avg_fiber_g: a(food.map(t => t.fiber)), avg_sodium_mg: a(food.map(t => t.sodium)),
     vitamins_minerals_avg_pct_dv: (() => { const Dm = D.filter(d => d?.micros); if (!Dm.length) return null; return Object.fromEntries(MICROS.filter(m => m.dv).map(m => [m.name, Dm.map(d => d.micros[m.key]).filter(v => v != null)]).filter(([, a]) => a.length).map(([n, a]) => { const m = MICROS.find(x => x.name === n); return [n, Math.round(avg(a) / m.dv * 100) + '%']; })); })(),
     workouts: D.reduce((n, d) => n + (d?.workouts?.length || 0), 0), exercise_min: Math.round(T.reduce((n, t) => n + t.exMin, 0)),
-    weight_trend: (() => { const S = weightSeries(), a = trendOn(S, ks[0]), b = trendOn(S, ks[ks.length - 1]), r = trendRate(S, 30, ks[ks.length - 1]); return a == null || b == null ? null : `${a.toFixed(1)} → ${b.toFixed(1)} ${S.unit} (trend; 30-day rate ${r == null ? 'n/a' : r.toFixed(2)} ${S.unit}/week)`; })(),
+    weight_trend: (() => { const S = weightSeries(), a = ks.map(k => trendOn(S, k)).find(v => v != null), b = trendOn(S, ks[ks.length - 1]), r = weightRate(S, ks[ks.length - 1]); return a == null || b == null ? null : `${a.toFixed(1)} → ${b.toFixed(1)} ${S.unit} (trend; recent rate ${r == null ? 'n/a' : r.toFixed(2)} ${S.unit}/week)`; })(),
     weight_first_last: (() => { const w = D.filter(d => d?.weight != null); return w.length ? `${w[0].weight} → ${w[w.length - 1].weight} ${w[0].weightUnit || 'lb'}` : null; })(),
   };
 }
@@ -2612,7 +2612,8 @@ let predMode = 'commit';
 function arcPath(cx, cy, r, f0, f1) {
   const p = f => [cx - r * Math.cos(Math.PI * f), cy - r * Math.sin(Math.PI * f)];
   const [x0, y0] = p(f0), [x1, y1] = p(f1);
-  return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${f1 - f0 > 0.5 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  // A gauge is half a circle, so an arc on it never spans more than 180°: the large-arc flag stays 0.
+  return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
 }
 
 function renderWeightExtras() {
@@ -2647,7 +2648,7 @@ function renderWeightExtras() {
       <div class="wt-3"><div><b>${f1(P.done)}</b><span>${P.losing ? 'lost' : 'gained'}</span></div><div><b>${P.reached} of ${P.items.length}</b><span>milestones</span></div><div><b>${f1(P.toGo)}</b><span>to go</span></div></div>
       <div class="sub-h" style="margin-top:14px">Milestones</div>
       <div class="list wt-mlist">${P.items.map(x => `<div class="li${x.next ? ' next' : ''}${x.reached ? ' done' : ''}"><span class="n"><span class="wt-mk">${x.reached ? '✓' : x.next ? '●' : '○'}</span><b>${f1(x.w)} ${u}</b> <span class="muted small">${x.goal ? 'Goal' : `Milestone ${x.n}`}</span></span><span class="x small">${x.reached ? `reached ${dt(x.reached)}` : x.next ? `<b>${f1(P.toNext)} ${u} to go</b>${x.eta ? ` · about ${dt(x.eta)}` : ''}` : x.eta ? `about ${dt(x.eta)}` : '<span class="muted">—</span>'}</span></div>`).join('')}</div>
-      <div class="muted small" style="margin-top:6px">A milestone counts when your trend weight reaches it, not a single low reading. Forecast dates use your last 30 days' rate (${P.rate == null ? '—' : `${sgn(P.rate)} ${u}/week`}).</div></div>`);
+      <div class="muted small" style="margin-top:6px">A milestone counts the first day you weigh in at or under it. Progress is measured from your latest weigh-in (${f1(P.current)} ${u}). Forecast dates use your recent rate (${P.rate == null ? '—' : `${sgn(P.rate)} ${u}/week`}).</div></div>`);
   } else if (A) cards.push(`<div class="card wt-card"><div class="card-h"><h2>Progress</h2></div><p class="muted" style="margin:0">Add your goal weight in <b>Goals and settings</b> below to see milestones and progress.</p></div>`);
 
   // --- change in trend over standard windows
@@ -2655,7 +2656,7 @@ function renderWeightExtras() {
   const allCh = G.start != null ? trendNow - G.start : null;
   cards.push(`<div class="card wt-card"><div class="card-h"><h2>Trend change</h2><span class="muted small">${u}, by trend weight</span></div>
     <div class="wt-4">${[['7 days', ch(7)], ['30 days', ch(30)], ['90 days', ch(90)], ['All time', allCh]].map(([l, v]) => `<div class="${v == null ? '' : v < 0 ? 'down' : v > 0 ? 'up' : ''}"><b>${sgn(v)}</b><span>${l}</span></div>`).join('')}</div>
-    <div class="muted small" style="margin-top:8px">Rate: ${sgn(trendRate(S, 30))} ${u}/week over 30 days · ${sgn(trendRate(S, 7))} over 7 days</div></div>`);
+    <div class="muted small" style="margin-top:8px">Rate: ${sgn(weightRate(S))} ${u}/week recently · ${sgn(trendRate(S, 7))} over 7 days</div></div>`);
 
   // --- recent stats (last 10 days of weigh-ins)
   const recent = S.rows.filter(r => r.w != null && r.k >= addDays(today, -9));
@@ -2684,7 +2685,7 @@ function renderWeightExtras() {
 
   // --- predictions
   if (G.goal != null) {
-    const rates = { commit: -Math.abs(G.rate) * (G.goal < trendNow ? 1 : -1), current: trendRate(S, 30), overall: G.start != null && G.startDate ? (trendNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : null };
+    const rates = { commit: -Math.abs(G.rate) * (G.goal < trendNow ? 1 : -1), current: weightRate(S), overall: G.start != null && G.startDate ? (trendNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : null };
     const r = rates[predMode];
     const rows = [];
     const toward = r != null && Math.abs(r) > 0.01 && Math.sign(r) === Math.sign(G.goal - trendNow);
@@ -2740,7 +2741,7 @@ function weightChartData(keys) {
   const labels = keys.slice(), proj = keys.map(() => null);
   const end = keys[keys.length - 1], tNow = trendOn(S, today);
   if (end >= today && G.goal != null && tNow != null) {
-    const r = predMode === 'current' ? trendRate(S, 30) : predMode === 'overall' && G.start != null && G.startDate ? (tNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : -Math.abs(G.rate) * (G.goal < tNow ? 1 : -1);
+    const r = predMode === 'current' ? weightRate(S) : predMode === 'overall' && G.start != null && G.startDate ? (tNow - G.start) / Math.max(1, (keyToDate(today) - keyToDate(G.startDate)) / 864e5) * 7 : -Math.abs(G.rate) * (G.goal < tNow ? 1 : -1);
     if (r && Math.sign(r) === Math.sign(G.goal - tNow)) {
       const daysToGoal = Math.round((G.goal - tNow) / r * 7), extend = Math.min(daysToGoal, Math.max(14, Math.round(keys.length * 0.6)));
       proj[proj.length - 1] = tNow;

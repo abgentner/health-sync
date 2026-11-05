@@ -255,6 +255,9 @@ function readiness(k) {
 // Trend weight = exponentially smoothed weight: each weigh-in moves the trend 10% of the way toward it,
 // so a salty dinner or a water-heavy morning barely moves it. Days without a weigh-in keep the trend.
 const TREND_ALPHA = 0.1;
+// After 3 weeks with no weigh-ins the old trend says nothing about now, so it restarts at the next weigh-in, and the
+// days inside the gap have no trend (instead of a line joining an old reading to new ones, which hid a fast loss).
+const TREND_GAP_DAYS = 21;
 const weightCfg = () => {
   const c = data.weightCfg || {};
   return { heightIn: c.heightIn ?? null, goal: c.goal ?? null, start: c.start ?? null, startDate: c.startDate || null,
@@ -266,10 +269,15 @@ function weightSeries() {
   const ks = Object.keys(data.days).filter(k => data.days[k].weight != null).sort();
   if (!ks.length) return { unit, rows: [], byKey: {} };
   const rows = [];
-  let t = null;
+  let t = null, lastK = null;
   for (let k = ks[0]; k <= todayKey(); k = addDays(k, 1)) {
     const d = data.days[k], w = d?.weight != null ? toU(d) : null;
-    if (w != null) t = t == null ? w : t + TREND_ALPHA * (w - t);
+    if (w != null) {
+      const gap = lastK ? Math.round((keyToDate(k) - keyToDate(lastK)) / 864e5) : 0;
+      if (gap > TREND_GAP_DAYS) for (let i = rows.length - gap + TREND_GAP_DAYS + 1; i < rows.length; i++) rows[i].t = null;
+      t = t == null || gap > TREND_GAP_DAYS ? w : t + TREND_ALPHA * (w - t);
+      lastK = k;
+    }
     rows.push({ k, w, t });
   }
   return { unit, rows, byKey: Object.fromEntries(rows.map(r => [r.k, r])) };
@@ -279,6 +287,14 @@ const trendOn = (S, k) => { if (!S.rows.length || k < S.rows[0].k) return null; 
 function trendRate(S, days, end = todayKey()) {
   const a = trendOn(S, addDays(end, -days)), b = trendOn(S, end);
   return a == null || b == null ? null : (b - a) / days * 7;
+}
+// Units a week for forecasts: the trend over 30 days, or (when the trend doesn't go back that far, e.g. just after a
+// long gap) a straight line through the last 4 weeks of weigh-ins.
+function weightRate(S, k = todayKey()) {
+  const r = trendRate(S, 30, k);
+  if (r != null) return r;
+  const f = weighInSlope(k, 28);
+  return f.n >= 4 ? f.rate : null;
 }
 function weightGoals(S) {
   const c = weightCfg(), first = S.rows.find(r => r.w != null);
@@ -295,7 +311,7 @@ function weighInAge(k = todayKey()) {
   if (!last) return null;
   const days = Math.round((keyToDate(k) - keyToDate(last.k)) / 864e5), u = S.unit;
   const level = days <= 2 ? 'fresh' : days < 7 ? 'aging' : 'stale';
-  const rate = trendRate(S, 30, last.k), estimate = level !== 'fresh' && rate != null && last.t != null ? last.t + rate * days / 7 : null;
+  const rate = weightRate(S, last.k), estimate = level !== 'fresh' && rate != null && last.t != null ? last.t + rate * days / 7 : null;
   const age = days < 14 ? plural(days, 'day') : days < 60 ? plural(Math.round(days / 7), 'week') : plural(Math.round(days / 30.4), 'month');
   const note = level === 'fresh' ? ''
     : level === 'aging' ? `${age} old. Step on the scale for a current reading.`
@@ -304,30 +320,31 @@ function weighInAge(k = todayKey()) {
     estimate, estimateText: estimate != null && Math.abs(estimate - last.t) >= 0.1 ? `At your pace before it, your trend is probably about ${fmtN(estimate, 1)} ${u} now.` : '' };
 }
 
-// Milestones the way Happy Scale shows them: round numbers every `step` from the start toward the goal (e.g. 205, 200,
-// 195 … goal). Each has the day the trend first reached it, or a forecast day at the 30-day rate. `within` is how far
-// through the current milestone you are (from the last one reached, or the start, to the next).
+// Milestones the way Happy Scale shows them: round numbers every `step` from the start toward the goal (e.g. 270, 265 …
+// goal). A milestone is reached the first day a weigh-in gets to it (or the trend does, if that came first), and stays
+// reached. Progress and pounds to go are measured from the latest weigh-in, like the scale. Milestones still ahead get
+// a forecast day at weightRate. `within` is how far through the current milestone you are.
 function weightMilestones(k = todayKey()) {
-  const S = weightSeries(), G = weightGoals(S), t = trendOn(S, k);
-  if (G.goal == null || G.start == null || G.start === G.goal || t == null) return null;
-  const losing = G.goal < G.start, step = G.step || 5, before = (a, b) => losing ? a <= b + 1e-9 : a >= b - 1e-9;
+  const S = weightSeries(), G = weightGoals(S), A = weighInAge(k);
+  if (G.goal == null || G.start == null || G.start === G.goal || !A) return null;
+  const losing = G.goal < G.start, step = G.step || 5, before = (a, b) => a != null && (losing ? a <= b + 1e-9 : a >= b - 1e-9);
   const ws = [];
   let m = losing ? Math.floor(G.start / step) * step : Math.ceil(G.start / step) * step;
   if (Math.abs(m - G.start) < 0.05) m += losing ? -step : step;
   for (; losing ? m > G.goal + 1e-9 : m < G.goal - 1e-9; m += losing ? -step : step) ws.push(Math.round(m * 10) / 10);
   ws.push(G.goal);
-  const rows = S.rows.filter(r => r.k <= k && (!G.startDate || r.k >= G.startDate) && r.t != null);
-  const rate = trendRate(S, 30, k), toward = rate != null && Math.abs(rate) > 0.01 && (losing ? rate < 0 : rate > 0);
+  const cur = A.w, rows = S.rows.filter(r => r.k <= k && (!G.startDate || r.k >= G.startDate));
+  const rate = weightRate(S, k), toward = rate != null && Math.abs(rate) > 0.01 && (losing ? rate < 0 : rate > 0);
   const items = ws.map((w, i) => {
-    const hit = before(t, w) ? rows.find(r => before(r.t, w)) : null;
-    return { w, n: i + 1, goal: i === ws.length - 1, reached: hit ? hit.k : null, eta: !hit && toward ? addDays(k, Math.round((w - t) / rate * 7)) : null };
+    const hit = rows.find(r => before(r.w, w) || before(r.t, w));
+    return { w, n: i + 1, goal: i === ws.length - 1, reached: hit ? hit.k : null, eta: !hit && toward ? addDays(k, Math.max(1, Math.round((w - cur) / rate * 7))) : null };
   });
   const ni = items.findIndex(x => !x.reached), next = ni < 0 ? null : items[ni], prevW = ni <= 0 ? G.start : items[ni - 1].w;
-  const total = Math.abs(G.start - G.goal), done = Math.max(0, Math.min(total, losing ? G.start - t : t - G.start));
+  const total = Math.abs(G.start - G.goal), done = Math.max(0, Math.min(total, losing ? G.start - cur : cur - G.start));
   if (next) next.next = true;
-  return { unit: S.unit, start: G.start, startDate: G.startDate, goal: G.goal, step, losing, trend: t, rate, items, next,
-    reached: items.filter(x => x.reached).length, prevW, toNext: next ? Math.abs(t - next.w) : 0,
-    within: next ? Math.max(0, Math.min(1, (losing ? prevW - t : t - prevW) / Math.abs(prevW - next.w))) : 1,
+  return { unit: S.unit, start: G.start, startDate: G.startDate, goal: G.goal, step, losing, current: cur, trend: trendOn(S, k), rate, items, next,
+    reached: items.filter(x => x.reached).length, prevW, toNext: next ? Math.max(0, losing ? cur - next.w : next.w - cur) : 0,
+    within: next ? Math.max(0, Math.min(1, (losing ? prevW - cur : cur - prevW) / Math.abs(prevW - next.w))) : 1,
     total, done, frac: done / total, toGo: Math.max(0, total - done) };
 }
 // Losing faster than about 1% of body weight a week, for weeks, costs muscle as well as fat. The pace is a straight line

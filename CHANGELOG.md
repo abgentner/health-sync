@@ -33,6 +33,27 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.5.1 (November 5, 2026)
+
+- **Fixed: the Progress gauge was drawn wrong** once you were more than halfway through a milestone: the arc swung round the outside of the circle. Arcs on a half-circle gauge now always bend the short way. (The same drawing code is used by the BMI gauge.)
+- **Fixed: an old weigh-in dragged the trend.** A reading from months before Oct 8 was joined to the new ones, so the trend looked flat (+0.1 lb a week over 30 days, while losing about 3.5) and every milestone forecast showed "—". The trend now **starts again after 3 weeks with no weigh-ins**, and days in such a gap have no trend. When the 30-day trend doesn't reach back far enough, forecasts use a straight line through the last 4 weeks of weigh-ins.
+- **Changed: a milestone counts the first day you weigh in at or under it.** It used to wait for the trend weight, which runs several pounds behind when losing fast (267.4 on the scale, 271 trend, so 270 showed as not reached). Progress, % of the way, lost and pounds to go are measured from your latest weigh-in. A milestone stays reached after a heavier day.
+- The Coach's weight line uses the same rate, and the first trend in the period rather than one inside a gap.
+- Tests: 125 checks, up from 124: a 274.8 → 267.4 loss with the trend still above 270 marks 270 reached; an old weigh-in 200 days earlier doesn't drag the trend, the rate shows the real 3.5 lb a week and forecasts come back. One 3.5 check was reversed (a single weigh-in now counts). GitHub's app start-up check also draws an 80% gauge arc and checks it bends the short way. Screenshots checked in dark mode with data shaped like yours. The real-file suites were run too.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `rules.js` | Trend restarts after a 3-week gap; `weightRate`; milestones count from weigh-ins and measure from the latest one |
+  | `index.html` | Gauge arc fix; recent rate in Trend change, Predictions, chart and Coach; milestone footnote; version and script tags |
+  | `tests.html` | 2 new checks, 1 reversed (125 in all) |
+  | `.github/run-tests.mjs` | Gauge arc check |
+  | `README.md` | Trend weight and milestones |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.5 → 3.5.1). **Paste it** so Data health shows the same version. |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | `core.js`, `importers.js`, `sync.js`, `config.js` | Not changed |
+
 ### v3.5 (November 5, 2026)
 
 - **New: your latest weigh-in, front and center, with how old it is.**
