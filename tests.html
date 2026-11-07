@@ -24,6 +24,7 @@ h2+.t{border-top:1px solid var(--border);border-radius:10px 10px 0 0}
 <script src="core.js"></script>
 <script src="importers.js"></script>
 <script src="rules.js"></script>
+<script src="migrate.js"></script>
 <script src="sync.js"></script>
 </head>
 <body>
@@ -483,8 +484,8 @@ describe('Daily anchors: other ways to fill a box', () => {
     eq([anchorState(getDay(A), box('Steps'), true).value, anchorState(getDay(A), box('Steps'), false).value], [1, 0]);
   });
   test('saved older settings are upgraded once: 20-min workouts, half at 5,000, reminders still at the old default', () => {
-    fresh(); data.anchorCfg = { names: ['Day Pack', 'Dinner Boundary', 'Movement', 'Steps'], hints: ['Shakes at 7, 11 & 3 · daytime calorie budget', 'My own dinner note', '25–30 min workout, 30-min walk, or the 10-min minimum', '7,500 steps or more'],
-      rules: [{ type: 'budget', meals: 'daytime', max: 1100 }, { type: 'meal', meal: 'Dinner', max: 700 }, { type: 'workout', min: 10 }, { type: 'steps', min: 7500 }], target: 23, v: 2 };
+    fresh(); data = normalize({ anchorCfg: { names: ['Day Pack', 'Dinner Boundary', 'Movement', 'Steps'], hints: ['Shakes at 7, 11 & 3 · daytime calorie budget', 'My own dinner note', '25–30 min workout, 30-min walk, or the 10-min minimum', '7,500 steps or more'],
+      rules: [{ type: 'budget', meals: 'daytime', max: 1100 }, { type: 'meal', meal: 'Dinner', max: 700 }, { type: 'workout', min: 10 }, { type: 'steps', min: 7500 }], target: 23, v: 2 } });
     const c = anchorCfg();
     eq([c.rules[2].min, c.rules[3].half, c.dayGoal, c.hints[1], c.hints[2]], [20, 5000, 1800, 'My own dinner note', '20 min or more of any workout or walk']);
   });
@@ -643,6 +644,26 @@ describe('Patterns: a short list, and it must hold up twice', () => {
   test('habits aren’t compared with outcomes they can’t plausibly change (under-eating vs HRV)', () => eq(PATTERN_FACTORS.find(f => f.key === 'underEat').outcomes.includes('hrv'), false));
 });
 
+/* ================= upgrading saved data (migrate.js) ================= */
+describe('Upgrading saved data', () => {
+  test('every step has a higher number than the last, and SCHEMA_VERSION is the last', () => {
+    const tos = MIGRATIONS.map(m => m.to); eq(tos, [...tos].sort((a, b) => a - b)); eq(tos[tos.length - 1], SCHEMA_VERSION); ok(MIGRATIONS.every(m => m.why && m.from), 'each says why and when');
+  });
+  test('very old settings (three boxes, 3 shakes, 17 of 21) come through every step', () => {
+    const d = normalize({ anchorCfg: { names: ['Day Pack', 'Dinner Boundary', 'Movement'], hints: ['Shakes at 7 AM, 11 AM & 3 PM', '', ''], rules: [{ type: 'food', words: 'kate farms, naked whey, shake', min: 3 }, { type: 'meal', meal: 'Dinner', max: 750 }, { type: 'workout', min: 10 }], target: 17 } });
+    const c = d.anchorCfg;
+    eq([c.names.length, c.rules[0].type, c.rules[2].min, c.rules[3].half, c.target, c.v, d.schemaVersion], [4, 'budget', 20, 5000, 23, 3, SCHEMA_VERSION]);
+  });
+  test('upgraded data is left alone: a box you removed later isn’t added back', () => {
+    const d = normalize({ schemaVersion: SCHEMA_VERSION, anchorCfg: { names: ['Day Pack', 'Movement'], rules: [{ type: 'budget', max: 1200 }, { type: 'workout', min: 30 }], target: 10, v: 3 } });
+    eq([d.anchorCfg.names.length, d.anchorCfg.rules[1].min], [2, 30]);
+  });
+  test('running it twice changes nothing', () => { const a = normalize({ anchorCfg: { names: ['A', 'B', 'C'], rules: [], target: 17 } }), b = normalize(JSON.parse(JSON.stringify(a))); eq(b, a); });
+  test('anchorCfg() no longer upgrades on read (data that skipped migrate stays as it is)', () => {
+    fresh(); data.anchorCfg = { names: ['A', 'B', 'C'], rules: [{ type: 'workout', min: 10 }, null, null], target: 17, v: 1 }; eq([anchorCfg().names.length, anchorCfg().rules[0].min], [3, 10]);
+  });
+});
+
 /* ================= saving and merging (sync.js) ================= */
 // A pretend Google Drive: one saved copy that "the other device" can change directly.
 function memStore(init) {
@@ -727,6 +748,15 @@ describe('Saving: two devices', () => {
   });
 });
 
+describe('What you use (feature freeze)', () => {
+  test('each device saves only its own counts, so two devices never overwrite each other', async () => {
+    const s = await device({ usage: { phone: { name: 'iPhone', n: { 'tab:log': [9, '2026-11-01'] } } } });
+    noteUse('tab:dash'); noteUse('tab:dash'); noteUse('page:weight'); day(K).steps = 1; touch(K); await persist();
+    eq([s.saved.usage.phone.n['tab:log'][0], s.saved.usage[deviceId()].n['tab:dash'][0], s.saved.usage[deviceId()].n['page:weight'][0]], [9, 2, 1]);
+  });
+  test('counting alone never starts a save', async () => { const s = await device({}); noteUse('tab:dash'); await persist(); eq(s.saves, 0); });
+});
+
 describe('Saving: failures and timing', () => {
   test('a failed save keeps the change, logs it, and the next save writes it', async () => {
     const s = await device({});
@@ -771,6 +801,8 @@ describe('Saving: nothing is silently dropped', () => {
     errorsClearedAt: [d => { d.errorsClearedAt = '2026-10-01T00:00:00Z'; }, {}],
     coachCfg: [d => { d.coachCfg = { why: 'kids' }; }, { coach: true }],
     coachUsage: [d => { d.coachUsage = [{ id: 'u', at: '2026-10-01' }]; }, { coach: true }],
+    schemaVersion: [d => { d.schemaVersion = 99; }, {}],
+    usage: [d => { d.usage = { [deviceId()]: { name: 'Mac', since: '2026-11-01', n: { 'tab:dash': [3, '2026-11-02'] } } }; }, {}],
   };
   test('every field in the saved file has a merge test (add new fields here)', () => {
     const fields = Object.keys(normalize({})).filter(k => !['version', 'updated'].includes(k));
@@ -784,23 +816,24 @@ describe('Saving: nothing is silently dropped', () => {
   });
   test('every field the code writes onto the data is kept by normalize()', async () => {
     const kept = new Set(Object.keys(normalize({}))), found = new Set();
-    for (const f of ['index.html', 'core.js', 'importers.js', 'rules.js', 'sync.js'])
+    // Every file the app loads (read from index.html's script tags), so a new screen file is checked too.
+    const page = await (await fetch('index.html', { cache: 'no-store' })).text();
+    for (const f of ['index.html', ...[...page.matchAll(/src="(\w+\.js)\?v=/g)].map(m => m[1])])
       for (const m of (await (await fetch(f, { cache: 'no-store' })).text()).matchAll(/\bdata\.([a-zA-Z]+)\s*(?:\|\|=|\?\?=|=(?!=))/g)) found.add(m[1]);
     ok(found.size > 5, 'found the writes', [...found]);
     eq([...found].filter(k => !kept.has(k)), [], 'written but dropped on save');
   });
 });
 
+function versionLess(a, b) { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); return false; }
 describe('One version everywhere', () => {
-  test('app, script tags, script and docs all carry the same version', async () => {
+  test('app, script tags and docs carry one version; the script file matches SCRIPT_LATEST', async () => {
     const get = async f => (await fetch(f, { cache: 'no-store' })).text();
     const [html, gs, readme, setup, alt, log] = await Promise.all(['index.html', 'email-to-drive.gs', 'README.md', 'SETUP.md', 'ALTERNATIVES.md', 'CHANGELOG.md'].map(get));
-    const v = html.match(/const APP_VERSION = '([\d.]+)'/)[1];
+    const v = html.match(/const APP_VERSION = '([\d.]+)'/)[1], sv = html.match(/const SCRIPT_LATEST = '([\d.]+)'/)?.[1];
     const found = {
       'index.html header': html.match(/<!-- Health Sync app · version ([\d.]+) -->/)?.[1],
       ...Object.fromEntries([...html.matchAll(/src="(\w+\.js)\?v=([\d.]+)"/g)].map(m => [m[1] + ' tag', m[2]])),
-      'script line 3': gs.match(/^ \* Version ([\d.]+)$/m)?.[1],
-      SCRIPT_VERSION: gs.match(/const SCRIPT_VERSION = '([\d.]+)'/)?.[1],
       'README.md': readme.match(/> \*\*Version ([\d.]+)\*\*/)?.[1],
       'SETUP.md': setup.match(/> \*\*Version ([\d.]+)\*\*/)?.[1],
       'ALTERNATIVES.md': alt.match(/> \*\*Version ([\d.]+)\*\*/)?.[1],
@@ -808,6 +841,9 @@ describe('One version everywhere', () => {
     };
     ok(Object.keys(found).filter(k => k.endsWith(' tag')).length >= 4, 'script tags found', found);
     eq(Object.entries(found).filter(([, x]) => x !== v), [], `everything should say ${v}`);
+    // The script has its own number (v3.8+): line 3 and SCRIPT_VERSION agree, the app knows it as SCRIPT_LATEST, and it's never ahead of the app.
+    eq([gs.match(/^ \* Version ([\d.]+)$/m)?.[1], gs.match(/const SCRIPT_VERSION = '([\d.]+)'/)?.[1]], [sv, sv], 'script version = SCRIPT_LATEST');
+    ok(!versionLess(v, sv), `script ${sv} isn’t ahead of the app ${v}`);
   });
 });
 

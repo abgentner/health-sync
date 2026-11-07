@@ -6,6 +6,22 @@ let store = null;
 let base = null;        // the data as this device last loaded or saved it: what "changed here" is measured against
 let coachDirty = false;
 let errorsDirty = false;
+let usageDirty = false;
+
+// What you use: each device counts which screens it opens, in data.usage[device]. Only this device's entry is saved
+// from here, so two devices never overwrite each other's counts. Settings › What you use adds them up, so screens
+// nobody opens can be cut (feature freeze, v3.8). Saved with the next save, never a save of its own.
+function deviceId() {
+  let id = LS.get('hs-device', null);
+  if (!id) { id = uid(); LS.set('hs-device', id); }
+  return id;
+}
+function noteUse(key) {
+  const dev = deviceId(), u = ((data.usage ||= {})[dev] ||= { name: (navigator.userAgent.match(/iPhone|iPad|Android|Macintosh|Windows/) || ['Device'])[0].replace('Macintosh', 'Mac'), since: todayKey(), n: {} });
+  const e = (u.n[key] ||= [0, null]);
+  e[0]++; e[1] = todayKey();
+  usageDirty = true;
+}
 
 async function loadData() {
   const d = await store.load();
@@ -76,6 +92,9 @@ function mergeLocal(remote, f, local = data, was = base) {
   for (const k of ['days', 'activities']) { const a = gs.parser === remote.garminSeen.parser ? gs[k] : null, b = ls.parser === remote.garminSeen.parser ? ls[k] : null; remote.garminSeen[k] = !a ? b || null : !b ? a : a < b ? a : b; }
   if (remote.garminSeen.parser) for (const [id, v] of Object.entries(remote.watched)) if (/^g\d+:/.test(v)) delete remote.watched[id];
   remote.watchedParser = Math.max(remote.watchedParser || 1, local.watchedParser || 1);
+  remote.schemaVersion = Math.max(remote.schemaVersion || 0, local.schemaVersion || 0);
+  const dev = deviceId(), mine = local.usage?.[dev];
+  remote.usage = { ...(remote.usage || {}), ...(mine ? { [dev]: mine } : {}) };
 }
 
 // Saves run one at a time. A change made while a save is in progress stays in memory and is saved by the next one.
@@ -86,9 +105,9 @@ function persist() {
   return run;
 }
 async function persistOnce() {
-  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !errorsDirty && !Object.keys(tileOps).length) return;
+  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !errorsDirty && !Object.keys(tileOps).length) return;   // usage alone never starts a save
   const f = { days: new Set(dirty), imports: importsDirty, plan: planDirty, coach: coachDirty, tiles: tileOps };
-  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; errorsDirty = false; tileOps = {};
+  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; errorsDirty = false; usageDirty = false; tileOps = {};
   setStatus('Saving…', 'busy');
   try {
     // Re-read the latest copy first so edits made on another device aren't overwritten.

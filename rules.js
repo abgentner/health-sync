@@ -16,28 +16,10 @@ const ANCHOR_DEFAULTS = {
   dayGoal: null,   // whole-day calories that tick every meal box; null = the meal boxes' limits added up
   v: 3,
 };
-const OLD_HINTS = { 'Shakes at 7, 11 & 3 · daytime calorie budget': 0, '8 oz protein · 2 cups veggies · 1 cup starch · one plate': 1, '25–30 min workout, 30-min walk, or the 10-min minimum': 2, '7,500 steps or more': 3 };
+// Your anchor settings over the defaults. Old saved settings were already upgraded when the data loaded (migrate.js).
 const anchorCfg = () => {
   const c = { ...ANCHOR_DEFAULTS, ...(data.anchorCfg || {}) };
-  // v2.13: a fourth box for steps. Saved three-box settings get it added once, and the old 17-of-21 goal becomes 23 of 28.
-  if (data.anchorCfg && !(data.anchorCfg.v >= 2)) {
-    c.names = [...c.names]; c.hints = [...(c.hints || [])]; c.rules = [...(c.rules || [])];
-    if (!c.rules.some(r => r?.type === 'steps')) { c.names.push(STEPS_BOX.name); c.hints[c.names.length - 1] = STEPS_BOX.hint; c.rules[c.names.length - 1] = { ...STEPS_BOX.rule }; }
-    if (c.target === 17) c.target = 23;
-    c.v = 2;
-  }
   c.rules = c.names.map((_, i) => c.rules?.[i] || ANCHOR_DEFAULTS.rules[i] || { type: 'none' });
-  // v1.3: Day Pack moved from "3 shakes" to a daytime calorie budget — upgrade the old default if it was never customised.
-  const r0 = c.rules[0];
-  if (r0?.type === 'food' && r0.words === 'kate farms, naked whey, shake' && r0.min === 3) c.rules[0] = { ...ANCHOR_DEFAULTS.rules[0] };
-  if (c.hints?.[0] === 'Shakes at 7 AM, 11 AM & 3 PM') c.hints = [ANCHOR_DEFAULTS.hints[0], ...c.hints.slice(1)];
-  // v3.4: other ways to fill a box. Saved settings get them once: the day's calorie goal ticks the meal boxes,
-  // 5,000 steps is half a box, and any 20 minutes of workouts counts. Reminders still at an old default are updated.
-  if (!(c.v >= 3)) {
-    c.rules = c.rules.map(r => r.type === 'steps' && r.half == null ? { ...r, half: 5000 } : r.type === 'workout' ? { ...r, min: 20 } : r);
-    c.hints = (c.hints || []).map(h => h in OLD_HINTS ? ANCHOR_DEFAULTS.hints[OLD_HINTS[h]] : h);
-    c.v = 3;
-  }
   if (c.dayGoal == null) c.dayGoal = c.rules.filter(r => r.type === 'budget' && r.meals !== 'all' || r.type === 'meal').reduce((s, r) => s + (r.max || 0), 0) || null;
   return c;
 };

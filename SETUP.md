@@ -1,12 +1,12 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.7.1** · November 6, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.8** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.7.1) · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
 > ✏️ `YOUR-USERNAME` means your GitHub username (yours is `abgentner`).
 
-**You'll need:** a computer, a personal Gmail, about an hour in total, and the release files (`index.html`, `core.js`, `importers.js`, `rules.js`, `sync.js`, `tests.html`, `config.js`, `email-to-drive.gs` and the `.md` files).
+**You'll need:** a computer, a personal Gmail, about an hour in total, and the release files: every `.html`, `.js`, `.gs` and `.md` file, `config.js`, and the `.github` folder.
 
 ## Step 1 — Get a personal Google (Gmail) account
 
@@ -69,7 +69,7 @@ You're now on your repository's page. Its address is `https://github.com/YOUR-US
 ### 3b. Upload the app files
 
 1. Near the top right of the page, click the **Add file** button, then **Upload files**.
-2. Drag in **`index.html`**, **`core.js`**, **`importers.js`**, **`rules.js`**, **`sync.js`**, **`tests.html`**, **`config.js`**, **`email-to-drive.gs`**, **`README.md`**, **`SETUP.md`**, **`ALTERNATIVES.md`** and **`CHANGELOG.md`**. Or click **choose your files** and pick them.
+2. Drag in **every file from the release folder**: all the `.html`, `.js`, `.gs` and `.md` files, plus `config.js`. Or click **choose your files** and pick them.
    - It's fine to replace the README that GitHub made for you.
 3. Wait until all the files show in the list.
 4. Scroll down and click the green **Commit changes** button.

@@ -1,0 +1,26 @@
+# Saves new reference pictures for the screenshot comparison (.github/screens/). Run it from GitHub's Actions tab
+# (Update screenshots › Run workflow) after a change that's meant to change how a screen looks, or after GitHub's
+# fonts change. It commits the pictures to main. Commits made this way don't start another test run.
+name: Update screenshots
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm install --no-save --no-package-lock puppeteer@22
+      - run: node .github/screens.mjs
+        env:
+          TZ: America/Los_Angeles
+          UPDATE_SCREENS: '1'
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add .github/screens
+          git diff --cached --quiet && echo "No changes." || (git commit -m "Update screenshots" && git push)

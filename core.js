@@ -81,13 +81,37 @@ function download(name, text, type) {
 }
 
 /* ================= data model ================= */
-// data.days["YYYY-MM-DD"] = { steps, stepsSource, weight, weightUnit, weightSource,
-//   sleep:{hours, score, source}, food:[...], workouts:[...], feel:{mood,energy,stress,tags,notes},
-//   pv:{i, c} (two private marks from Log today: i = who started it, 'me' or 'her'; c = whether it happened, true/false) }
+// The saved file (Google Drive › Health Sync › health-sync-data.json), one object. normalize() keeps only the fields
+// listed below, so a new top-level field must be added there (tests.html fails if one is written but not kept).
+// Old shapes are upgraded by migrate() (migrate.js), never on read.
+/**
+ * One day, data.days["YYYY-MM-DD"]. Every field is optional; a day with nothing left in it is deleted (touch()).
+ * @typedef {Object} Day
+ * @property {number} [steps]             daily total; stepsSource 'health' | 'garmin' | 'loseit' | 'manual' (SOURCE_RANK), stepsVia device
+ * @property {number[]} [stepsHours]      24 hourly counts, the shape of the day only
+ * @property {number} [weight]            in weightUnit 'lb' | 'kg'; weightSource 'withings' | 'health' | 'garmin' | 'loseit' | 'manual'
+ * @property {{hours:number, score?:number, start?:string, source:string, via?:string}} [sleep]
+ * @property {Object[]} [food]            Lose It entries: { name, meal, calories, protein, carbs, fat, …, source }; loseItGen/loseItAt when the report was made
+ * @property {Object} [nutrition]         whole-day nutrients from a Lose It PDF
+ * @property {Object} [healthFood]        nutrition Lose It wrote into Apple Health (a fallback, never mixed with food)
+ * @property {Object} [micros]            vitamins and minerals by key (MICROS)
+ * @property {Object[]} [workouts]        { title, type, start, durationMin, calories, distance, zones?, load?, sets?, source, id }
+ * @property {Object} [health]            Apple Health measures by HEALTH_METRICS key, plus leanKg
+ * @property {Object} [garmin]            Garmin day file: hrvNight, bodyBattery, stress, …; restingHR beside it
+ * @property {Object} [comp]              Withings direct (paid API): kg masses, fatPct, visceral, bmr…; see compOf() for the Apple Health fallback
+ * @property {{v:number, unit:'in'|'cm'}} [waist]
+ * @property {number} [pushups]           most in one set (monthly check)
+ * @property {number} [drinks]            typed by hand; drinksOf() falls back to Apple Health, then Lose It
+ * @property {{mood?:number, energy?:number, stress?:number, tags?:string[], notes?:string}} [feel]
+ * @property {{i?:'me'|'her', c?:boolean}} [pv]   two private marks from Log today
+ * @property {(boolean|null)[]} [anchors] anchor boxes set by hand (null = from the data)
+ * @property {Object[]} [body]            body log: { area, kind: 'sore'|'pain'|'stiff', level 0–10, note }
+ */
+// No schemaVersion here: this runs while core.js loads, before migrate.js. normalize() adds it on the first load or save.
 const emptyData = () => ({ version: 1, days: {}, imports: [], updated: null });
 function normalize(d) {
   d = d && typeof d === 'object' ? d : {};
-  return { version: 1, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, dashCfg: d.dashCfg || null, gapsOk: d.gapsOk && typeof d.gapsOk === 'object' ? d.gapsOk : {}, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, reflections: d.reflections && typeof d.reflections === 'object' ? d.reflections : {}, garminSeen: d.garminSeen && typeof d.garminSeen === 'object' ? d.garminSeen : {}, errors: Array.isArray(d.errors) ? d.errors : [], errorsClearedAt: d.errorsClearedAt || null, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], updated: d.updated || null };
+  return migrate({ version: 1, schemaVersion: d.schemaVersion || 0, days: d.days || {}, imports: Array.isArray(d.imports) ? d.imports : [], plan: d.plan || null, anchorCfg: d.anchorCfg || null, weightCfg: d.weightCfg || null, dashCfg: d.dashCfg || null, gapsOk: d.gapsOk && typeof d.gapsOk === 'object' ? d.gapsOk : {}, watched: d.watched && typeof d.watched === 'object' ? d.watched : {}, watchedParser: d.watchedParser || 1, reviews: d.reviews && typeof d.reviews === 'object' ? d.reviews : {}, reflections: d.reflections && typeof d.reflections === 'object' ? d.reflections : {}, garminSeen: d.garminSeen && typeof d.garminSeen === 'object' ? d.garminSeen : {}, errors: Array.isArray(d.errors) ? d.errors : [], errorsClearedAt: d.errorsClearedAt || null, coachCfg: d.coachCfg || null, coachUsage: Array.isArray(d.coachUsage) ? d.coachUsage : [], usage: d.usage && typeof d.usage === 'object' ? d.usage : {}, updated: d.updated || null });
 }
 let data = emptyData();
 const dirty = new Set();

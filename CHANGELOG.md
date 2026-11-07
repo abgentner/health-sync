@@ -1,15 +1,14 @@
 # Health Sync — Version history
 
-**Every file shares one version number** (from v3.0 on): the app, the script, README, SETUP, ALTERNATIVES and this file. Each release bumps all of them together, and its notes say which files **only had their number changed**. To check which files you're using:
+**The app and the docs share one version number** (from v3.0 on): every app file, README, SETUP, ALTERNATIVES and this file. Each release bumps all of them together, and its notes say which files **only had their number changed**. **The Google script has its own number** (from v3.8): it changes only when `email-to-drive.gs` changes, so you paste it only when there's something new in it. To check which files you're using:
 
 | File | Where to see its version |
 |---|---|
-| **App** (`index.html`, with `core.js`, `importers.js`, `rules.js`, `sync.js`) | At the bottom of every page, and **Settings → About**. `index.html` loads the other four with the same version in their address (`core.js?v=3.2.1`), so a phone never mixes old and new files |
-| **Tests** (`tests.html`) | Uses whatever `core.js`, `importers.js`, `rules.js` and `sync.js` sit next to it, and fails if any file's version doesn't match `APP_VERSION` |
-| **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. Data health turns amber if it doesn't match the app |
+| **App** (`index.html`, which loads `core.js`, `importers.js`, `rules.js`, `migrate.js`, `sync.js` and the screen files) | At the bottom of every page, and **Settings → About**. `APP_VERSION` is in `index.html` itself. Every script tag carries the same version in its address (`core.js?v=3.8`), so a phone never mixes old and new files |
+| **Tests** (`tests.html`) | Uses whatever app files sit next to it, and fails if any file's version doesn't match `APP_VERSION` |
+| **Script** (`email-to-drive.gs`) | Line 3 of the code, and the first line of the Execution log each time it runs. The app's `SCRIPT_LATEST` names the newest script. Data health turns amber only when yours is older. `tests.html` checks that the script file and `SCRIPT_LATEST` agree |
 | **README / SETUP / ALTERNATIVES** | The line at the top of each file |
 | **CHANGELOG** | Its newest entry |
-| **Your copies** | The Desktop folder name, like **Health Sync v3.3** |
 
 ### How versions are numbered
 
@@ -17,21 +16,61 @@
 - **Major (3.0, 4.0…):** a big change in how Health Sync works, such as where its data comes from, its architecture or a redesign. Rare, and agreed beforehand.
 - **Minor (3.1, 3.2…):** a new feature or screen.
 - **Patch (3.0.1…):** fixes and small tweaks to something that already exists. Bundled when possible.
-- **Docs-only fixes** to the release just shipped keep its number, and are noted in its entry as a docs follow-up. That way you don't paste the script again for a wording change. Any change to code gets a new number.
-
-**Paste the script every release**, even if only its number changed, so everything stays on one version (README › Updating the app). Before v3.0 the script had its own number, which is why older entries below mention script versions such as 2.12.1.
+- **Docs-only fixes** to the release just shipped keep its number, and are noted in its entry as a docs follow-up.
+- **The script** gets the app's number at the time its code changes: for example, if a change lands in 3.9, the script becomes 3.9, and stays 3.9 through later app releases until it changes again. Before v3.8 every release bumped it, so older entries say "Version number only" for the script.
 
 `config.js` has no version. It only holds your Client ID and never changes, so don't re-upload it.
 
 ### Every release, in this order
 
-1. **Bump the version in every file:** `APP_VERSION` and the comment at the top of `index.html`; the `?v=` on its four script tags (`core.js`, `importers.js`, `rules.js`, `sync.js`); line 3 and `SCRIPT_VERSION` in `email-to-drive.gs`; and the line at the top of README, SETUP and ALTERNATIVES.
+1. **Bump the app version:** `APP_VERSION` and the comment at the top of `index.html`, the `?v=` on every script tag in `index.html`, and the line at the top of README, SETUP and ALTERNATIVES. **Only if `email-to-drive.gs` changed:** set its line 3 and `SCRIPT_VERSION` to the new app version, and `SCRIPT_LATEST` in `index.html` to match.
 2. **Update the docs** for whatever changed. In particular, README for anything you can see or do, and SETUP for anything about setting up.
-3. **Add a CHANGELOG entry** with a table of every file and what changed in it. Mark files whose only change is the number as **Version number only**.
-4. **Add a check to `tests.html`** for each fix or new rule, so it can't break again unnoticed.
-5. **Open `tests.html` and confirm it's all green.**
-6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
-7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
+3. **Add a CHANGELOG entry** with a table of every file and what changed in it. Mark files whose only change is the number as **Version number only**. Say whether the script changed (**Paste it**) or not.
+4. **Add a check to `tests.html`** for each fix or new rule, so it can't break again unnoticed. A change to saved data's shape gets a new numbered step in `migrate.js` (never an edit to an old one).
+5. **Run the tests and look at the screens:** `tests.html` all green, and `SCREENS_OUT=dir node .github/screens.mjs` to eyeball the six screens.
+6. **Push or upload all the app files together.** They only work as a set.
+7. **GitHub runs the tests and the screenshot comparison, and publishes only if both pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
+
+### v3.8 (November 7, 2026)
+
+**No new features: this release is about structure.** It's also the start of a **2–4 week feature freeze** while the learned burn, assignment results and waist record collect real data.
+
+- **The screens are split into their own files.** `index.html` went from 3,634 lines to about 950, and is now just the page: its markup, styles and version. The code that ran inline is now 9 files, in the same order and unchanged:
+  - `drive.js`: storage and the Problems log
+  - `dashboard.js`, `log.js`, `coach.js` (which now also holds your why and reflections), `training.js`, `health.js`, `weight.js` and `metrics.js`
+  - `main.js`: startup and wiring, loaded last
+
+  Splitting it exposed one load-order trap, a file using something from a file that loads after it. It's fixed, and the comments say which files may depend on which.
+- **New: screenshot comparison in GitHub's test run** (`.github/screens.mjs`). GitHub draws six screens with made-up data at a frozen date and time: the Dashboard, Weight, Log today and Training at computer size, and the Dashboard and Weight at phone size. It compares them pixel by pixel with the saved pictures in `.github/screens/`. If over 0.1% of a screen's pixels change, the run fails and publishing stops, and the changed pixels show in red under Artifacts. An intended change: run **Actions › Update screenshots** (`.github/workflows/update-screens.yml`), which saves the new pictures. The first run has no saved pictures yet, so it passes. The pictures get saved by running Update screenshots once after this release.
+- **New: one place to upgrade saved data** (`migrate.js`). Saved data now carries a `schemaVersion`. When data loads, numbered upgrade steps run in order, once. The 3 that existed (v1.3's calorie-budget Day Pack, v2.13's fourth box, v3.4's half boxes) used to run on every read inside `anchorCfg()`; they're now steps 1–3. `core.js` has a written description of a day's fields.
+- **Changed: the Google script has its own version.** It changes only when its code does, so you paste it only when there's something new. **This release doesn't change it: it stays 3.7.1, and there's nothing to paste.** Data health turns amber only when your script is older than the newest one (`SCRIPT_LATEST`).
+- **New: What you use** (Settings): how often you open each tab and detail page, added up across devices, with **never opened** at the bottom. Each device saves only its own counts, and counting alone never causes a save. After the freeze, the bottom of this list is what to cut.
+- Tests: 178 checks, up from 169:
+  - upgrading saved data: the steps run in order, very old settings come through every step, data that's already upgraded is left alone, running twice changes nothing, and nothing upgrades on read anymore
+  - the script's own version
+  - usage counts from two devices
+  - the "nothing silently dropped" check now reads every file `index.html` loads
+
+  The real-file suites were run against this version too.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `drive.js`, `dashboard.js`, `log.js`, `coach.js`, `training.js`, `health.js`, `weight.js`, `metrics.js`, `main.js` | **New:** the screens, moved out of `index.html` unchanged (plus usage counting in `main.js`, `metrics.js` and `log.js`) |
+  | `migrate.js` | **New:** numbered upgrades of saved data |
+  | `index.html` | Now just the page; loads the new files; `SCRIPT_LATEST`; What you use card; version and script tags |
+  | `core.js` | `schemaVersion` and `usage` kept on save, `normalize()` runs the upgrades, a written description of a day |
+  | `rules.js` | `anchorCfg()` no longer upgrades on read |
+  | `sync.js` | Usage counts per device, `schemaVersion` merged |
+  | `tests.html` | 9 new checks (178 in all) |
+  | `.github/screens.mjs`, `.github/workflows/update-screens.yml` | **New:** screenshot comparison, and the workflow that saves new pictures |
+  | `.github/workflows/tests.yml` | Runs the screenshot comparison; installs pixelmatch and pngjs |
+  | `README.md` | How the app is split, Updating the app (the script's own version), Settings › What you use, Tests (screenshots) |
+  | `SETUP.md` | File lists; version line |
+  | `CHANGELOG.md` | The version rule, the release checklist, this entry |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `email-to-drive.gs` | **Not changed: stays 3.7.1. Nothing to paste.** |
+  | `importers.js`, `config.js` | Not changed |
 
 ### v3.7.1 (November 6, 2026)
 

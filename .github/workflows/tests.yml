@@ -1,4 +1,4 @@
-# Runs tests.html on every push to main, and publishes the site only if every check passes.
+# Runs tests.html and the screenshot comparison on every push to main, and publishes the site only if all pass.
 name: Tests, then publish
 on:
   push:
@@ -19,8 +19,21 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - run: npm install --no-save --no-package-lock puppeteer@22
+      - run: npm install --no-save --no-package-lock puppeteer@22 pixelmatch@5.3.0 pngjs@7.0.0
       - run: node .github/run-tests.mjs
+      # The key screens, drawn with made-up data at a frozen time, against the saved pictures in .github/screens/.
+      - name: Screens look the same
+        run: node .github/screens.mjs
+        env:
+          TZ: America/Los_Angeles
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: |
+            screens-diff/
+            screens-new/
+          if-no-files-found: ignore
   publish:
     needs: test
     runs-on: ubuntu-latest
