@@ -33,6 +33,24 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.6.1 (November 6, 2026)
+
+- **Fixed: an app window left open never saw new reports.** The app only looked in the Drive Inbox when it started or when you clicked **Sync** or **Check Inbox now**, and it never reloaded what your other devices had saved. So the Nov 6 Lose It report was saved to Drive by the script at 8:25, as its log shows, but an app window open since earlier didn't show it. Now an open window brings itself up to date when you come back to it, and every 10 minutes while it's on screen (at most once every 5 minutes). It saves, reloads, imports from the Inbox and refreshes Data health. It waits while you have unsaved changes in Log today or the plan.
+- **After about an hour,** Google's sign-in can only be renewed by a click, so the window can't update itself. Instead of looking current, the status at the top now says **Synced 8:10 AM · click Sync**.
+- Checked: the Nov 5 Lose It file itself imports correctly (7 entries, 1,714 cal, 132.7 g protein), and it's now a check in the private real-file suite.
+- Tests: GitHub's app start-up check now runs the background sync against a stand-in Drive. It picks up another device's save and checks the Inbox, waits while you're mid-edit, doesn't run twice within 5 minutes, and says **click Sync** once the sign-in has expired. Disabling the background sync makes the check fail. 135 checks in `tests.html` (unchanged), and all real-file suites pass.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `index.html` | Background sync on return and every 10 minutes; "click Sync" status once the sign-in expires; version and script tags |
+  | `.github/run-tests.mjs` | Background sync check |
+  | `README.md` | Signing in: what an open window does |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.6 → 3.6.1). **Paste it** so Data health shows the same version. |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | `core.js`, `importers.js`, `rules.js`, `sync.js`, `tests.html`, `config.js` | Not changed |
+
 ### v3.6 (November 5, 2026)
 
 - **New: two private marks on Log today.** In the Feelings card, **Private** has two marks with no words on them: **↗** is **Me** or **Her**, and **♡** is **Y** or **N**. Tap the lit one again to clear it. They're saved with your data in Drive and sync between devices field by field; *Move* and *Delete feelings* include them. They aren't shown elsewhere on screen, and aren't graded.

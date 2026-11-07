@@ -60,7 +60,25 @@ try {
   });
   const pvOk = pv[0] === '{"i":"me","c":false}' && pv[1] === '{"initiated_by":"user","happened":false}';
   if (!pvOk) console.error(`FAIL  app start-up: private marks ${JSON.stringify(pv)}, expected saved {"i":"me","c":false} and sent to the Coach as initiated_by user, happened false`);
-  const appOk = saved === 9 && half === '½' && paceOk && arcOk && pvOk && !errors.length;
+  // A window left open picks up new files by itself: with a stand-in Drive, coming back to it after 5 minutes
+  // reloads other devices' saves and checks the Inbox; mid-edit it waits; with Google's sign-in expired it says to click Sync.
+  const bg = await app.evaluate(async () => {
+    let inbox = 0, remote = { ...normalize({}), days: { '2026-11-05': { steps: 4242 } } };
+    const realValid = Drive.valid, realLoad = Drive.load, realSave = Drive.save, realInbox = checkInbox, realHealth = loadHealth;
+    Drive.valid = () => true; Drive.load = async () => normalize(structuredClone(remote)); Drive.save = async o => { remote = structuredClone(o); };
+    checkInbox = async () => { inbox++; return 0; }; loadHealth = () => {};
+    store = Drive;
+    const out = {};
+    logDirty = true; lastSyncAt = 0; await backgroundSync(); out.waitsMidEdit = inbox === 0; logDirty = false;
+    lastSyncAt = 0; await backgroundSync(); out.synced = inbox === 1 && data.days['2026-11-05']?.steps === 4242;
+    await backgroundSync(); out.notTwiceIn5Min = inbox === 1;
+    Drive.valid = () => false; lastSyncAt = 0; await backgroundSync(); out.expired = inbox === 1 && /click Sync/.test(document.querySelector('#st-lbl').textContent);
+    Object.assign(Drive, { valid: realValid, load: realLoad, save: realSave }); checkInbox = realInbox; loadHealth = realHealth; store = LocalStore;
+    return out;
+  });
+  const bgOk = Object.values(bg).every(Boolean);
+  if (!bgOk) console.error(`FAIL  app start-up: background sync ${JSON.stringify(bg)}`);
+  const appOk = saved === 9 && half === '½' && paceOk && arcOk && pvOk && bgOk && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

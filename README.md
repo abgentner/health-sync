@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.6** · November 5, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.6.1** · November 6, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -410,7 +410,8 @@ A table with one row per day. **Click any column header to sort** (click again t
 | **First time on a new computer** | Click **Connect Google Drive** and sign in ([SETUP.md Step 7](SETUP.md#step-7--open-the-app-for-the-first-time)). |
 | **You reopen the app within about an hour** | It opens straight to your dashboard. No click needed. |
 | **You reopen it later than that** | Click **Connect Google Drive**. The Google window usually opens and closes by itself, because the app remembers your account. |
-| **The app stays open longer than an hour** | Nothing visible happens. The next time you click **Sync**, **Save day** or **Check Inbox now**, a Google window flashes for a second and the action goes through. Nothing is lost. |
+| **The app stays open** | It keeps itself current: when you come back to the window, and every 10 minutes while it's on screen, it reloads what your other devices saved and imports anything new in the Drive Inbox, such as the morning's Lose It report. It waits while you have unsaved changes in Log today or the plan. |
+| **The app stays open longer than an hour** | Google's sign-in can only be renewed by a click, so it stops updating by itself. The status at the top says **Synced 7:10 AM · click Sync**. Click **Sync**: a Google window flashes for a second and everything comes in. Nothing is lost. |
 | **About once a week** | Google asks you to **approve the app again**: pick your account, tick the Drive box, click **Continue**. This happens because the app is in "Testing" mode. It takes about 10 seconds, all inside the app's sign-in window. **You never need to go back to the Google Cloud pages.** |
 
 ---
