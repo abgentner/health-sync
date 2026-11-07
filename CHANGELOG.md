@@ -31,6 +31,12 @@
 6. **Push or upload all the app files together.** They only work as a set.
 7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
 
+### v3.8.3 (November 7, 2026)
+
+- **Fixed: the header on a phone.** With the ♥ pace chip and the ⚠ data-issues chip both showing, they pushed the status dot and **Sync** off the right edge and squeezed "Health Sync" onto two lines. On narrow screens the chips now get their own line under the logo, status and Sync; with no chips, the header is one line as before. Desktop is unchanged.
+- **Tests:** GitHub's app start-up check now opens the app at phone width (360 px) with both chips showing, and fails if a chip covers the status dot or Sync, or the header runs off the edge. 178 checks unchanged.
+- **Files:** `index.html` (phone styles, version), `.github/run-tests.mjs` (the phone header check), `README.md`, `SETUP.md`, `ALTERNATIVES.md` (version number only). `email-to-drive.gs` not changed: stays 3.7.1, nothing to paste.
+
 ### v3.8.2 (November 7, 2026)
 
 - **Fixed: the Coach's instruction on the private marks.** It told Claude to treat declined days as weighing on your mood, which handed it a conclusion before it looked at your data. It now tells it to check: compare mood, energy and stress on and after those days with other days, mention a difference only with at least 3 such days and a gap of at least half a point, call it a pattern rather than a cause, and otherwise draw no link.

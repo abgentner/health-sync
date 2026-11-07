@@ -52,6 +52,17 @@ try {
   });
   const paceOk = pace[0] === '♥ Losing too fast' && pace[1] === false;
   if (!paceOk) console.error(`FAIL  app start-up: pace chip ${JSON.stringify(pace)}, expected "♥ Losing too fast" and no pace row in Data health`);
+  // On a phone, the header chips sit on their own line: they don't cover the status dot or Sync, and nothing runs off the edge (3.8.3).
+  await app.setViewport({ width: 360, height: 800 });
+  const hdr = await app.evaluate(() => {
+    const hc = document.querySelector('#hc'); hc.hidden = false; hc.textContent = '⚠ 2 data issues';
+    const r = s => document.querySelector(s).getBoundingClientRect(), over = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const sync = r('#btn-sync'), st = r('.status'), chips = [r('#pc'), r('#hc')];
+    return { off: sync.right > innerWidth || document.querySelector('.hdr').scrollWidth > document.querySelector('.hdr').clientWidth, covered: chips.some(c => over(c, sync) || over(c, st)) };
+  });
+  await app.setViewport({ width: 800, height: 600 });   // puppeteer's default, which the checks below were written against
+  const hdrOk = !hdr.off && !hdr.covered;
+  if (!hdrOk) console.error(`FAIL  app start-up: phone header ${JSON.stringify(hdr)}: the chips cover the status dot or Sync, or the header runs off the edge`);
   // A gauge arc 80% of the way round still bends the short way (the 3.5 gauge swung round the wrong side past halfway).
   const arc = await app.evaluate(() => arcPath(110, 112, 92, 0, 0.8));
   const arcOk = / A92 92 0 0 1 /.test(arc);
@@ -101,7 +112,7 @@ try {
   if (!v37Ok) console.error(`FAIL  app start-up: v3.7 screens ${JSON.stringify(v37)}`);
   if (process.env.SHOTS) { await app.setViewport({ width: 1280, height: 2400 }); await app.screenshot({ path: process.env.SHOTS + '/weight.png', fullPage: true });
     await app.evaluate(() => { closeMetric?.(); goTab('dash'); }); await app.screenshot({ path: process.env.SHOTS + '/dash.png' }); }
-  const appOk = saved === 9 && half === '½' && paceOk && arcOk && pvOk && bgOk && v37Ok && !errors.length;
+  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && arcOk && pvOk && bgOk && v37Ok && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);
