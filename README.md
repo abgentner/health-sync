@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.8.3** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.7.1) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.9** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.8) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -54,7 +54,7 @@ Several sources often report the same thing. For each measure the app keeps one 
 |---|---|---|
 | **Steps** | You → Apple Health → Garmin → Lose It | Apple Health's daily total already merges your iPhone and Garmin steps without double counting |
 | **Sleep** | You → Garmin → Apple Health → Lose It | Garmin's own data has the sleep score; Apple Health's copy is the same night without it |
-| **Weight** | You → Withings (direct) → Apple Health → Garmin → Lose It | Read straight from Withings (v3.7+, SETUP Step 14) the app keeps each day's **first** weigh-in, the morning one, with its body composition. Without that connection, Withings' copy in Apple Health is used |
+| **Weight** | You → Withings export → Apple Health → Garmin → Lose It | A Withings export you import (SETUP Step 14) gives each day's **first** weigh-in, the morning one, with its full body composition. Otherwise Withings' copy in Apple Health is used |
 | **Resting heart rate** | Apple Health → Garmin | |
 | **HRV** | Apple Health and Garmin are kept as **two separate measures** | They aren't the same number: Apple's is SDNN, Garmin's is overnight RMSSD |
 | **Body Battery, stress** | Garmin only | |
@@ -74,16 +74,26 @@ The Sleep, Steps and Weight pages show where each day's value came from, includi
 | **Lose It report** | An email arrived in the last 36 h | No email for 36 h (amber) or 72 h (red), or saving failed |
 | **Apple Health** | Health Auto Export updated in the last 36 h | Late, or it's sending **minute-by-minute** data (set Time Grouping to **Day**) |
 | **Strava** | Connected, no errors | The sync failed (run `stravaCheck`) |
-| **Withings** | Connected; shows the last weigh-in it read | The sync failed, or the sign-in expired (run `withingsLink` again). Gray means not connected: weight still comes through Apple Health |
+| **Nightly backups** | A copy of your data was saved in the last 2 days; shows how many are kept and the file's size | The last backup failed (red, with the reason, plus an email), none for 2 days (red), or your script is older than 3.8 (amber: paste it) |
 | **Garmin** | Updated in the last few hours; shows when your watch last synced, how far back history has loaded, and when the key expires | Watch not synced for 12 h (amber; email after a day), key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber with the time it resumes, no email) |
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
-| **Steps, Sleep, Weight, Resting heart rate, Food** | The newest automatic value is from yesterday or the day before (weight: within the last week) | Steps, sleep, resting heart rate and food: newest value 3–4 days old (amber) or older (red). Weight: over a week old (amber) or over two weeks (red). Each row says what to check |
+| **Steps, Sleep, Weight, Body fat %, Lean body mass, Resting heart rate, Heart rate variability, Food** | Arriving on its usual rhythm | Late for its own rhythm (amber), or twice as late (red). See below |
+| **Withings body composition** | Gray: when you last imported a Withings export, and its newest reading | Its newest reading is over a month old (amber): time for a new export |
 
-The measure rows exist because a source can keep delivering files while one measure inside them stops. For example, Health Auto Export can keep updating while its file has no sleep in it. The app checks these rows when it's open; they don't send alert emails.
+**Measurement rows (since v3.9): each one against its own rhythm.** A source can keep delivering files while one measurement inside them stops: Health Auto Export can keep updating while its file has no lean mass in it. So each measurement is checked on its own, and **against how often it actually arrives for you**, learned from the 90 days before it last came:
+- **Late** means more than twice its longest usual gap, and never under 3 days. Steps that come every day are late after 3 quiet days. Weigh-ins that come every week or two are late only after a few weeks, so not weighing in for 10 days isn't an alarm. With fewer than 5 readings there's no rhythm yet, so it's late after 2 weeks.
+- **When:** each row says when it last arrived, how often it usually does, and the day it was due.
+- **What failed, and why:** a late row names the chain it comes through (for example *Withings → Apple Health → Health Auto Export → your Drive → the app*) and which links still work, so you know where the break is:
+  - Health Auto Export **itself stopped**: fix that first; nothing from Apple Health can arrive.
+  - Health Auto Export **still sending, but without this measurement**: the break is before it. The row lists, in order: you didn't weigh in, or the watch wasn't worn; the device stopped writing it to Apple Health (exactly where to check in the Health app); it was unticked in the automation; Health Auto Export lost permission to read it (the iPhone Settings path).
+  - From **Garmin**: the script can't read Garmin, the watch hasn't synced, or Garmin itself has nothing.
+  - From **Lose It**: the report emails stopped, or nothing was logged.
+- **Never arrived, but should have:** if your Withings scale measures body fat or lean mass (it does, if it measures body composition) and it has never come through Apple Health, the row says so, with where to tick it.
+- The app checks these rows when it's open; they don't send alert emails.
 
 - When anything is amber or red, a **⚠ data issue** chip appears at the top of every screen. Tap it to open this panel.
 - Data health is only about your data arriving. Your **weight-loss pace** is a health alert, so it has its own **♥** chip instead (Weight › Pace alarm).
-- **Alert emails:** your Google script checks every hour, even when the app is closed. It emails you **once a day per problem** if Lose It or Health Auto Export goes quiet for 36 hours, if Health Auto Export switches to minute data, or if Strava fails.
+- **Alert emails:** your Google script checks every hour, even when the app is closed. It emails you **once a day per problem** if Lose It or Health Auto Export goes quiet for 36 hours, if Health Auto Export switches to minute data, if Strava fails, or if a nightly backup fails or none has been made for 2 days.
 
 ### Days to check (catching up after travel)
 
@@ -98,6 +108,8 @@ The measure rows exist because a source can keep delivering files while one meas
 ## What each screen does
 
 ### Dashboard
+
+**Data file report (since v3.9), every 6 months:** a card at the top says how big your data file is, how much it grew since the last report and how soon, at that rate, it would reach 5 MB, and what takes the most room. Under 3 MB it says *fine, nothing to do*; from 3 MB *worth watching*; from 5 MB *time to move old years into archive files* (each sync downloads and saves the whole file). **Got it** hides it for 6 months. The first one appears as soon as you open v3.9.
 
 - **Date bar:** use **‹ ›** to move between days, or **Today** to jump back.
 - **Day / 5 / 7 / 15 / 30-day average buttons:** choose what the six summary tiles show.
@@ -170,7 +182,7 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
 
 ### Weight page (trend, goals, BMI, predictions)
 
-Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale**: directly, with body composition, once it's connected (SETUP Step 14), or through Apple Health and Health Auto Export. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
+Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale** through Apple Health and Health Auto Export. A **Withings export** you import now and then (SETUP Step 14) adds everything else the scale measures. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
 
 - **Latest weigh-in (top of the page):** your most recent reading, large, with its date and how old it is. Up to 2 days old it's current. From **3 days** it turns amber ("getting old"). From **a week** it turns red: it says you've probably changed since then, and estimates where your trend likely is now at your pace before it. The trend weight sits beside it. The Dashboard's Weight tile also leads with the latest weigh-in and its age (red "weigh in" after a week), with the trend underneath.
 - **Pace alarm:** losing faster than about **1% of body weight a week for 4 weeks** costs muscle as well as fat. The Weight page then shows **Losing too fast** in red, and a red **♥ Losing too fast** chip appears at the top of every screen; tap it to open the Weight page. It isn't counted as a data issue. Over **1.25% a week across the last 2 weeks** only, or over twice your committed rate, shows **Watch your pace** in amber, with an amber ♥ chip. The pace is a straight line fitted through your actual weigh-ins, because the smoothed trend reacts too slowly to warn in time. Daily water swings of a couple of pounds don't set it off. It needs 3 weeks of weigh-ins, with at least 6 in the last 2 weeks. The fix it suggests: eat a little more on very low days, keep protein at target, and keep strength training.
@@ -193,7 +205,7 @@ Open it by clicking the Weight tile or chart. Weigh-ins come in automatically fr
 
   You'll see the date you're projected to reach each milestone still ahead and your goal, plus your predicted weight on any **events** you add (a reunion, a trip). The chart's dashed projection follows the same choice. These are straight lines, so treat distant dates as rough.
 - **Layout:** on a computer, Progress has its own column on the left, and Trend change, Last 10 days, BMI and Predictions sit beside it. On a phone they stack.
-- **Body composition:** body fat %, fat mass and lean mass from what your Withings scale shares with Apple Health. Tick **Body Fat Percentage** and **Lean Body Mass** in Health Auto Export (SETUP Step 11); with only body fat %, fat and lean are worked out from it and that day's weight. Each one shows the change over 30 days. With Withings' developer API (SETUP Step 14, which needs a company or a paid plan) it adds muscle, water, bone, visceral fat and the scale's basal metabolic rate. Underneath, **what the loss was made of**: *"Of the 9 lb lost, about 6.5 is fat and 2.4 lean mass (27% lean)."* Each end is the average of 3 readings, because a single reading swings with water. If more than about 30% of the loss is lean mass, it turns red and says why: protein toward 130 g and two strength sessions a week protect it.
+- **Body composition:** body fat %, fat mass and lean mass from what your Withings scale shares with Apple Health. Tick **Body Fat Percentage** and **Lean Body Mass** in Health Auto Export (SETUP Step 11); with only body fat %, fat and lean are worked out from it and that day's weight. Each one shows the change over 30 days. A **Withings export** (SETUP Step 14) adds muscle, water, bone, visceral fat, the scale's basal metabolic rate and metabolic age, for the days it covers. Underneath, **what the loss was made of**: *"Of the 9 lb lost, about 6.5 is fat and 2.4 lean mass (27% lean)."* Each end is the average of 3 readings, because a single reading swings with water. If more than about 30% of the loss is lean mass, it turns red and says why: protein toward 130 g and two strength sessions a week protect it.
 - **Waist:** your latest measurement, the change since the first, and waist ÷ height.
 - **Your burn:** what you **actually** burn a day, learned from your own numbers (the way MacroFactor works): your average calories on fully logged days, plus what the scale says that eating did (3,500 cal per lb), over the last 4 weeks. It needs 21 of 28 days fully logged in Lose It and 8 weigh-ins; missed snacks make the burn look lower than it is. Then:
   - **As you get lighter:** what your current calorie goal will do at each weight ahead. You burn about 10 cal a day less per pound lost, so the same food loses less each month. That slowdown is expected, not a plateau.
@@ -416,7 +428,8 @@ A table with one row per day. **Click any column header to sort** (click again t
 
 - **Where your data lives:** shows which Google account you're connected as. **Sign out** disconnects this computer.
 - **Units:** miles or kilometers. Match whatever Garmin Connect uses.
-- **Backup:** download or restore your data. See [Backups](#backups).
+- **Nightly backups:** the copies your script saved in Drive, newest first, each with a **Restore** button. See [Backups](#backups).
+- **Backup:** download a copy of your data, or bring one back from a file. See [Backups](#backups).
 - **Theme:** light, dark, or match your computer.
 
 ---
@@ -469,7 +482,15 @@ Each release is either pushed straight to GitHub (when Claude works in your copy
 
 ## Backups
 
-Your data is already safe in Google Drive, but an extra copy doesn't hurt. Once a month is a good habit.
+**Nightly backups (since v3.9, script 3.8):** once a day, your Google script saves a copy of your data file as **Health Sync › Backups › health-data 2026-11-07.json** and keeps the newest **30**. Older ones go to the Drive trash, which keeps them 30 more days. There's nothing to set up beyond pasting the script.
+- **Settings › Nightly backups** lists them, newest first, with their size. **Restore** replaces **all** your data with that copy. It doesn't merge, because a backup is for undoing a bad save, and a merge would carry the bad data along.
+- **Before it restores,** the app saves anything unsaved on this device and then saves your data as it is right now, as **health-data before restore 2026-11-07 1432.json** in the same folder. So a restore can itself be undone: restore that copy. If that copy can't be saved, nothing is restored.
+- **Kept from now:** your Coach settings (with your API key) and the screen-use counts.
+- **Your other devices** pick up the restored data on their next sync (within 10 minutes, or click Sync). A change one of them makes after that saves on top of it, as usual.
+- **If a backup fails**, Data health's **Nightly backups** row turns red with the reason, and the script emails you.
+- **Try one restore** once, on purpose, so you know it works: restore the newest copy (it's nearly the same as now), check the Dashboard, then carry on. Nothing is lost either way.
+
+**Copies of your own:**
 
 - **Settings → Download backup (JSON):** a complete copy of everything. Keep it somewhere safe.
 - **Settings → Download daily summary (CSV):** one row per day, which you can open in Excel or Google Sheets.
@@ -584,7 +605,7 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 **How the app is split** (since v3.8). `index.html` is the page itself: the markup, the styles and the version. The code is in plain script files, loaded in order and sharing one global scope:
   - **Logic:**
     - **`core.js`** holds shared helpers and the data model (a written description of a day is at the top of its data-model section).
-    - **`importers.js`** reads Lose It, Apple Health, Garmin, Strava and Withings files.
+    - **`importers.js`** reads Lose It, Apple Health, Garmin, Strava and Withings export files.
     - **`rules.js`** holds everything worked out from the data.
     - **`migrate.js`** is the one place old saved data is upgraded: numbered steps, run in order once when the data loads.
     - **`sync.js`** saves to Drive and merges the changes from your devices.
@@ -594,6 +615,8 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
     - **`main.js`**: startup and wiring, loaded last
 
   `tests.html` loads the logic files directly.
+
+**Libraries (since v3.9):** PapaParse, JSZip, Chart.js and pdf.js load from the app's own `vendor/` folder, not a CDN, so an outage or a removed version at cdnjs can't break the app. They're cdnjs's exact files, checked against its published hashes; `vendor/README.md` lists them and how to update one. Only Google's sign-in script loads from outside. GitHub's start-up check fails if a script tag points anywhere else, or a vendor file is missing.
 
 **Type check (since v3.8.1):** GitHub runs TypeScript's checker over every app file before the tests, with no build step: the app still ships as plain files. `jsconfig.json` lists the files and `globals.d.ts` names what comes from outside (the CDN libraries, `APP_VERSION`).
 - **What it catches:** a misspelled or missing function or variable name anywhere in the app (for example `weightRatez`), wrong kinds of arguments, and fields used on a day that aren't in its written description in `core.js`.

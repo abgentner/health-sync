@@ -7,6 +7,7 @@ let base = null;        // the data as this device last loaded or saved it: what
 let coachDirty = false;
 let errorsDirty = false;
 let usageDirty = false;
+let sizeDirty = false;     // a data file size report was read (sizeLog, v3.9)
 
 // What you use: each device counts which screens it opens, in data.usage[device]. Only this device's entry is saved
 // from here, so two devices never overwrite each other's counts. Settings › What you use adds them up, so screens
@@ -92,6 +93,8 @@ function mergeLocal(remote, f, local = data, was = base) {
   for (const k of ['days', 'activities']) { const a = gs.parser === remote.garminSeen.parser ? gs[k] : null, b = ls.parser === remote.garminSeen.parser ? ls[k] : null; remote.garminSeen[k] = !a ? b || null : !b ? a : a < b ? a : b; }
   if (remote.garminSeen.parser) for (const [id, v] of Object.entries(remote.watched)) if (/^g\d+:/.test(v)) delete remote.watched[id];
   remote.watchedParser = Math.max(remote.watchedParser || 1, local.watchedParser || 1);
+  // Size reports: kept from every device, one per date.
+  remote.sizeLog = [...new Map([...(remote.sizeLog || []), ...(local.sizeLog || [])].map(x => [x.at, x])).values()].sort((a, b) => a.at.localeCompare(b.at)).slice(-40);
   remote.schemaVersion = Math.max(remote.schemaVersion || 0, local.schemaVersion || 0);
   const dev = deviceId(), mine = local.usage?.[dev];
   remote.usage = { ...(remote.usage || {}), ...(mine ? { [dev]: mine } : {}) };
@@ -105,9 +108,9 @@ function persist() {
   return run;
 }
 async function persistOnce() {
-  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !errorsDirty && !Object.keys(tileOps).length) return;   // usage alone never starts a save
+  if (!dirty.size && !importsDirty && !planDirty && !coachDirty && !gapsDirty && !errorsDirty && !sizeDirty && !Object.keys(tileOps).length) return;   // usage alone never starts a save
   const f = { days: new Set(dirty), imports: importsDirty, plan: planDirty, coach: coachDirty, tiles: tileOps };
-  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; errorsDirty = false; usageDirty = false; tileOps = {};
+  dirty.clear(); importsDirty = false; planDirty = false; coachDirty = false; gapsDirty = false; errorsDirty = false; usageDirty = false; sizeDirty = false; tileOps = {};
   setStatus('Saving…', 'busy');
   try {
     // Re-read the latest copy first so edits made on another device aren't overwritten.
@@ -129,3 +132,25 @@ async function persistOnce() {
     throw e;
   }
 }
+
+/* ---- restoring a backup (v3.9) ----
+   A restore REPLACES everything with the backup; it doesn't merge, because a backup is for undoing a bad save, and a
+   merge would carry the bad data along. First, anything unsaved here is saved, and the data as it is now (with every
+   device's saves) is handed to keepCopy, which saves it as a "before restore" backup, so a restore can itself be undone.
+   What's kept from now: the Coach's settings (your API key) and the screen-use counts. Other devices pick up the
+   restored data on their next sync; a change they make after that merges onto it as usual. */
+async function restoreFrom(backup, keepCopy) {
+  await persist();
+  const now = await store.load();
+  await keepCopy(now);
+  const r = normalize(structuredClone(backup));
+  if (!Object.keys(r.days).length && Object.keys(now.days).length) throw new Error('That backup has no days in it, so it was not restored.');
+  r.coachCfg = now.coachCfg ?? r.coachCfg; r.usage = now.usage; r.updated = new Date().toISOString();
+  await store.save(r);
+  dirty.clear(); importsDirty = planDirty = coachDirty = gapsDirty = errorsDirty = usageDirty = sizeDirty = false; tileOps = {};
+  data = structuredClone(r); base = structuredClone(r);
+  return { days: Object.keys(r.days).length, was: Object.keys(now.days).length };
+}
+// "health-data 2026-11-07.json" → "2026-11-07"; "health-data before restore 2026-11-07 1432.json" → "2026-11-07 1432".
+const backupStamp = name => (String(name).match(/(\d{4}-\d{2}-\d{2})(?: (\d{4}))?/) || []).slice(1).filter(Boolean).join(' ');
+

@@ -19,7 +19,7 @@ h2+.t{border-top:1px solid var(--border);border-radius:10px 10px 0 0}
 .t .why{display:block;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--bad);white-space:pre-wrap;word-break:break-word}
 #toast,#st-lbl,#st-dot{display:none}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="vendor/papaparse-5.4.1.min.js"></script>
 <script>const APP_VERSION = 'tests';</script>
 <script src="core.js"></script>
 <script src="importers.js"></script>
@@ -493,30 +493,49 @@ describe('Daily anchors: other ways to fill a box', () => {
 });
 
 /* ================= v3.7: Withings, body measures, burn, phases, today, assignments ================= */
-const wg = (date, ms) => ({ date: Math.floor(new Date(date).getTime() / 1000), measures: ms.map(([type, value, unit]) => ({ type, value, unit })) });
-describe('Withings (read directly by the script)', () => {
-  const file = groups => impWithings('w.json', { source: 'withings', measuregrps: groups });
-  test('weight and everything the scale measures are read, in kg × 10^unit, weight shown in lb', () => {
+// A made-up Withings "Download my data" export: weight.csv rows [date, lb, fat lb, bone lb, muscle lb, water lb], other.csv rows [type, date, value].
+const WX_HEAD = 'Date,Weight (lb),Fat mass (lb),Bone mass (lb),Muscle mass (lb),Hydration (lb),Comments';
+const wx = (w, o = []) => impWithingsExport('data_X.zip', [WX_HEAD, ...w.map(r => r.join(',') + ',')].join('\n'), ['type,date,value,unit,position', ...o.map(([t, d, v]) => `${t},${d},"${v}",,`)].join('\n'));
+describe('Withings export (Download my data)', () => {
+  test('weight and everything the scale measures are read; lb become kg, and weight shows in lb', () => {
     fresh(); day('2026-10-01').weightUnit = 'lb';
-    file([wg('2026-10-02T07:05:00', [[1, 12040, -2], [6, 3150, -2], [8, 3793, -2], [5, 8247, -2], [76, 7830, -2], [77, 6010, -2], [88, 417, -2], [170, 145, -1], [226, 2410, 0], [227, 49, 0]])]);
+    wx([['2026-10-02 07:05:00', 265.4, 83.6, 9.2, 172.6, 132.5]], [['FAT_FREE_MASS', '2026-10-02 07:05:00', 82.5], ['FAT_PERCENT', '2026-10-02 07:05:00', 31.5], ['Visceral Fat', '2026-10-02 07:05:00', 14.5], ['Basal Metabolic Rate (BMR)', '2026-10-02 07:05:00', '2,410'], ['Metabolic Age', '2026-10-02 07:05:00', 49], ['BMI', '2026-10-02 07:05:00', 36], ['Impedence 50kHz for segments', '2026-10-02 07:05:00', 462]]);
     const d = getDay('2026-10-02');
     eq([d.weight, d.weightUnit, d.weightSource], [265.4, 'lb', 'withings']);
-    eq([d.comp.fatPct, d.comp.fatKg, d.comp.leanKg, d.comp.muscleKg, d.comp.waterKg, d.comp.boneKg, d.comp.visceral, d.comp.bmr, d.comp.metabolicAge], [31.5, 37.9, 82.5, 78.3, 60.1, 4.2, 14.5, 2410, 49]);
+    eq([d.comp.fatPct, d.comp.fatKg, d.comp.leanKg, d.comp.muscleKg, d.comp.waterKg, d.comp.boneKg, d.comp.visceral, d.comp.bmr, d.comp.metabolicAge, d.comp.source], [31.5, 37.9, 82.5, 78.3, 60.1, 4.2, 14.5, 2410, 49, 'withings']);
+  });
+  test('the importer finds the two files inside the ZIP and ignores the other 80', () => {
+    const files = n => ({ files: Object.fromEntries(n.map(x => [x, { name: x, dir: false }])) });
+    eq(!!withingsExportFiles(files(['account.csv', 'weight.csv', 'other.csv', 'raw_hr_hr.csv'])), true);
+    eq(withingsExportFiles(files(['weight.csv'])), null);   // a lone weight.csv inside some other ZIP isn't taken for Withings
+    eq(withingsExportFiles(files(['sleep.csv', 'other.csv'])), null);
   });
   test('a day keeps its first (morning) weigh-in, not a later one', () => {
-    fresh(); file([wg('2026-10-03T19:30:00', [[1, 12200, -2]]), wg('2026-10-03T06:50:00', [[1, 12000, -2], [6, 31, 0]])]);
-    eq([getDay('2026-10-03').weight, getDay('2026-10-03').comp.fatPct], [264.6, 31]);
+    fresh(); wx([['2026-10-03 19:30:00', 269, '', '', '', ''], ['2026-10-03 06:50:00', 264.6, 82, '', '', '']]);
+    eq([getDay('2026-10-03').weight, getDay('2026-10-03').comp.fatKg], [264.6, 37.2]);
   });
-  test('one weigh-in split over two groups seconds apart is joined', () => {
-    fresh(); file([wg('2026-10-04T07:00:00', [[1, 12000, -2]]), wg('2026-10-04T07:00:20', [[6, 30, 0], [76, 78, 0], [88, 4, 0]])]);
-    eq([getDay('2026-10-04').comp.fatPct, getDay('2026-10-04').comp.muscleKg], [30, 78]);
+  test('a weigh-in in other.csv seconds apart from weight.csv is joined to it', () => {
+    fresh(); wx([['2026-10-04 07:00:00', 264.6, 82, 9, 172, 130]], [['FAT_PERCENT', '2026-10-04 07:00:20', 31]]);
+    eq(getDay('2026-10-04').comp.fatPct, 31);
   });
+  test('lean mass given in lb by mistake is still turned into kg', () => { fresh(); wx([['2026-10-05 07:00:00', 264.6, '', 9, 172, 130]], [['FAT_FREE_MASS', '2026-10-05 07:00:00', 182.6]]); eq(getDay('2026-10-05').comp.leanKg, 82.8); });
+  test('lean mass and fat % are worked out from weight and fat mass, not other.csv’s whole numbers', () => { fresh(); wx([['2026-10-08 07:00:00', 262.3, 86.4, 8.7, 167.2, 117.8]], [['FAT_FREE_MASS', '2026-10-08 07:00:00', 80], ['FAT_PERCENT', '2026-10-08 07:00:00', 33]]); eq([getDay('2026-10-08').comp.leanKg, getDay('2026-10-08').comp.fatPct], [79.8, 32.9]); });
   test('Withings beats Apple Health’s copy of the same weigh-in, both ways round', () => {
     fresh(); hae([{ name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-10-05 00:00:00 -0700', qty: 266.0 }] }]);
-    file([wg('2026-10-05T07:00:00', [[1, 12000, -2]])]); eq(getDay('2026-10-05').weightSource, 'withings');
+    wx([['2026-10-05 07:00:00', 264.6, 82, 9, 172, 130]]); eq(getDay('2026-10-05').weightSource, 'withings');
     hae([{ name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-10-05 00:00:00 -0700', qty: 266.0 }] }]); eq([getDay('2026-10-05').weight, getDay('2026-10-05').weightSource], [264.6, 'withings']);
   });
-  test('a weight typed by hand still wins', () => { fresh(); const d = day('2026-10-06'); d.weight = 263; d.weightUnit = 'lb'; d.weightSource = 'manual'; file([wg('2026-10-06T07:00:00', [[1, 12000, -2]])]); eq(getDay('2026-10-06').weight, 263); });
+  test('a weight typed by hand still wins', () => { fresh(); const d = day('2026-10-06'); d.weight = 263; d.weightUnit = 'lb'; d.weightSource = 'manual'; wx([['2026-10-06 07:00:00', 264.6, '', '', '', '']]); eq(getDay('2026-10-06').weight, 263); });
+  test('readings from before your history starts are left out, and counted', () => {
+    fresh(); day('2026-09-01').steps = 5000; touch('2026-09-01');
+    const msg = wx([['2026-10-07 07:00:00', 264, '', '', '', ''], ['2026-08-20 07:00:00', 270, '', '', '', ''], ['2012-08-04 10:03:22', 235, '', '', '', '']]);
+    eq([!!getDay('2026-10-07')?.weight, getDay('2026-08-20')?.weight ?? null, getDay('2012-08-04')?.weight ?? null], [true, null, null]);
+    eq(/2 older readings back to Aug 2012 left out/.test(msg), true);
+  });
+  test('the plan’s start date counts as the start of your history', () => {
+    fresh(); data.weightCfg = { startDate: '2026-08-01' }; day('2026-09-01').steps = 5000; touch('2026-09-01');
+    wx([['2026-08-20 07:00:00', 270, '', '', '', '']]); eq(getDay('2026-08-20')?.weight, 270);
+  });
 });
 
 describe('Body composition through Apple Health (no Withings API)', () => {
@@ -681,6 +700,132 @@ async function device(init) {
 }
 const K = '2026-10-01';
 
+describe('Data health: a measurement gone quiet (v3.9)', () => {
+  const T = '2026-11-07', Y = '2026-11-06';
+  // n days of a measurement every `every` days, the newest `ago` days before yesterday.
+  const fill = (set, n, every = 1, ago = 0) => { for (let i = 0; i < n; i++) { const k = addDays(Y, -ago - i * every); set(day(k), k); } };
+  const row = (st, name) => quietRows(st, T).find(r => r[1] === name);
+  const hae = (hoursAgo = 2) => ({ appleHealth: { lastAt: '2026-11-07T08:00:00Z', hoursAgo } });
+  test('daily steps: fine through yesterday, late after 3 quiet days, an alarm after 6', () => {
+    fresh(); fill(d => { d.steps = 8000; d.stepsSource = 'health'; }, 60);
+    eq(row(hae(), 'Steps')[0], 'ok');
+    fresh(); fill(d => { d.steps = 8000; d.stepsSource = 'health'; }, 60, 1, 4); eq(row(hae(), 'Steps')[0], 'warn');
+    fresh(); fill(d => { d.steps = 8000; d.stepsSource = 'health'; }, 60, 1, 7); eq(row(hae(), 'Steps')[0], 'bad');
+  });
+  test('weigh-ins every week: 10 quiet days is still normal for you', () => {
+    fresh(); fill(d => { d.weight = 260; d.weightUnit = 'lb'; d.weightSource = 'health'; }, 12, 7, 9);
+    eq(row(hae(), 'Weight')[0], 'ok');
+    fresh(); fill(d => { d.weight = 260; d.weightUnit = 'lb'; d.weightSource = 'health'; }, 12, 7, 20); eq(row(hae(), 'Weight')[0], 'warn');
+  });
+  test('it says when it last came, its usual rhythm, and when it was due', () => {
+    fresh(); fill(d => { d.steps = 8000; d.stepsSource = 'health'; d.stepsVia = 'iPhone'; }, 60, 1, 4);
+    eq(new RegExp(`Latest ${fmtDay('2026-11-02')} \\(5 days ago\\) · usually every day, so it was due by ${fmtDay('2026-11-05', { month: 'short', day: 'numeric' })}`).test(row(hae(), 'Steps')[2]), true);
+  });
+  test('Health Auto Export still sending: the break is before it, with the device and the exact settings to check', () => {
+    fresh(); fill(d => { d.weight = 260; d.weightUnit = 'lb'; d.weightSource = 'health'; d.weightVia = 'Withings'; d.health = { bodyFat: 31 }; }, 30, 1, 10);
+    const fix = row(hae(), 'Body fat %')[3];
+    eq([/Health Auto Export is still sending files \(last 2 h ago\)/.test(fix), /You haven't weighed in since/.test(fix), /Withings app/.test(fix), /Health Metrics › Body Fat Percentage/.test(fix), /Privacy & Security › Health › Health Auto Export/.test(fix)], [true, true, true, true, true]);
+  });
+  test('Health Auto Export itself stopped: says to fix that first, not the device', () => {
+    fresh(); fill(d => { d.steps = 8000; d.stepsSource = 'health'; }, 60, 1, 5);
+    eq(/Health Auto Export itself stopped sending \(its last file was 3 days ago\)/.test(row(hae(80), 'Steps')[3]), true);
+  });
+  test('the scale measures it, but it has never arrived through Apple Health: says exactly where to tick it', () => {
+    fresh(); fill(d => { d.weight = 260; d.weightUnit = 'lb'; d.weightSource = 'health'; d.weightVia = 'Withings'; }, 20, 2);
+    const r = row(hae(), 'Lean body mass');
+    eq([r[0], /Never arrived through Apple Health, though your Withings scale measures it/.test(r[2]), /tick Lean Body Mass/.test(r[3])], ['warn', true, true]);
+    eq(row(hae(), 'Heart rate variability'), undefined);   // never had it, nothing measures it: not listed
+  });
+  test('from Garmin: a watch that hasn’t synced is named as the cause', () => {
+    fresh(); fill(d => { d.sleep = { hours: 7, source: 'garmin' }; }, 60, 1, 5);
+    eq(/watch last synced to Garmin Connect 5 days ago/.test(row({ garmin: { connected: true, watchHoursAgo: 130 } }, 'Sleep')[3]), true);
+    eq(/Garmin itself has had none since .*worn overnight/.test(row({ garmin: { connected: true, watchHoursAgo: 2 } }, 'Sleep')[3]), true);
+  });
+  test('Lose It: emails stopped vs nothing logged', () => {
+    fresh(); fill(d => { d.food = [{ name: 'x', calories: 100, source: 'loseit' }]; }, 60, 1, 5);
+    eq(/report emails stopped/.test(row({ loseIt: { lastAt: 'x', hoursAgo: 120 } }, 'Food (Lose It)')[3]), true);
+    eq(/Lose It has nothing logged since/.test(row({ loseIt: { lastAt: 'x', hoursAgo: 3 } }, 'Food (Lose It)')[3]), true);
+  });
+  test('only a few readings: no rhythm yet, so late only after 2 weeks', () => {
+    fresh(); fill(d => { d.health = { hrv: 40 }; }, 3, 1, 10); eq(row(hae(), 'Heart rate variability')[0], 'ok');
+    fresh(); fill(d => { d.health = { hrv: 40 }; }, 3, 1, 15); eq(row(hae(), 'Heart rate variability')[0], 'warn');
+  });
+  test('the Withings export: a quiet note, and a nudge once its newest reading is a month old', () => {
+    fresh(); day('2026-10-30').comp = { source: 'withings', via: 'withings-export', fatKg: 39 }; data.imports.push({ at: '2026-10-31T10:00:00Z', what: 'Withings export' });
+    eq(row({}, 'Withings body composition')[0], 'gray');
+    fresh(); day('2026-09-30').comp = { source: 'withings', via: 'withings-export', fatKg: 39 }; data.imports.push({ at: '2026-10-01T10:00:00Z', what: 'Withings export' });
+    const r = row({}, 'Withings body composition'); eq([r[0], /^Imported/.test(r[2]), /It's been 38 days\. Comes from your Withings export/.test(r[3])], ['warn', true, true]);
+  });
+});
+
+describe('Data file report, every 6 months (v3.9)', () => {
+  test('due the first time, then not again for 6 months', () => {
+    fresh(); day('2026-11-01').steps = 1;
+    eq([sizeReport('2026-11-07').due, sizeReport('2026-11-07').first], [true, true]);
+    data.sizeLog = [{ at: '2026-11-07', bytes: 1000, days: 1 }];
+    eq([sizeReport('2027-05-07').due, sizeReport('2027-05-08').due], [false, true]);
+  });
+  test('says how fast it grows, when it would reach 5 MB, and what takes the room', () => {
+    fresh(); for (let i = 0; i < 300; i++) day(addDays('2026-01-01', i)).food = [{ name: 'x'.repeat(200), calories: 500 }];
+    const now = jsonBytes(data); data.sizeLog = [{ at: '2026-05-07', bytes: now - 1048576, days: 100 }];
+    const R = sizeReport('2026-11-07');
+    eq([R.level, R.top[0].part, Math.round(R.grow.bytes / 1048576), Math.round(R.grow.perYear / 1048576 * 10) / 10, R.yearsTo5 > 1 && R.yearsTo5 < 3], ['fine', 'days · food', 1, 2, true]);
+  });
+  test('past 5 MB says it’s time to act', () => { fresh(); day('2026-11-01').food = [{ name: 'x'.repeat(5.2 * 1048576) }]; eq(sizeReport('2026-11-07').level, 'act'); });
+  test('two devices’ reports merge, one per date', () => {
+    const remote = normalize({ sizeLog: [{ at: '2026-05-01', bytes: 1 }] }), local = normalize({ sizeLog: [{ at: '2026-11-07', bytes: 2 }] });
+    mergeLocal(remote, { days: new Set(), tiles: {} }, local, null); eq(remote.sizeLog.map(x => x.at), ['2026-05-01', '2026-11-07']);
+  });
+});
+
+describe('Restoring a backup (v3.9)', () => {
+  test('replaces everything with the backup, after saving a copy of the data as it is now', async () => {
+    const s = await device({ days: { [K]: { steps: 5000 }, '2026-10-02': { steps: 1 } } });
+    let kept = null;
+    const r = await restoreFrom({ days: { [K]: { steps: 7000 } } }, now => { kept = structuredClone(now); });
+    eq([s.saved.days[K].steps, '2026-10-02' in s.saved.days, r], [7000, false, { days: 1, was: 2 }]);
+    eq([kept.days[K].steps, kept.days['2026-10-02'].steps], [5000, 1]);
+    eq([data.days[K].steps, base.days[K].steps], [7000, 7000]);
+  });
+  test('the copy kept first includes an unsaved change here, and the other device’s latest save', async () => {
+    const s = await device({ days: { [K]: { steps: 5000 } } });
+    s.other(d => { d.days['2026-10-03'] = { steps: 42 }; });
+    day(K).drinks = 3; touch(K);
+    let kept = null; await restoreFrom({ days: { [K]: { steps: 1 } } }, now => { kept = now; });
+    eq([kept.days[K].drinks, kept.days['2026-10-03'].steps, dirty.size], [3, 42, 0]);
+  });
+  test('keeps your Coach settings (the API key) and screen counts from now', async () => {
+    const s = await device({ days: { [K]: { steps: 1 } }, coachCfg: { apiKey: 'sk-now' }, usage: { a: { n: { x: [5, K] } } } });
+    await restoreFrom({ days: { [K]: { steps: 2 } }, coachCfg: { apiKey: 'sk-old' } }, () => {});
+    eq([s.saved.coachCfg.apiKey, s.saved.usage.a.n.x[0]], ['sk-now', 5]);
+  });
+  test('an old backup is upgraded like any old file (schema steps run)', async () => {
+    await device({ days: { [K]: { steps: 1 } } });
+    await restoreFrom({ days: { [K]: { steps: 2 } } }, () => {});
+    eq(data.schemaVersion, SCHEMA_VERSION);
+  });
+  test('a change made after the restore saves on top of it', async () => {
+    const s = await device({ days: { [K]: { steps: 5000 } } });
+    await restoreFrom({ days: { [K]: { steps: 7000 } } }, () => {});
+    day(K).drinks = 1; touch(K); await persist();
+    eq([s.saved.days[K].steps, s.saved.days[K].drinks], [7000, 1]);
+  });
+  test('a backup with no days isn’t restored over real data, and nothing changes', async () => {
+    const s = await device({ days: { [K]: { steps: 5000 } } });
+    let err = null; try { await restoreFrom({ days: {} }, () => {}); } catch (e) { err = e.message; }
+    eq([/no days/.test(err), s.saved.days[K].steps], [true, 5000]);
+  });
+  test('if the copy of now can’t be saved, nothing is restored', async () => {
+    const s = await device({ days: { [K]: { steps: 5000 } } });
+    let err = null; try { await restoreFrom({ days: { [K]: { steps: 1 } } }, () => { throw new Error('Drive is full'); }); } catch (e) { err = e.message; }
+    eq([err, s.saved.days[K].steps], ['Drive is full', 5000]);
+  });
+  test('backup names sort newest first, with copies from before a restore in time order', () => {
+    const n = ['health-data 2026-11-05.json', 'health-data before restore 2026-11-06 1432.json', 'health-data 2026-11-06.json', 'health-data 2026-11-07.json'];
+    eq(n.sort((a, b) => backupStamp(b).localeCompare(backupStamp(a))), ['health-data 2026-11-07.json', 'health-data before restore 2026-11-06 1432.json', 'health-data 2026-11-06.json', 'health-data 2026-11-05.json']);
+  });
+});
+
 describe('Saving: two devices', () => {
   test('a drink logged on the phone survives a Health import on the Mac for the same day', async () => {
     const s = await device({ days: { [K]: { steps: 5000, stepsSource: 'health' } } });
@@ -803,6 +948,7 @@ describe('Saving: nothing is silently dropped', () => {
     coachUsage: [d => { d.coachUsage = [{ id: 'u', at: '2026-10-01' }]; }, { coach: true }],
     schemaVersion: [d => { d.schemaVersion = 99; }, {}],
     usage: [d => { d.usage = { [deviceId()]: { name: 'Mac', since: '2026-11-01', n: { 'tab:dash': [3, '2026-11-02'] } } }; }, {}],
+    sizeLog: [d => { d.sizeLog = [{ at: '2026-11-07', bytes: 1200000, days: 400 }]; }, {}],
   };
   test('every field in the saved file has a merge test (add new fields here)', () => {
     const fields = Object.keys(normalize({})).filter(k => !['version', 'updated'].includes(k));

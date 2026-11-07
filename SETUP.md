@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.8.3** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.7.1) · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.9** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.8) · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -664,48 +664,19 @@ You need **Step 9 done first** (the script).
 
 ---
 
-## Step 14 — Everything your Withings scale measures (optional, about 15 minutes)
+## Step 14 — Everything your Withings scale measures (optional, 5 minutes now and then)
 
-> **Only if you have access to Withings' developer API.** As of November 2026, Withings asks for a company or a paid plan before it gives you API keys, so for a personal account this step is usually not possible. **You don't need it for the main thing:** with **Body Fat Percentage** and **Lean Body Mass** in your Health Auto Export automation (Step 11), the Weight page already shows body fat %, fat and lean mass, and what your loss was made of. This step adds only muscle, bone, water, visceral fat, BMR and metabolic age. The script code stays in place in case you get API access later.
+**Why:** Withings shares only **weight, body fat %, BMI and lean mass** with Apple Health. **Muscle, bone, water, visceral fat, basal metabolic rate and metabolic age** stay in Withings. Its export has all of them. (Reading them automatically needs Withings' developer API, which asks for a company or a paid plan, so the script doesn't do it; that code was removed in script 3.8.)
 
-**Why:** Withings shares only **weight, body fat %, BMI and lean mass** with Apple Health. **Muscle, bone, water, visceral fat, basal metabolic rate and metabolic age** never get there, because Apple Health has no place for most of them. With this step, your Google script reads all of it straight from Withings every hour. The Weight page then shows **Body composition** and **what your weight loss was made of** (fat versus lean), and the Coach uses it. It also gives the app each day's **first** weigh-in (the morning one), which is the one to compare day to day.
+1. On a computer, go to **withings.com**, sign in, and open your account: **Settings › Download my data** (under your profile). Withings emails you a link when the file is ready, usually within minutes.
+2. Download the ZIP (named like `data_ABC_1794074233.zip`, about 5 MB).
+3. In Health Sync, drop the **whole ZIP** on the **Import** tab. Don't unzip it: the app takes the two files it needs (`weight.csv` and `other.csv`) and ignores the other 80.
 
-**You need:** the script deployed as a **Web app** (Step 11a-2; you did this for Health Auto Export or Coach emails). Withings sends you back to that address after you click Allow, and the script finishes connecting there. A Withings sign-in code lasts only 30 seconds, too short to copy by hand.
+**What you'll see:** *"Withings export, 12 days (Oct 8 – Nov 6, 2026): 12 weigh-ins, body composition on 12 days; 1,013 older readings back to Aug 2012 left out, from before your Health Sync history starts."*
+- **Each day keeps its first weigh-in,** the morning one, with the body composition measured with it.
+- **Readings from before your Health Sync history starts are left out** (before your first day of data, or your plan's start date if that's earlier). A decade of weight-only days would stretch *all time* and the plan's start back to them.
+- **Lean mass and body fat %** are worked out from weight and fat mass (to 0.1 lb), because the export rounds them to whole numbers.
+- **On those days the Withings reading wins over Apple Health's copy** of the same weigh-in, so a day may change by a tenth. A weight you typed in still wins over both.
+- **Importing the same export twice is harmless:** it gives the same days the same values.
 
-### 14a. Paste the script and deploy the new version
-
-1. Paste **`email-to-drive.gs` v3.7 or later** into script.google.com and save.
-2. **Deploy → Manage deployments → ✏️ (edit) → Version: New version → Deploy.** This matters: the web app runs the version you last deployed, and only v3.7+ knows how to finish a Withings sign-in.
-
-### 14b. Make a Withings developer app (free)
-
-1. Go to **developer.withings.com**, sign in with your Withings account, and open the **Developer Dashboard**.
-2. **Create an application** for the **Public API** (the free one for your own data). Give it any name, such as *Health Sync*, and a short description.
-3. **Callback URL:** your script's web app address. In script.google.com, run **`healthAddress`** and copy the address it prints **up to and including `/exec`**, leaving off the `?key=…` part. Paste that as the Callback URL. If there's an environment choice, pick **Prod**. (Step 14d prints it again, so you can check.)
-4. Save. Withings shows a **Client ID** and a **Client Secret** (sometimes labelled *Consumer secret*).
-
-### 14c. Give them to the script
-
-1. In script.google.com: **⚙ Project Settings → Script Properties → Add script property**, twice:
-   - `WITHINGS_CLIENT_ID` = the Client ID
-   - `WITHINGS_CLIENT_SECRET` = the Client Secret
-2. **Save script properties.**
-
-### 14d. Connect
-
-1. Run **`withingsLink`**. The log shows two things:
-   - the **Callback URL**: check it matches what you entered in 14b exactly, character for character
-   - a **link**
-2. Open the link, sign in to Withings, and click **Allow**.
-3. A page says **"Connected to Withings."** You can close it.
-4. Run **`hourly`** (or wait for the next run). The log shows `Withings: saved 412 measurements (your whole history) to the Inbox.`. Then click **Sync** in the app.
-
-**Check it worked:** in the app, **Import › Data health** shows a green **Withings** row, and the **Weight** page has a **Body composition** card.
-
-**If it says something went wrong:**
-- **"This Withings link is old or was already used":** run `withingsLink` again and use the new link. Each link works once.
-- **"Withings refused the sign-in":** the Callback URL in the Withings dashboard doesn't exactly match the one `withingsLink` printed, or the Client ID or Secret has a typo. Fix it and run `withingsLink` again.
-- **The Allow page goes to a Google error:** the web app isn't deployed with v3.7 or later (14a step 2).
-- **Months later, "Withings sign-in has expired":** Data health turns red and you get an email. Run `withingsLink` and click Allow again. Nothing is lost.
-
-**Afterwards:** on days you weigh in, the app uses the Withings reading ahead of Apple Health's copy, so a day may change by a few tenths. Withings gives you the first weigh-in of the day, while Apple Health's copy can be a different one. A weight you typed in by hand still wins.
+**How often:** every few weeks is plenty. Data health's **Withings body composition** row turns amber when the newest reading is a month old, as a reminder.

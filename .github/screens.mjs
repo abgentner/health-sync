@@ -72,7 +72,7 @@ try {
       if (i % 9 === 0) d.drinks = 2;
     }
     days[addDays(t, -14)].pushups = 22;
-    localStorage.setItem('hs-local-data', JSON.stringify({ days, weightCfg: { goal: 200, heightIn: 72, start: 274.8, startDate: addDays(t, -56), step: 5, rate: 2 } }));
+    localStorage.setItem('hs-local-data', JSON.stringify({ days, sizeLog: [{ at: addDays(t, -10), bytes: 1, days: 1 }], weightCfg: { goal: 200, heightIn: 72, start: 274.8, startDate: addDays(t, -56), step: 5, rate: 2 } }));
     localStorage.setItem('hs-settings', JSON.stringify({ units: 'imperial', theme: 'light', span: 7 }));
   });
   await page.evaluate(async () => { if (window.Chart) Chart.defaults.animation = false; await startApp('local'); });

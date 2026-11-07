@@ -104,6 +104,19 @@ const Drive = {
     const r = await this.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body: mp });
     this.ids.data = (await r.json()).id;
   },
+  // Backups (v3.9): the script saves one copy a day in Health Sync › Backups; a restore saves a "before restore" copy there.
+  async backupsFolder() { return this.ids.backups ||= await this.folder('Backups', this.ids.root); },
+  async backups() {
+    const id = await this.backupsFolder();
+    return (await this.list(`'${id}' in parents and trashed=false and name contains 'health-data '`)).filter(f => /\.json$/.test(f.name))
+      .sort((a, b) => backupStamp(b.name).localeCompare(backupStamp(a.name)));
+  },
+  async readJson(id) { return (await this.api(`files/${id}?alt=media`)).json(); },
+  async saveBackup(name, obj) {
+    const parent = await this.backupsFolder(), b = 'hs' + uid(), meta = { name, parents: [parent], mimeType: 'application/json' };
+    const mp = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(obj)}\r\n--${b}--`;
+    await this.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body: mp });
+  },
   inbox() { return this.list(`'${this.ids.inbox}' in parents and trashed=false and mimeType!='${FOLDER_MIME}'`); },
   // Health Auto Export can only write into a folder it created itself, so watch that folder as well.
   async watchedFiles() {

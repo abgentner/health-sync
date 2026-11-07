@@ -31,6 +31,44 @@
 6. **Push or upload all the app files together.** They only work as a set.
 7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
 
+### v3.9 (November 7, 2026) · script 3.8 (paste it)
+
+**Infrastructure, done during the freeze at your request, plus the Withings export.** Paste the script: it's what makes the nightly backups.
+- **New: import a Withings export.** Withings' *Download my data* ZIP, dropped whole on the Import tab, brings in everything the scale measures: weight, fat mass, lean mass, fat %, muscle, bone, water, visceral fat, BMR and metabolic age (SETUP Step 14).
+  - The app finds `weight.csv` and `other.csv` inside the ZIP and ignores the other 80-odd files (raw heart rate, sleep mat, tracker data). Your 5.7 MB export imports in about a tenth of a second.
+  - Each day keeps its first weigh-in. Lean mass and fat % are worked out from weight and fat mass, because `other.csv` rounds them to whole kg and whole percent (80, 33).
+  - **Only days from your Health Sync history on are imported** (from your first day of data, or the plan's start date if earlier). Your export goes back to Aug 2012, and 1,000 weight-only days would stretch *all time* and the plan's start. The import says how many older readings it left out.
+  - Tested on your real export (private repo, `files/withings/`): Nov 5 and 6 checked value by value against the raw files, and Nov 5's Lose It food survives the import.
+- **New: nightly backups (script 3.8).** Once a day the script saves Health Sync › Backups › *health-data 2026-11-07.json* and keeps the newest 30; older ones go to the Drive trash.
+  - **Settings › Nightly backups** lists them with a **Restore** button. A restore replaces everything (it doesn't merge), after saving your data as it is now as a *before restore* copy, so a restore can be undone. It keeps your Coach settings and screen counts. If the before-restore copy can't be saved, nothing is restored. A backup with no days in it isn't restored over real data.
+  - Data health has a **Nightly backups** row; the script emails you if a backup fails or none has been made for 2 days.
+- **New: Data health checks each measurement against its own rhythm, and says what broke.** It replaces the fixed limits (weight was amber after a week, which your every-10-days weigh-ins would always hit).
+  - Each measurement (steps, sleep, weight, body fat %, lean mass, resting heart rate, HRV, Lose It food) learns how often it arrives from the 90 days before it last came. It's late after twice its longest usual gap, at least 3 days; with fewer than 5 readings, after 2 weeks.
+  - A late row says when it last arrived, its rhythm, when it was due, the chain it comes through and which link most likely broke, with the exact setting to check: Health Auto Export stopped altogether (fix that first), or still sending without it (then: not weighed or not worn, the device stopped writing it to Apple Health, unticked in the automation, or permission lost), Garmin or the watch, or Lose It.
+  - **Never arrived but should have:** if your Withings scale measures body composition and body fat or lean mass has never come through Apple Health, it says so, and where to tick it.
+- **New: a data file report every 6 months,** on the Dashboard: size, growth since the last report, years to 5 MB at that rate, and the biggest parts. Under 3 MB *fine*, 3–5 MB *worth watching*, over 5 MB *time to move old years into archive files*. **Got it** hides it for 6 months (saved as `sizeLog`, merged from every device). The first shows now.
+- **Changed: the libraries are in the repo** (`vendor/`), not loaded from cdnjs: PapaParse 5.4.1, JSZip 3.10.1, Chart.js 4.4.1, pdf.js 3.11.174 and its worker. Same versions, checked against cdnjs's SHA-512 hashes (`vendor/README.md`). The start-up check fails if a script loads from anywhere but the app or Google sign-in. 1.7 MB.
+- **Removed: Withings direct** (script `withingsLink`, `syncWithings`, the sign-in return in `doGet`, the Data health row, SETUP's old Step 14). It needed Withings' paid plan and never ran.
+- **Tests:** 206 checks, up from 178: the Withings export (13, replacing the 5 for Withings direct), restoring a backup (8), measurement rhythm and diagnosis (10), the size report (4), plus the new merge field. GitHub's start-up check also clicks the size report on the real page. The private suites: real files 21 (16 new for Withings), app 133, script 73 (Withings direct's 21 replaced by 19 for backups: one a day, 30 kept, trash not delete, status, emails on failure and on 2 quiet days). Each new script check was confirmed to fail with the backup code broken.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `importers.js` | Withings export reader; the script's Withings format removed; pdf.js worker from `vendor/` |
+  | `rules.js` | Measurement rhythm and diagnosis (`quietRows`); the size report (`sizeReport`) |
+  | `sync.js` | `restoreFrom`, `backupStamp`; `sizeLog` merges |
+  | `core.js` | `sizeLog` kept |
+  | `drive.js` | Lists, reads and saves backups |
+  | `health.js` | Measurement rows from `quietRows`; Nightly backups row; Withings row removed |
+  | `log.js`, `main.js`, `dashboard.js` | Settings › Nightly backups and Restore; the Dashboard size report |
+  | `index.html` | Libraries from `vendor/`; the two new cards; version; `SCRIPT_LATEST` 3.8 |
+  | `vendor/` | **New:** the five library files and their README |
+  | `email-to-drive.gs` | **3.8: paste it.** Nightly backups; Withings removed |
+  | `tests.html`, `.github/run-tests.mjs`, `.github/screens.mjs` | The new checks; the vendor guard |
+  | `README.md` | Data health, Backups, Weight, Dashboard, Settings, Libraries |
+  | `SETUP.md` | Step 14 is now the Withings export |
+  | `ALTERNATIVES.md` | **Version number only** |
+
 ### v3.8.3 (November 7, 2026)
 
 - **Fixed: the header on a phone.** With the ♥ pace chip and the ⚠ data-issues chip both showing, they pushed the status dot and **Sync** off the right edge and squeezed "Health Sync" onto two lines. On narrow screens the chips now get their own line under the logo, status and Sync; with no chips, the header is one line as before. Desktop is unchanged.

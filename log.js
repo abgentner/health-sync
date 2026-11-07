@@ -466,8 +466,33 @@ function renderUsage() {
   el.innerHTML = all.sort((a, b) => (tot[b[0]]?.[0] || 0) - (tot[a[0]]?.[0] || 0)).map(([k, name]) => { const t = tot[k];
     return `<div class="li"><span class="n">${esc(name)}</span><span class="x${t ? '' : ' muted'}">${t ? `${plural(t[0], 'time')} · last ${esc(daysAgo(Math.round((+keyToDate(todayKey()) - +keyToDate(t[1])) / 864e5)))}` : 'never opened'}</span></div>`; }).join('');
 }
+/* ---- Settings › Nightly backups (v3.9) ---- */
+let backupList = null, backupErr = '';
+async function loadBackups() {
+  if (store !== Drive) { backupList = null; renderBackups(); return; }
+  try { backupList = await Drive.backups(); backupErr = ''; } catch (e) { backupList = null; backupErr = e.message || String(e); }
+  renderBackups();
+}
+const fmtBytes = n => n == null ? '' : n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`;
+function backupLabel(name) {
+  const s = backupStamp(name), [k, hm] = s.split(' '), when = k ? fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : name;
+  return /before restore/.test(name) ? `${when}${hm ? `, ${hm.slice(0, 2)}:${hm.slice(2)}` : ''} · from before a restore` : when;
+}
+function renderBackups() {
+  const el = $('#s-bk'); if (!el) return;
+  const b = scriptStat?.backup;
+  $('#s-bk-sub').textContent = b?.lastAt ? `last saved ${fmtDay(dateKey(new Date(b.lastAt)), { month: 'short', day: 'numeric' })} · ${b.count} ${b.count === 1 ? 'copy' : 'copies'} kept` : '';
+  if (store !== Drive) { el.innerHTML = '<p class="muted small" style="margin:0">Backups need Google Drive mode.</p>'; return; }
+  if (backupErr) { el.innerHTML = `<p class="small" style="margin:0;color:var(--bad)">Couldn't list your backups: ${esc(backupErr)}</p>`; return; }
+  if (!backupList) { el.innerHTML = '<p class="muted small" style="margin:0">Loading…</p>'; return; }
+  if (!backupList.length) { el.innerHTML = `<p class="small" style="margin:0">No backups yet. ${scriptStat && !b ? `Your script is v${esc(scriptStat.scriptVersion || '?')}: paste v${esc(SCRIPT_LATEST)} (README › Updating the app) and the first copy is saved within the hour.` : 'The first copy is saved within the hour of pasting script v' + esc(SCRIPT_LATEST) + '.'}</p>`; return; }
+  el.innerHTML = backupList.slice(0, 30).map((f, i) => `<div class="li"><span class="n">${esc(backupLabel(f.name))}${i === 0 ? ' <span class="tag">newest</span>' : ''}</span><span class="x small">${esc(fmtBytes(+f.size))}</span>
+    <button class="btn small ghost" data-bk="${esc(f.id)}" data-bk-name="${esc(f.name)}">Restore</button></div>`).join('');
+}
+
 function renderSettings() {
   renderUsage();
+  renderBackups();
   $('#s-where').innerHTML = store === Drive
     ? `Connected as <b>${esc(Drive.email || LS.get('hs-email', '') || 'your Google account')}</b>. Your data is saved in your Google Drive, in <b>Health Sync › ${DATA_NAME}</b>. Open this app on any computer and connect the same Google account to see the same data.`
     : `You're in <b>this computer only</b> mode: data is saved in this browser and won't sync. Sign out and choose <b>Connect Google Drive</b> to sync. Anything saved here will be copied into Drive.`;

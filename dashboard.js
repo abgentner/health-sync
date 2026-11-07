@@ -10,7 +10,7 @@ function render() {
   if (metricKey) renderMetric();
   renderHealth();
   renderCoach(); renderCoachSettings();
-  renderDash(); renderTraining(); renderLog(); renderHist(); renderImports(); renderErrors(); renderSettings(); if (!planEditing) renderPlan();
+  renderSizeReport(); renderDash(); renderTraining(); renderLog(); renderHist(); renderImports(); renderErrors(); renderSettings(); if (!planEditing) renderPlan();
 }
 
 const ICONS = {
@@ -253,3 +253,18 @@ function draw(id, type, labels, values, fmt, yOpts = {}) {
     },
   });
 }
+
+/* ---- Dashboard: the data file report, twice a year (sizeReport in rules.js) ---- */
+function renderSizeReport() {
+  const el = $('#size-card'); if (!el) return;
+  const R = sizeReport(); el.hidden = !R.due || store !== Drive && store !== LocalStore;
+  if (el.hidden) return;
+  const mb = n => `${(n / 1048576).toFixed(n < 10 * 1048576 ? 1 : 0)} MB`, f = k => fmtDay(k, { month: 'short', day: 'numeric', year: 'numeric' });
+  const verdict = R.level === 'act' ? `<b>It's past 5 MB, so it's time to act:</b> each sync downloads and saves the whole file. Ask for old years to be moved into archive files (the app keeps reading them); nothing is lost.`
+    : R.level === 'watch' ? `<b>Worth watching:</b> past 3 MB. At 5 MB it's time to move old years into archive files.`
+    : `<b>Fine, nothing to do.</b> It becomes worth acting on at about 5 MB.`;
+  $('#size-body').innerHTML = `<p style="margin:0 0 6px">Your data file (Health Sync › ${esc(DATA_NAME)}) is <b>${mb(R.bytes)}</b>, with ${plural(R.days, 'day')} in it. ${verdict}</p>
+    <p style="margin:0 0 6px">${R.grow ? `Since your last report (${f(R.grow.since)}) it ${R.grow.bytes >= 0 ? `grew ${mb(R.grow.bytes)}` : `shrank ${mb(-R.grow.bytes)}`}${R.grow.perYear != null && R.grow.perYear > 0 ? `, about ${mb(R.grow.perYear)} a year${R.yearsTo5 != null ? `: at that rate it reaches 5 MB in about ${R.yearsTo5 < 1 ? 'under a year' : plural(Math.round(R.yearsTo5), 'year')}` : ''}` : ''}.` : 'This is the first report; the next, in 6 months, will say how fast it grows.'}</p>
+    <p class="muted" style="margin:0">Biggest parts: ${R.top.map(t => `${esc(t.part)} ${t.share}%`).join(' · ')}.</p>`;
+}
+

@@ -820,3 +820,107 @@ function foodDrivers(ks) {
   return { most_sodium_mg: top('sodium'), most_sat_fat_g: top('satFat'), most_sugar_g: top('sugar'), most_protein_g: top('protein'), most_fiber_g: top('fiber'), most_logged: Object.entries(by).sort((a, b) => b[1].n - a[1].n).slice(0, 10).map(([n, e]) => `${n} (${e.n}×)`) };
 }
 
+/* ---- Data health: a measurement that has gone quiet (v3.9) ----
+   Each measurement is judged against its OWN rhythm, learned from the 90 days before it last arrived: steps that came
+   every day are late after 3 days, weigh-ins that came every week or two only after a few weeks. When one is late, it
+   says what broke, from where the measurement came from (the device, the app, the script) and which links in that
+   chain are still working, so you know which one to check. */
+// (Body fat % and lean mass take their device from the weigh-in: the scale that measured them.)
+const QUIET = [
+  { name: 'Steps', has: d => d.steps != null && d.stepsSource !== 'manual', src: d => d.stepsSource, via: d => d.stepsVia, hae: 'Step Count', where: 'Activity › Steps', core: true },
+  { name: 'Sleep', has: d => d.sleep?.hours != null && d.sleep.source !== 'manual', src: d => d.sleep.source, via: d => d.sleep.via, hae: 'Sleep Analysis', where: 'Sleep', core: true, worn: 'overnight' },
+  { name: 'Weight', has: d => d.weight != null && d.weightSource !== 'manual', src: d => d.weightSource, via: d => d.weightVia, hae: 'Weight', where: 'Body Measurements › Weight', core: true, weigh: true },
+  { name: 'Body fat %', has: d => d.health?.bodyFat != null, src: () => 'health', via: d => d.weightVia, hae: 'Body Fat Percentage', where: 'Body Measurements › Body Fat Percentage', scale: true, weigh: true },
+  { name: 'Lean body mass', has: d => d.health?.leanKg != null, src: () => 'health', via: d => d.weightVia, hae: 'Lean Body Mass', where: 'Body Measurements › Lean Body Mass', scale: true, weigh: true },
+  { name: 'Resting heart rate', has: d => healthValue(d, 'restingHR') != null, src: d => d.health?.restingHR != null ? 'health' : 'garmin', via: () => null, hae: 'Resting Heart Rate', where: 'Heart › Resting Heart Rate', worn: 'all day' },
+  { name: 'Heart rate variability', has: d => healthValue(d, 'hrv') != null, src: d => d.health?.hrv != null ? 'health' : 'garmin', via: () => null, hae: 'Heart Rate Variability', where: 'Heart › Heart Rate Variability', worn: 'overnight' },
+  { name: 'Food (Lose It)', has: d => !!d.healthFood || (d.food || []).some(f => f.source === 'loseit'), src: () => 'loseit', via: () => null },
+];
+const QUIET_WINDOW = 90;
+const daysBetween = (a, b) => Math.round((+keyToDate(b) - +keyToDate(a)) / 864e5);
+// The rhythm: the gaps between arrivals in the 90 days up to the last one. "Late" is twice the longest usual gap
+// (the 90th percentile), and never under 3 days.
+function quietRhythm(ks) {
+  const last = ks[ks.length - 1], w = ks.filter(k => daysBetween(k, last) <= QUIET_WINDOW);
+  if (w.length < 5) return { n: w.length, typical: null, lateAfter: 14 };
+  const gaps = w.slice(1).map((k, i) => daysBetween(w[i], k)).sort((a, b) => a - b);
+  const p90 = gaps[Math.floor(0.9 * (gaps.length - 1))], typical = gaps[Math.floor((gaps.length - 1) / 2)];
+  return { n: w.length, typical, lateAfter: Math.max(3, 2 * p90, p90 + 2) };
+}
+const everyText = n => n == null ? 'not often enough yet to learn its rhythm' : n <= 1 ? 'usually every day' : `usually every ${n} days`;
+// Why it might have stopped, from the chain it came through and the script's status (st: health-sync-status.json).
+function quietWhy(m, src, via, last, st) {
+  const since = last ? fmtDay(last, { month: 'short', day: 'numeric' }) : '', H = h => h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+  const dev = via ? String(via).split('|').pop() : null, a = st?.appleHealth, g = st?.garmin, l = st?.loseIt;
+  if (src === 'health') {
+    const chain = `${dev || 'your device'} → Apple Health → Health Auto Export → your Drive → the app`;
+    if (a?.lastAt && a.hoursAgo > 36) return `Comes through: ${chain}. Health Auto Export itself stopped sending (its last file was ${H(a.hoursAgo)}), and that stops everything from Apple Health. Fix that first: see the Apple Health row above.`;
+    const first = m.weigh ? `You haven't weighed in since ${since}, or the scale didn't sync: open ${dev && /withings/i.test(dev) ? 'the Withings app' : "the scale's app"} on your phone so it does.`
+      : m.worn ? `${dev || 'Your watch'} wasn't worn ${m.worn}, or hasn't synced.` : '';
+    return `Comes through: ${chain}. Health Auto Export is still sending files${a?.lastAt ? ` (last ${H(a.hoursAgo)})` : ''}, but they've had no ${m.name.toLowerCase()} since ${since}, so the break is before it. In order of likelihood:`
+      + [first, `${dev || 'The device'} stopped writing it to Apple Health: in the Health app › Browse › ${m.where} › Data Sources & Access, check it's allowed, and that there are entries after ${since}.`,
+        `It was unticked in the Health Auto Export automation: Automations › your automation › Health Metrics › ${m.hae}.`,
+        `Health Auto Export lost permission to read it: iPhone Settings › Privacy & Security › Health › Health Auto Export › ${m.hae}.`].filter(Boolean).map((x, i) => ` (${i + 1}) ${x}`).join('');
+  }
+  if (src === 'garmin') {
+    const chain = 'your Garmin watch → Garmin Connect → the script → your Drive → the app';
+    if (g?.connected && (g.error || g.pausedUntil)) return `Comes through: ${chain}. The script can't read Garmin right now: see the Garmin row above.`;
+    if (g?.watchHoursAgo != null && g.watchHoursAgo > 24) return `Comes through: ${chain}. Your watch last synced to Garmin Connect ${H(g.watchHoursAgo)}: open the Garmin Connect app on your phone, with Bluetooth on.`;
+    return `Comes through: ${chain}. The script is reading Garmin fine, so Garmin itself has had none since ${since}: ${m.worn ? `was the watch worn ${m.worn}? ` : ''}Check the same day in the Garmin Connect app.`;
+  }
+  if (src === 'loseit') {
+    if (l?.lastAt && l.hoursAgo > 36) return `Comes through: Lose It → its daily report email → the script → your Drive → the app. The report emails stopped (last ${H(l.hoursAgo)}): see the Lose It row above.`;
+    return `Comes through: Lose It → its daily report email → the script → your Drive → the app. The emails are arriving, so Lose It has nothing logged since ${since}. If you did log, check Lose It › Settings › Email reports is still on for this Gmail.`;
+  }
+  if (src === 'withings') return `Comes from your Withings export, which you import by hand: Withings › Settings › Download my data, then drop the ZIP on the Import tab.`;
+  return '';
+}
+function quietRows(st, today = todayKey()) {
+  const yest = addDays(today, -1), rows = [], ks0 = Object.keys(data.days).sort();
+  // Does the scale measure body composition? (Withings readings in the last 90 days, imported or through Apple Health.)
+  const scaleDays = ks0.filter(k => daysBetween(k, yest) <= QUIET_WINDOW && (data.days[k].comp?.source === 'withings' || /withings/i.test(data.days[k].weightVia || ''))).length;
+  for (const m of QUIET) {
+    const ks = ks0.filter(k => k <= yest && m.has(data.days[k]));
+    if (!ks.length) {
+      if (m.core) rows.push(['warn', m.name, 'Never received', quietWhy(m, 'health', null, yest, st).replace(/^.*?In order of likelihood:/, 'Check:')]);
+      else if (m.scale && scaleDays >= 5) rows.push(['warn', m.name, `Never arrived through Apple Health, though your Withings scale measures it (${plural(scaleDays, 'weigh-in')} in 90 days)`,
+        `Withings writes it to Apple Health, so the break is between Apple Health and the app. (1) In Health Auto Export › Automations › your automation › Health Metrics, tick ${m.hae}. (2) iPhone Settings › Privacy & Security › Health › Health Auto Export: allow ${m.hae}. Then run the automation once by hand with a date range of a few months to bring in the history. (Until then, a Withings export on the Import tab fills it in.)`]);
+      continue;
+    }
+    const last = ks[ks.length - 1], gap = daysBetween(last, yest) + 1, R = quietRhythm(ks), d = data.days[last];
+    const c = gap <= R.lateAfter ? 'ok' : gap <= 2 * R.lateAfter ? 'warn' : 'bad';
+    const line = `Latest ${fmtDay(last)} (${gap <= 1 ? 'yesterday' : `${gap} days ago`}) · ${everyText(R.typical)}${c === 'ok' ? '' : `, so it was due by ${fmtDay(addDays(last, R.lateAfter), { month: 'short', day: 'numeric' })}`}`;
+    rows.push([c, m.name, line, c === 'ok' ? '' : quietWhy(m, m.src(d), m.via(d), last, st)]);
+  }
+  // The Withings export is imported by hand: a nudge, never an alarm, once its newest reading is a month old.
+  const wx = [...(data.imports || [])].filter(i => i.what === 'Withings export').pop(), compKs = ks0.filter(k => data.days[k].comp?.via === 'withings-export');
+  if (wx) {
+    const lastC = compKs[compKs.length - 1], age = lastC ? daysBetween(lastC, today) : null;
+    rows.push([age != null && age > 30 ? 'warn' : 'gray', 'Withings body composition', `Imported ${new Date(wx.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}${lastC ? `, newest reading ${fmtDay(lastC, { month: 'short', day: 'numeric' })}` : ''}`,
+      age != null && age > 30 ? `It's been ${age} days. ${quietWhy({}, 'withings')} Every few weeks is enough.` : '']);
+  }
+  return rows;
+}
+
+/* ---- the data file size report, every 6 months (v3.9) ----
+   The whole history lives in one file (health-data.json). It's fine for years; past about 5 MB every sync starts to
+   feel it, and the fix is to move old years into archive files. So twice a year the Dashboard shows how big it is, how
+   fast it's growing and what takes the room, and you click Got it (which notes it in data.sizeLog). */
+const SIZE_EVERY_DAYS = 182, SIZE_WATCH = 3 * 1048576, SIZE_ACT = 5 * 1048576;
+const jsonBytes = v => new Blob([JSON.stringify(v ?? null)]).size;
+function sizeReport(today = todayKey()) {
+  const log = data.sizeLog || [], last = log[log.length - 1];
+  const due = !last || daysBetween(last.at, today) >= SIZE_EVERY_DAYS;
+  const bytes = jsonBytes(data), days = Object.keys(data.days).length;
+  // What takes the room: each part of a day (food, workouts, Garmin…) added up over every day, and the biggest
+  // other parts of the file (Coach reviews, imports, errors).
+  const parts = {};
+  for (const d of Object.values(data.days)) for (const [k, v] of Object.entries(d)) parts['days · ' + k] = (parts['days · ' + k] || 0) + jsonBytes(v) + k.length + 4;
+  for (const k of ['reviews', 'imports', 'errors', 'coachUsage', 'reflections', 'usage', 'watched']) if (data[k]) parts[k] = jsonBytes(data[k]);
+  const top = Object.entries(parts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => ({ part: k, bytes: v, share: Math.round(v / bytes * 100) }));
+  const grow = last ? { bytes: bytes - last.bytes, since: last.at, perYear: daysBetween(last.at, today) > 0 ? (bytes - last.bytes) / daysBetween(last.at, today) * 365 : null } : null;
+  const yearsTo5 = grow?.perYear > 0 && bytes < SIZE_ACT ? (SIZE_ACT - bytes) / grow.perYear : null;
+  const level = bytes >= SIZE_ACT ? 'act' : bytes >= SIZE_WATCH ? 'watch' : 'fine';
+  return { due, bytes, days, top, grow, yearsTo5, level, first: !last };
+}
+

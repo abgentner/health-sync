@@ -20,6 +20,14 @@ const { port } = server.address();
   const missing = tags.filter(f => !checked.includes(f));
   if (missing.length) { console.error(`FAIL  not in jsconfig.json (so not type checked): ${missing.join(', ')}`); process.exit(1); } }
 
+// Libraries load from vendor/, never a CDN (v3.9): only Google's sign-in script may come from outside, and every
+// vendor file the app names (script tags and the pdf.js worker) must be there.
+{ const html = await readFile(join(root, 'index.html'), 'utf8'), imp = await readFile(join(root, 'importers.js'), 'utf8');
+  const outside = [...html.matchAll(/<script[^>]+src="(https?:[^"]+)"/g)].map(m => m[1]).filter(u => !/^https:\/\/accounts\.google\.com\//.test(u));
+  const named = [...html.matchAll(/src="(vendor\/[^"]+)"/g), ...imp.matchAll(/'(vendor\/[^']+)'/g)].map(m => m[1]);
+  const gone = []; for (const f of named) { try { await readFile(join(root, f)); } catch { gone.push(f); } }
+  if (outside.length || gone.length || named.length < 5) { console.error(`FAIL  libraries: loaded from outside: ${outside.join(', ') || 'none'} · missing from vendor/: ${gone.join(', ') || 'none'} · vendor files named: ${named.length} (expected 5)`); process.exit(1); } }
+
 const browser = await puppeteer.launch({ args: ['--no-sandbox'] });
 let code = 1;
 try {
@@ -52,6 +60,14 @@ try {
   });
   const paceOk = pace[0] === '♥ Losing too fast' && pace[1] === false;
   if (!paceOk) console.error(`FAIL  app start-up: pace chip ${JSON.stringify(pace)}, expected "♥ Losing too fast" and no pace row in Data health`);
+  // The data file report shows on the Dashboard when it's due, and Got it notes it and hides it until the next (v3.9).
+  const size = await app.evaluate(() => {
+    data.sizeLog = []; render(); const shown = !document.querySelector('#size-card').hidden, text = document.querySelector('#size-body').textContent;
+    document.querySelector('#size-ok').click();
+    return { shown, mb: /is \d+\.\d MB, with \d+ days? in it/.test(text), first: /first report/.test(text), logged: data.sizeLog.length, hidden: document.querySelector('#size-card').hidden };
+  });
+  const sizeOk = size.shown && size.mb && size.first && size.logged === 1 && size.hidden;
+  if (!sizeOk) console.error(`FAIL  app start-up: data file report ${JSON.stringify(size)}`);
   // On a phone, the header chips sit on their own line: they don't cover the status dot or Sync, and nothing runs off the edge (3.8.3).
   await app.setViewport({ width: 360, height: 800 });
   const hdr = await app.evaluate(() => {
@@ -112,7 +128,7 @@ try {
   if (!v37Ok) console.error(`FAIL  app start-up: v3.7 screens ${JSON.stringify(v37)}`);
   if (process.env.SHOTS) { await app.setViewport({ width: 1280, height: 2400 }); await app.screenshot({ path: process.env.SHOTS + '/weight.png', fullPage: true });
     await app.evaluate(() => { closeMetric?.(); goTab('dash'); }); await app.screenshot({ path: process.env.SHOTS + '/dash.png' }); }
-  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && arcOk && pvOk && bgOk && v37Ok && !errors.length;
+  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && sizeOk && arcOk && pvOk && bgOk && v37Ok && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

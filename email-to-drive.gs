@@ -1,6 +1,6 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 3.7.1
+ * Version 3.8
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
@@ -9,8 +9,8 @@
  * into Google Drive › Health Sync › Inbox, and
  *  3. if you've added a Garmin key, reads all your Garmin Connect data straight from Garmin
  *     into Google Drive › Health Sync › Garmin (and loads your Garmin history in the background), and
- *  4. if you've connected Withings, saves new weigh-ins with everything the scale measures (body fat,
- *     muscle, bone, water, visceral fat, BMR) into Health Sync › Inbox.
+ *  4. once a day, saves a dated copy of your data file (health-data.json) into Health Sync › Backups,
+ *     keeping the newest 30 (older copies go to the Drive trash, which keeps them another 30 days).
  *
  * It can also RECEIVE Apple Health data sent from your iPhone (Health Auto Export's
  * REST API automation, or a Shortcut) once deployed as a web app — see doPost below —
@@ -23,14 +23,14 @@
  * Your Strava and Garmin keys are kept in this project's Script Properties (only you can
  * see them), never in this code.
  *
- * Setup: see SETUP.md, Step 9 (emails), Step 10 (Strava), Step 12c (Coach email), Step 13 (Garmin) and Step 14 (Withings).
+ * Setup: see SETUP.md, Step 9 (emails), Step 10 (Strava), Step 12c (Coach email) and Step 13 (Garmin). Backups need no setup.
  */
 
 // Which emails to look for. Lose It sends its reports from donotreply@loseit.com.
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '3.7.1';   // printed at the start of every run
+const SCRIPT_VERSION = '3.8';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -55,7 +55,7 @@ function hourly() {
   const t0 = Date.now(), errors = {};
   try { saveHealthReports(); } catch (e) { errors.email = String(e.message || e); console.error(e); }
   try { syncStrava(); } catch (e) { errors.strava = String(e.message || e); console.error(e); }
-  try { syncWithings(); } catch (e) { errors.withings = String(e.message || e); console.error(e); }
+  try { backupData_(); } catch (e) { errors.backup = String(e.message || e); console.error(e); }
   try { syncGarmin(); } catch (e) { errors.garmin = String(e.message || e); console.error(e); }
   try { checkSources_(errors); } catch (e) { console.error(e); }
   const failed = Object.keys(errors);
@@ -638,100 +638,38 @@ function emailTest() {
   console.log('Test email sent to ' + Session.getEffectiveUser().getEmail());
 }
 
-/** Lets you check the address in a browser: it should say Health Sync is listening. Withings also sends you back here after you click Allow. */
+/** Lets you check the address in a browser: it should say Health Sync is listening. */
 function doGet(e) {
-  const q = (e && e.parameter) || {};
-  if (q.code || q.error) return withingsCallback_(q);
   return ContentService.createTextOutput('Health Sync is listening (script v' + SCRIPT_VERSION + '). Send data with POST.');
 }
 
-/* ============================ Withings ============================ */
-// Withings shares weight, body fat %, BMI and lean mass with Apple Health, but not muscle, bone, water, visceral fat,
-// BMR or metabolic age (Apple Health has no place for most of them). So the script reads them from Withings directly.
-// Withings sends you back to this script's web app address after you click Allow, and the script finishes connecting
-// on the spot (a Withings sign-in code lasts only 30 seconds, too short to copy by hand).
-// Measure types: 1 weight, 5 lean (fat-free) mass, 6 fat %, 8 fat mass, 76 muscle, 77 water, 88 bone,
-// 170 visceral fat, 226 BMR, 227 metabolic age. Values come as value × 10^unit, in kg.
-const WITHINGS_TYPES = '1,5,6,8,76,77,88,170,226,227';
-const WITHINGS_API = 'https://wbsapi.withings.net';
-
-/** Step 1 (after adding WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET): prints the link to open to connect Withings. */
-function withingsLink() {
-  const p = props_(), id = (p.getProperty('WITHINGS_CLIENT_ID') || '').trim();
-  if (!id || !(p.getProperty('WITHINGS_CLIENT_SECRET') || '').trim()) throw new Error('Add WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET in Project Settings › Script Properties first (SETUP.md Step 14).');
-  let url = '';
-  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) {}
-  if (!url) throw new Error('Deploy the script as a Web app first (SETUP.md Step 11a-2), then run withingsLink again.');
-  const state = Utilities.getUuid();
-  p.setProperty('WITHINGS_STATE', state);
-  p.setProperty('WITHINGS_REDIRECT', url);
-  console.log('Health Sync script v' + SCRIPT_VERSION + '\n1. In your Withings developer app, the Callback URL must be exactly this (copy all of it):\n\n' + url +
-    '\n\n2. Then open this link, sign in to Withings and click Allow:\n\n' + 'https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=' + encodeURIComponent(id) +
-    '&scope=user.metrics&redirect_uri=' + encodeURIComponent(url) + '&state=' + state + '\n\nA page saying "Connected to Withings" means it worked.');
-}
-
-function withingsCallback_(q) {
-  const page = t => HtmlService.createHtmlOutput('<p style="font:16px -apple-system,sans-serif;margin:40px">' + t + '</p>').setTitle('Health Sync · Withings');
-  const p = props_();
-  if (q.error) return page('Withings said: ' + String(q.error).replace(/[<>&]/g, '') + '. Run withingsLink in the script and try again.');
-  if (!q.state || q.state !== p.getProperty('WITHINGS_STATE')) return page('This Withings link is old or was already used. Run withingsLink in the script again and open the new link.');
-  try { withingsToken_({ grant_type: 'authorization_code', code: q.code, redirect_uri: p.getProperty('WITHINGS_REDIRECT') || '' }); }
-  catch (err) { console.error(err); return page('Connecting to Withings failed: ' + String(err.message || err).replace(/[<>&]/g, '') + '. Check the Callback URL in your Withings app matches the one withingsLink printed, then run withingsLink again.'); }
-  p.deleteProperty('WITHINGS_STATE');
-  p.deleteProperty('WITHINGS_LAST');   // load the whole history next time
-  console.log('Withings: connected.');
-  return page('Connected to Withings. You can close this tab. Your weigh-ins, all the way back, arrive at the next hourly run (or run hourly in the script now).');
-}
-
-function withingsToken_(params) {
-  const p = props_();
-  const r = UrlFetchApp.fetch(WITHINGS_API + '/v2/oauth2', { method: 'post', muteHttpExceptions: true, payload: Object.assign({ action: 'requesttoken',
-    client_id: (p.getProperty('WITHINGS_CLIENT_ID') || '').trim(), client_secret: (p.getProperty('WITHINGS_CLIENT_SECRET') || '').trim() }, params) });
-  let j = null;
-  try { j = JSON.parse(r.getContentText()); } catch (e) {}
-  if (!j || j.status !== 0 || !j.body || !j.body.access_token) {
-    // A clear "no" to a refresh means signing in again; a network hiccup (no reply) is just retried next hour.
-    if (params.grant_type === 'refresh_token' && j && j.status !== 0) { p.deleteProperty('WITHINGS_REFRESH'); throw new Error('Withings sign-in has expired (status ' + (j && j.status) + '). Run withingsLink in the script to connect again.'); }
-    throw new Error('Withings refused the sign-in (status ' + (j && j.status) + (j && j.error ? ': ' + j.error : '') + ').');
+/* ============================ Backups ============================ */
+// Once a day (the first hourly run after midnight), a copy of Health Sync › health-data.json is saved as
+// Health Sync › Backups › "health-data 2026-11-07.json". The newest 30 are kept; older ones go to the Drive trash
+// (Drive keeps trashed files 30 more days). The app's Settings › Backups lists them and restores one, and saves a
+// "health-data before restore …" copy here first, which counts toward the 30.
+const BACKUP_FOLDER = 'Backups';
+const BACKUP_KEEP = 30;
+const backupStamp_ = name => (String(name).match(/(\d{4}-\d{2}-\d{2})(?: (\d{4}))?/) || []).slice(1).join(' ').trim();
+function backupData_() {
+  const root = inboxFolder_().getParents().next(), it = root.getFilesByName('health-data.json');
+  if (!it.hasNext()) { console.log('Backups: no health-data.json yet, nothing to back up.'); return; }
+  const src = it.next(), p = props_(), today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const sub = root.getFoldersByName(BACKUP_FOLDER), folder = sub.hasNext() ? sub.next() : root.createFolder(BACKUP_FOLDER);
+  const name = 'health-data ' + today + '.json';
+  if (!folder.getFilesByName(name).hasNext()) {
+    src.makeCopy(name, folder);
+    p.setProperty('LAST_BACKUP', String(Date.now()));
+    p.setProperty('LAST_BACKUP_KB', String(Math.round(src.getSize() / 1024)));
+    console.log(`Backups: saved ${name} (${Math.round(src.getSize() / 1024)} KB).`);
   }
-  // Withings gives a new refresh token every time; the old one stops working.
-  p.setProperties({ WITHINGS_REFRESH: j.body.refresh_token, WITHINGS_ACCESS: j.body.access_token, WITHINGS_EXP: String(Date.now() + (Number(j.body.expires_in) || 10800) * 1000 - 60000) });
-  return j.body;
-}
-
-function withingsAccess_() {
-  const p = props_();
-  if (!p.getProperty('WITHINGS_REFRESH')) return null;
-  if (Number(p.getProperty('WITHINGS_EXP')) > Date.now() && p.getProperty('WITHINGS_ACCESS')) return p.getProperty('WITHINGS_ACCESS');
-  return withingsToken_({ grant_type: 'refresh_token', refresh_token: p.getProperty('WITHINGS_REFRESH') }).access_token;
-}
-
-/** Saves new Withings measurements into Health Sync › Inbox. Does nothing if Withings isn't connected. */
-function syncWithings() {
-  console.log('Withings: checking for new weigh-ins…');
-  const token = withingsAccess_();
-  if (!token) { console.log('Withings: not connected, skipped.'); return; }
-  const p = props_(), since = Number(p.getProperty('WITHINGS_LAST')) || 0, groups = [];
-  let offset = 0, updatetime = null;
-  for (let page = 0; page < 50; page++) {
-    const payload = { action: 'getmeas', meastypes: WITHINGS_TYPES, category: 1, lastupdate: since };
-    if (offset) payload.offset = offset;
-    const r = UrlFetchApp.fetch(WITHINGS_API + '/measure', { method: 'post', muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + token }, payload });
-    let j = null;
-    try { j = JSON.parse(r.getContentText()); } catch (e) {}
-    if (!j || j.status !== 0 || !j.body) throw new Error('Withings measurements request failed (status ' + (j && j.status) + ').');
-    updatetime = j.body.updatetime || updatetime;
-    (j.body.measuregrps || []).forEach(g => groups.push({ date: g.date, measures: (g.measures || []).map(m => ({ type: m.type, value: m.value, unit: m.unit })) }));
-    if (!j.body.more) break;
-    offset = j.body.offset;
-  }
-  if (groups.length) {
-    const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmmss');
-    inboxFolder_().createFile(`${stamp} withings.json`, JSON.stringify({ source: 'withings', measuregrps: groups }), 'application/json');
-    p.setProperty('LAST_WITHINGS', String(Math.max(...groups.map(g => g.date)) * 1000));
-  }
-  if (updatetime) p.setProperty('WITHINGS_LAST', String(updatetime));
-  console.log(groups.length ? `Withings: saved ${groups.length} measurement${groups.length === 1 ? '' : 's'}${since ? '' : ' (your whole history)'} to the Inbox.` : 'Withings: nothing new.');
+  const all = [], files = folder.getFiles();
+  while (files.hasNext()) { const f = files.next(); if (/^health-data .*\.json$/.test(f.getName())) all.push(f); }
+  all.sort((x, y) => backupStamp_(y.getName()).localeCompare(backupStamp_(x.getName())));
+  const old = all.slice(BACKUP_KEEP);
+  old.forEach(f => f.setTrashed(true));
+  p.setProperty('BACKUP_COUNT', String(all.length - old.length));
+  if (old.length) console.log(`Backups: moved ${old.length} older cop${old.length === 1 ? 'y' : 'ies'} to the Drive trash (keeping ${BACKUP_KEEP}).`);
 }
 
 /* ======================== Data health check ======================== */
@@ -757,7 +695,8 @@ function checkSources_(errors) {
     loseIt: { lastAt: loseIt ? new Date(loseIt).toISOString() : null, hoursAgo: hours(loseIt), error: errors.email || null },
     appleHealth: { lastAt: hae ? new Date(hae).toISOString() : null, hoursAgo: hours(hae), file: haeName, sizeKB: haeSize != null ? Math.round(haeSize / 1024) : null, minuteData: haeSize != null && haeSize > 400 * 1024 },
     strava: { connected: !!p.getProperty('STRAVA_REFRESH'), lastNewAt: p.getProperty('STRAVA_LAST_NEW') || null, error: errors.strava || null },
-    withings: { connected: !!p.getProperty('WITHINGS_REFRESH'), lastAt: Number(p.getProperty('LAST_WITHINGS')) ? new Date(Number(p.getProperty('LAST_WITHINGS'))).toISOString() : null, error: errors.withings || null },
+    backup: { lastAt: Number(p.getProperty('LAST_BACKUP')) ? new Date(Number(p.getProperty('LAST_BACKUP'))).toISOString() : null, hoursAgo: hours(Number(p.getProperty('LAST_BACKUP')) || null),
+      count: Number(p.getProperty('BACKUP_COUNT')) || 0, sizeKB: Number(p.getProperty('LAST_BACKUP_KB')) || null, error: errors.backup || null },
     garmin: (() => {
       const on = !!(p.getProperty('GARMIN_KEY') || '').trim();
       if (!on) return { connected: false };
@@ -780,7 +719,8 @@ function checkSources_(errors) {
   if (status.appleHealth.lastAt && status.appleHealth.hoursAgo > LATE_HOURS) problems.push(['hae', `Health Auto Export hasn't updated in ${status.appleHealth.hoursAgo} hours. Open it on your iPhone and check the automation is on (and Background App Refresh is allowed).`]);
   if (status.appleHealth.minuteData) problems.push(['haemin', `Health Auto Export is sending minute-by-minute data (${status.appleHealth.sizeKB} KB). Steps, active calories and flights are being ignored. Set the automation's Time Grouping back to Day.`]);
   if (status.strava.error) problems.push(['strava', `Strava sync failed: ${status.strava.error}. Run stravaCheck in the script for details.`]);
-  if (status.withings.error) problems.push(['withings', `Withings sync failed: ${status.withings.error}`]);
+  if (status.backup.error) problems.push(['backup', `Last night's backup of your data failed: ${status.backup.error}. Open the script's Executions page for details; the app's Settings › Backups still lists the copies you have.`]);
+  else if (status.backup.lastAt && status.backup.hoursAgo > 48) problems.push(['backup', `Your data hasn't been backed up for ${status.backup.hoursAgo} hours. Check the script's hourly trigger is on (run setup to recreate it).`]);
   const gm = status.garmin;
   if (gm.connected && gm.error && !/slow down/.test(gm.error)) problems.push(['garmin', `Garmin sync failed: ${gm.error} Run garminCheck in the script for details.`]);
   if (gm.connected && gm.watchHoursAgo != null && gm.watchHoursAgo > GARMIN_WATCH_LATE_HOURS) problems.push(['garminwatch', `Your watch hasn't synced to Garmin Connect for ${gm.watchHoursAgo} hours. Open the Garmin Connect app on your phone (with Bluetooth on) so it syncs.`]);
@@ -794,7 +734,7 @@ function checkSources_(errors) {
     p.setProperty('ALERT_' + k, String(now));
     emailed.push(k);
   }
-  const NAMES = { loseit: 'Lose It report late', email: 'saving emails', hae: 'Health Auto Export late', haemin: 'Health Auto Export minute data', strava: 'Strava', withings: 'Withings', garmin: 'Garmin', garminwatch: 'watch not synced', garminkey: 'Garmin key expiring' };
+  const NAMES = { loseit: 'Lose It report late', email: 'saving emails', hae: 'Health Auto Export late', haemin: 'Health Auto Export minute data', strava: 'Strava', backup: 'backup', garmin: 'Garmin', garminwatch: 'watch not synced', garminkey: 'Garmin key expiring' };
   const named = ks => ks.map(k => NAMES[k] || k).join(', ');
   console.log(`Data health: status saved for the app · ${problems.length ? `${problems.length} problem${problems.length === 1 ? '' : 's'}: ${named(problems.map(x => x[0]))}${emailed.length ? ` · emailed you about ${named(emailed)}` : ' · already emailed about recently'}` : 'no problems'}.`);
 }

@@ -1,6 +1,9 @@
 'use strict';
 // Health Sync · reading files from Lose It, Apple Health (Health Auto Export), Garmin and Strava into the data.
 
+// Where the app's own files are (for vendor/pdf.worker), worked out from this file's address, so it's right from any page.
+const APP_BASE = document.currentScript ? new URL('.', /** @type {HTMLScriptElement} */ (document.currentScript).src).href : location.href;
+
 /* ================= importers ================= */
 function logImport(line) {
   const el = $('#imp-log');
@@ -20,6 +23,9 @@ async function importBuffer(name, buf) {
   const isZip = /\.zip$/i.test(name) || (bytes[0] === 0x50 && bytes[1] === 0x4b);
   if (isZip) {
     const zip = await JSZip.loadAsync(buf);
+    // Withings' "Download my data" export: 80-odd files, of which only the two body-measurement files are needed.
+    const wx = withingsExportFiles(zip);
+    if (wx) return [impWithingsExport(name, await wx.weight.async('string'), wx.other ? await wx.other.async('string') : '')];
     // Garmin's full account export holds thousands of files; only the daily-summary and sleep JSON files are needed.
     const entries = Object.values(zip.files).filter(f => !f.dir && !/__MACOSX/.test(f.name) && !HAE_SIDE_FILE.test(f.name.split('/').pop()) && (/\.(csv|pdf)$/i.test(f.name) || (/\.json$/i.test(f.name) && GARMIN_JSON.test(f.name))));
     if (!entries.length) return [`${name}: skipped (no CSV, PDF or Garmin daily files inside this ZIP)`];
@@ -42,7 +48,6 @@ async function importBuffer(name, buf) {
     const text = new TextDecoder('utf-8').decode(buf);
     let j = null; try { j = JSON.parse(text); } catch {}
     if (j && j.source === 'strava') return [impStrava(name, j)];
-    if (j && j.source === 'withings') return [impWithings(name, j)];
     if (j && (j.data?.metrics || j.metrics)) return [impHaeJson(name, j)];
     const tally = { steps: new Set(), sleep: new Set() };
     readGarminJson(text, tally);
@@ -422,6 +427,8 @@ function importCsv(name, text, parent) {
 
   let res;
   // Health Auto Export (iPhone app) CSV: "Date/Time, Step Count (count), Resting Heart Rate (count/min), …"
+  if (headers.includes('weight (lb)') || headers.includes('weight (kg)')) if (headers.some(h => /^fat mass/.test(h))) return [`${label}: skipped (this is Withings' weight.csv on its own. Drop the whole ZIP from Withings' "Download my data" instead: it also has lean mass, visceral fat and BMR)`];
+  if (headers.join(',') === 'type,date,value,unit,position') return [`${label}: skipped (this is Withings' other.csv on its own. Drop the whole ZIP from Withings' "Download my data" instead)`];
   if (HAE_SIDE_FILE.test(name)) return [`${label}: skipped (Health Auto Export detail file — not needed; the daily summary file has everything)`];
   // (Food logs like Lose It's have a "name" column and nutrition columns too, so only body measures count here.)
   if (!has('name') && (headers.some(h => /^date\/time$/.test(h)) || headers.filter(h => HAE_COLS.some(([re, k]) => !k.startsWith('n:') && re.test(h))).length >= 2)) {
@@ -495,18 +502,65 @@ function addWorkout(k, w) {
   d.workouts.push(w); return done();
 }
 
-/* ---- Withings, read directly by the script (v3.7+): { source: 'withings', measuregrps: [{ date, measures: [{ type, value, unit }] }] } ----
-   Apple Health only gets weight, body fat %, BMI and lean mass from Withings; this carries everything the scale measures.
+/* ---- Withings: the "Download my data" export (v3.9) ----
+   Apple Health only gets weight, body fat %, BMI and lean mass from Withings; the export carries everything the scale
+   measures. (The Withings API, read by the script in v3.7, needs a paid developer plan, so it was removed in v3.9.)
+   weight.csv:  Date, Weight (lb), Fat mass (lb), Bone mass (lb), Muscle mass (lb), Hydration (lb)   (kg for metric accounts)
+   other.csv:   type, date, value, unit, position: FAT_FREE_MASS (kg, with no unit given), FAT_PERCENT, Visceral Fat,
+                Basal Metabolic Rate (BMR) ("2,386"), Metabolic Age, and impedance readings that aren't used.
+   Both use the same "2026-11-06 08:44:17" for one weigh-in, in local time.
    A day keeps its FIRST weigh-in (the morning one, before food and drink), with the body composition measured with it. */
-const WITHINGS_FIELDS = { 1: 'weightKg', 5: 'leanKg', 6: 'fatPct', 8: 'fatKg', 76: 'muscleKg', 77: 'waterKg', 88: 'boneKg', 170: 'visceral', 226: 'bmr', 227: 'metabolicAge' };
-function impWithings(name, j) {
-  const byDay = {};
-  for (const g of j.measuregrps || []) {
-    const o = {};
-    for (const m of g.measures || []) { const f = WITHINGS_FIELDS[m.type]; if (f && typeof m.value === 'number') o[f] = m.value * 10 ** (m.unit || 0); }
-    if (!Object.keys(o).length || !g.date) continue;
-    (byDay[dateKey(new Date(g.date * 1000))] ||= []).push({ at: g.date, ...o });
+function withingsExportFiles(zip) {
+  const files = Object.values(zip.files).filter(f => !f.dir && !/__MACOSX/.test(f.name)), by = n => files.find(f => f.name.split('/').pop().toLowerCase() === n);
+  const weight = by('weight.csv');
+  if (!weight || !(by('other.csv') || files.some(f => /^raw_|^account\.csv$/i.test(f.name.split('/').pop())))) return null;
+  return { weight, other: by('other.csv') };
+}
+const WITHINGS_OTHER = { 'fat_free_mass': 'leanKg', 'fat_percent': 'fatPct', 'visceral fat': 'visceral', 'basal metabolic rate (bmr)': 'bmr', 'metabolic age': 'metabolicAge' };
+/** @type {[RegExp, string][]} */
+const WITHINGS_WEIGHT = [[/^weight/, 'weightKg'], [/^fat mass/, 'fatKg'], [/^bone mass/, 'boneKg'], [/^muscle mass/, 'muscleKg'], [/^hydration/, 'waterKg']];
+function impWithingsExport(name, weightCsv, otherCsv) {
+  const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return isFinite(n) ? n : null; };
+  const at = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/); return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)).getTime() / 1000 : null; };
+  const groups = {};
+  const W = Papa.parse(String(weightCsv).replace(/^﻿/, ''), { skipEmptyLines: true }).data, head = (W[0] || []).map(h => String(h).trim().toLowerCase());
+  const cols = WITHINGS_WEIGHT.map(([re, f]) => { const i = head.findIndex(h => re.test(h)); return i < 0 ? null : [i, f, /\(lb\)/.test(head[i]) ? 1 / 2.20462 : 1]; }).filter(Boolean);
+  const di = head.indexOf('date');
+  if (di < 0 || !cols.length) return `${name}: skipped (this Withings export has no weight.csv the app can read)`;
+  for (const r of W.slice(1)) {
+    const t = at(r[di]); if (t == null) continue;
+    const g = (groups[t] ||= { at: t });
+    for (const [i, f, k] of cols) { const v = num(r[i]); if (v != null) g[f] = v * k; }
   }
+  for (const r of Papa.parse(String(otherCsv || '').replace(/^﻿/, ''), { header: true, skipEmptyLines: true }).data) {
+    const f = WITHINGS_OTHER[String(r.type || '').trim().toLowerCase()], t = at(r.date), v = num(r.value);
+    if (f && t != null && v != null) (groups[t] ||= { at: t })[f] = v;
+  }
+  for (const g of Object.values(groups)) {
+    // other.csv rounds lean mass to whole kg and fat % to whole numbers (80, 33); weight.csv has weight and fat mass to
+    // 0.1 lb. So when both are there, lean mass and fat % are worked out from them, ten times more precisely.
+    if (g.weightKg != null && g.fatKg != null) { g.leanKg = g.weightKg - g.fatKg; g.fatPct = g.fatKg / g.weightKg * 100; }
+    // Lean mass comes in kg even on a lb account. If it's ever bigger than the weight, it must be in lb.
+    else if (g.leanKg != null && g.weightKg != null && g.leanKg > g.weightKg) g.leanKg /= 2.20462;
+  }
+  // Only days from when your Health Sync history starts: the export goes back years, and a decade of weight-only days
+  // would stretch "all time" and the plan's start back to them. Older readings are counted and left out.
+  const ks0 = Object.keys(data.days).sort(), from = [ks0[0], weightCfg().startDate].filter(Boolean).sort()[0] || null;
+  const byDay = {}; let older = 0, oldest = null;
+  for (const g of Object.values(groups)) {
+    const k = dateKey(new Date(g.at * 1000));
+    if (from && k < from) { older++; if (!oldest || k < oldest) oldest = k; continue; }
+    (byDay[k] ||= []).push(g);
+  }
+  const res = applyWithings(byDay, 'withings-export');
+  const ks = Object.keys(byDay).sort();
+  if (ks.length) { importsDirty = true; data.imports.push({ id: uid(), at: new Date().toISOString(), name, what: 'Withings export', count: ks.length, range: rangeText(ks), last: ks[ks.length - 1] }); }
+  const old = older ? `; ${older.toLocaleString()} older reading${older === 1 ? '' : 's'} back to ${fmtDay(oldest, { month: 'short', year: 'numeric' })} left out, from before your Health Sync history starts` : '';
+  return ks.length ? `${name}: Withings export, ${plural(ks.length, 'day')} (${fmtRange(ks[0], ks[ks.length - 1])}): ${plural(res.nW, 'weigh-in')}, body composition on ${plural(res.nC, 'day')}${old}`
+    : `${name}: Withings export, nothing in your Health Sync history's dates${old}`;
+}
+// Shared by every Withings reader: byDay = { 'YYYY-MM-DD': [{ at: seconds, weightKg, fatKg, ... }] }.
+function applyWithings(byDay, via) {
   let nW = 0, nC = 0;
   for (const [k, gs] of Object.entries(byDay)) {
     gs.sort((a, b) => a.at - b.at);
@@ -515,17 +569,16 @@ function impWithings(name, j) {
     const near = gs.filter(g => Math.abs(g.at - first.at) <= 600), c = Object.assign({}, ...near.reverse(), first);
     const d = day(k), r1 = v => v == null ? undefined : Math.round(v * 10) / 10;
     const comp = { at: new Date(first.at * 1000).toISOString(), weightKg: r1(c.weightKg), fatPct: r1(c.fatPct), fatKg: r1(c.fatKg), leanKg: r1(c.leanKg), muscleKg: r1(c.muscleKg),
-      boneKg: r1(c.boneKg), waterKg: r1(c.waterKg), visceral: r1(c.visceral), bmr: c.bmr == null ? undefined : Math.round(c.bmr), metabolicAge: c.metabolicAge == null ? undefined : Math.round(c.metabolicAge), source: 'withings' };
+      boneKg: r1(c.boneKg), waterKg: r1(c.waterKg), visceral: r1(c.visceral), bmr: c.bmr == null ? undefined : Math.round(c.bmr), metabolicAge: c.metabolicAge == null ? undefined : Math.round(c.metabolicAge), source: 'withings', via };
     for (const x of Object.keys(comp)) if (comp[x] === undefined) delete comp[x];
-    if (Object.keys(comp).length > 3) { d.comp = comp; nC++; }
+    if (Object.keys(comp).length > 4) { d.comp = comp; nC++; }
     if (c.weightKg != null && canSet(d, 'weight', 'withings')) {
       const unit = d.weightUnit || weightUnit();
       d.weight = Math.round((unit === 'lb' ? c.weightKg * 2.20462 : c.weightKg) * 10) / 10; d.weightUnit = unit; d.weightSource = 'withings'; delete d.weightVia; nW++;
     }
     touch(k);
   }
-  const ks = Object.keys(byDay).sort();
-  return ks.length ? `${name}: Withings, ${plural(ks.length, 'day')} (${fmtRange(ks[0], ks[ks.length - 1])}): ${plural(nW, 'weigh-in')}, body composition on ${plural(nC, 'day')}` : `${name}: Withings, nothing new`;
+  return { nW, nC };
 }
 
 function impStrava(name, j) {
@@ -719,7 +772,7 @@ function impSleep(rows, headers, find) {
 // Rebuild the PDF's table rows: text pieces on the same line, grouped into cells by horizontal gaps.
 function openPdf(buf) {
   if (!window.pdfjsLib) throw new Error('the PDF reader did not load — check your internet connection');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker-3.11.174.min.js', APP_BASE).href;
   return withTimeout(pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise, 45000, 'the PDF reader did not start — try reloading the app');
 }
 // Draw each page onto a canvas, so PDFs show even where the browser won't display them inline.

@@ -147,6 +147,7 @@ $('#tabs').onclick = e => {
   if (b.dataset.tab === 'plan') loadPlanDocs(false).catch(e => toast(e.message, 6000));
   if (b.dataset.tab === 'coach') renderCoach();
   if (b.dataset.tab === 'train') renderTraining();
+  if (b.dataset.tab === 'set') loadBackups();
 };
 $('#rd-more').onclick = () => goTab('train');
 $('#tr-logbody').onclick = () => { logDate = dashDate; goTab('log'); renderLog(); $('#b-area').focus(); };
@@ -294,6 +295,25 @@ $('#s-theme').onchange = e => { settings.theme = e.target.value; saveSettings();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!$('#app').hidden) { renderCharts(); if (metricKey) renderMetric(); } });
 $('#s-export').onclick = () => download(`health-sync-backup-${todayKey()}.json`, JSON.stringify({ ...data, coachCfg: data.coachCfg ? { ...data.coachCfg, apiKey: '' } : null }, null, 1), 'application/json');
 $('#s-csv').onclick = exportCsv;
+$('#size-ok').onclick = () => {
+  const R = sizeReport();
+  (data.sizeLog ||= []).push({ at: todayKey(), bytes: R.bytes, days: R.days }); sizeDirty = true;
+  renderSizeReport(); runTask(persist);
+};
+$('#s-bk').onclick = async e => {
+  const b = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest('[data-bk]')); if (!b) return;
+  const label = backupLabel(b.dataset.bkName), d = new Date(), stamp = `${todayKey()} ${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+  const keep = `health-data before restore ${stamp}.json`;
+  if (!confirm(`Replace ALL your data with the backup from ${label}?\n\nEverything logged or imported since then will be gone from the app. Your data as it is now is saved first, as "${keep}" in Health Sync › Backups, so you can undo this by restoring that copy.`)) return;
+  await runTask(async () => {
+    setStatus('Restoring…', 'busy');
+    const backup = await Drive.readJson(b.dataset.bk);
+    const r = await restoreFrom(backup, now => Drive.saveBackup(keep, now));
+    setStatus('Restored');
+    render(); await loadBackups();
+    toast(`Restored the backup from ${label}: ${plural(r.days, 'day')} (you had ${r.was}). Your data from before is saved as "${keep}".`, 9000);
+  });
+};
 $('#s-restore').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreBackup(f); };
 $('#s-disconnect').onclick = () => {
   if ((dirty.size || importsDirty) && !confirm('Some changes are not saved yet. Sign out anyway?')) return;

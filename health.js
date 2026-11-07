@@ -28,35 +28,23 @@ function healthRows() {
       a.minuteData ? 'The file is minute-by-minute (too big). Set the automation’s Time Grouping to Day — steps, active calories and flights are ignored until then.' : a.hoursAgo > 36 ? 'Open Health Auto Export on your iPhone: check the automation is on, and Settings › General › Background App Refresh is on for it.' : '']);
     const s = st.strava;
     rows.push([s.error ? 'bad' : s.connected ? 'ok' : 'gray', 'Strava', s.connected ? `Connected${s.lastNewAt ? ` · last new workout saved ${H(since(s.lastNewAt))}` : ''}` : 'Not connected', s.error ? `Sync failed: ${s.error} — run stravaCheck in the script.` : '']);
-    const wi = st.withings;
-    if (wi) rows.push([wi.error ? 'bad' : wi.connected ? 'ok' : 'gray', 'Withings', wi.connected ? `Connected${wi.lastAt ? ` · last weigh-in ${H(since(wi.lastAt))}` : ''}` : 'Not connected (weight still arrives through Apple Health, without muscle, bone, water or visceral fat)', wi.error ? `Sync failed: ${wi.error}` : wi.connected ? '' : 'Optional: SETUP.md Step 14 connects it.']);
+    const bk = st.backup;
+    rows.push(!bk ? ['warn', 'Nightly backups', 'Not running yet', `Your script is v${st.scriptVersion || '?'}; backups start with v${SCRIPT_LATEST}. Paste email-to-drive.gs into script.google.com (README › Updating the app).`]
+      : bk.error ? ['bad', 'Nightly backups', `Last night's backup failed`, `${bk.error}. Open the script's Executions page for details. Settings › Nightly backups lists the copies you have.`]
+      : !bk.lastAt ? ['gray', 'Nightly backups', 'No backup yet', 'The first is saved within the hour.']
+      : [bk.hoursAgo > 48 ? 'bad' : 'ok', 'Nightly backups', `Last saved ${H(bk.hoursAgo)} · ${bk.count} kept${bk.sizeKB ? ` · ${bk.sizeKB >= 1024 ? (bk.sizeKB / 1024).toFixed(1) + ' MB' : bk.sizeKB + ' KB'}` : ''}`, bk.hoursAgo > 48 ? 'There should be one a day. Check the script\u2019s hourly trigger (run setup to recreate it).' : '']);
     rows.push(garminRow(st.garmin, H, since));
   }
-  // Each measure on its own: a source can keep delivering files while one measure inside them stops (for example sleep).
-  // [name, has it, days a gap is normal, what to check, only shown once it has ever arrived]
-  const yest = addDays(todayKey(), -1);
-  /** @type {[string, (d: Day) => boolean, number, string, boolean?][]} */
-  const MEASURES = [
-    ['Steps', d => d.steps != null && d.stepsSource !== 'manual', 2, 'Steps come from Apple Health, or from Garmin on days Apple Health has none. Check that Step Count is in the Health Auto Export automation, and the Garmin row above.'],
-    ['Sleep', d => d.sleep?.hours != null && d.sleep.source !== 'manual', 2, 'Sleep comes from Garmin: straight from Garmin (check the Garmin row above, and that the watch was worn and has synced), or through Apple Health (check that Sleep Analysis is in the Health Auto Export automation). Import results below show what each file held.'],
-    ['Weight', d => d.weight != null && d.weightSource !== 'manual', 7, 'Weigh in on the Withings scale, and check that Withings shares weight with Apple Health.'],
-    ['Resting heart rate', d => healthValue(d, 'restingHR') != null, 2, 'Check that Resting Heart Rate is in the Health Auto Export automation.', true],
-    ['Food (Lose It)', d => !!d.healthFood || (d.food || []).some(f => f.source === 'loseit'), 2, 'Keep logging in Lose It. If its emails stopped, see the Lose It report row above.', true],
-  ];
-  for (const [name, has, okDays, fix, optional] of MEASURES) {
-    const k = Object.keys(data.days).filter(x => x <= yest && has(data.days[x])).sort().pop();
-    if (!k && optional) continue;
-    const gap = k ? Math.round((+keyToDate(yest) - +keyToDate(k)) / 864e5) : null;
-    const c = k == null ? 'warn' : gap < okDays ? 'ok' : gap < +okDays * 2 ? 'warn' : 'bad';
-    rows.push([c, name, k ? `Latest: ${fmtDay(k)} (${gap ? `${gap + 1} days ago` : 'yesterday'})` : 'Never received', c === 'ok' ? '' : fix]);
-  }
+  // Each measurement on its own, against its own rhythm (quietRows in rules.js): a source can keep delivering files
+  // while one measurement inside them stops.
+  rows.push(...quietRows(st));
   const cc = coachCfg();
   if (cc.apiKey) {
     const lastMon = addDays(weekStart(todayKey()), -7), r = reviews()['week:' + lastMon];
     const late = !r && todayKey() >= addDays(lastMon, 9);
     rows.push([late ? 'warn' : 'ok', 'Coach', r ? `Last weekly review: week of ${fmtRange(r.start, r.end)}` : `Week of ${fmtRange(lastMon, addDays(lastMon, 6))}: ${late ? 'not written yet' : 'due Monday at noon'}`, late ? 'Open the Coach tab to see why (missing data, or an API key/credit problem).' : '']);
   }
-  const li = lastImport(/Lose It|Apple Health|Strava|Garmin/);
+  const li = lastImport(/Lose It|Apple Health|Strava|Garmin|Withings/);
   rows.push(['gray', 'Last import into the app', li ? new Date(li).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'none yet', '']);
   return rows;
 }
