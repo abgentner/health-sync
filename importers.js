@@ -132,7 +132,7 @@ const HAE_METRICS = {
   step_count: 'steps', sleep_analysis: 'sleep', weight_body_mass: 'weight', body_mass: 'weight',
   resting_heart_rate: 'restingHR', heart_rate_variability: 'hrv', heart_rate_variability_sdnn: 'hrv', active_energy: 'activeCal', active_energy_burned: 'activeCal',
   flights_climbed: 'flights', dietary_water: 'water', water: 'water', vo2_max: 'vo2max', body_fat_percentage: 'bodyFat', mindful_minutes: 'mindful',
-  number_of_alcoholic_beverages: 'drinks', alcoholic_beverages: 'drinks',
+  number_of_alcoholic_beverages: 'drinks', alcoholic_beverages: 'drinks', lean_body_mass: 'leanKg',
   // Nutrition that Lose It writes into Apple Health (one entry per meal, added up per day)
   dietary_energy: 'n:calories', protein: 'n:protein', carbohydrates: 'n:carbs', total_fat: 'n:fat', saturated_fat: 'n:satFat',
   fiber: 'n:fiber', dietary_sugar: 'n:sugar', sodium: 'n:sodium', cholesterol: 'n:cholesterol',
@@ -149,6 +149,7 @@ function haeConvert(key, v, unit) {
   if (key === 'water' && /(^|[^a-z])ml|millilit/.test(u)) return v / 29.5735;
   if (key === 'water' && /^l$|litre|liter/.test(u)) return v * 33.814;
   if (key === 'bodyFat' && v <= 1) return v * 100;
+  if (key === 'leanKg' && /lb|pound/.test(u)) return v / 2.20462;   // lean mass is kept in kg, like Withings'
   if (key === 'mindful' && /hr|hour/.test(u)) return v * 60;
   return v;
 }
@@ -224,7 +225,7 @@ const massTo = (v, from, to) => { const f = { g: 1e6, mg: 1e3, mcg: 1, 'µg': 1,
 const HAE_COLS = [
   [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^sleep analysis \[(core|deep|rem)\]/, 'sleepStage'], [/^(weight|body mass)/, 'weight'],
   [/^resting heart rate/, 'restingHR'], [/^heart rate variability/, 'hrv'], [/^active energy/, 'activeCal'], [/^flights climbed/, 'flights'],
-  [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'], [/^(number of )?alcoholic beverages/, 'drinks'],
+  [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'], [/^(number of )?alcoholic beverages/, 'drinks'], [/^lean body mass/, 'leanKg'],
   [/^dietary energy/, 'n:calories'], [/^protein/, 'n:protein'], [/^carbohydrates/, 'n:carbs'], [/^total fat/, 'n:fat'], [/^saturated fat/, 'n:satFat'],
   [/^fiber/, 'n:fiber'], [/^sugar/, 'n:sugar'], [/^sodium/, 'n:sodium'], [/^cholesterol/, 'n:cholesterol'],
   ...MICROS.map(m => [new RegExp('^' + m.name.toLowerCase().replace(/ \(.*\)/, '').replace(/[()]/g, '') + ' \\('), 'x:' + m.key]),
@@ -260,6 +261,7 @@ function applyHae(name, days, notDaily = new Set()) {
     if (sl && canSet(d, 'sleep', 'health')) { d.sleep = { hours: Math.round(sl * 10) / 10, score: d.sleep?.score ?? null, source: 'health', ...(v.sleep ? { via: v.sleep } : {}), ...(e.sleepStart ? { start: e.sleepStart } : {}) }; got.add('sleep'); }
     else if (e.sleepStart && d.sleep && !d.sleep.start) d.sleep.start = e.sleepStart;   // a better source has the hours, but no bedtime
     if (e.weight && canSet(d, 'weight', 'health')) { d.weight = Math.round(e.weight[e.weight.length - 1] * 10) / 10; d.weightUnit = e.weightUnit || 'lb'; d.weightSource = 'health'; setVia(d, 'weightVia', v.weight); got.add('weight'); }
+    if (e.leanKg) { (d.health ||= {}).leanKg = Math.round(avg(e.leanKg) * 10) / 10; got.add('lean body mass'); }
     for (const key of Object.keys(HEALTH_METRICS)) if (e[key]) { (d.health ||= {})[key] = Math.round(val(key) * 10) / 10; got.add(HEALTH_METRICS[key].name.toLowerCase()); }
     // Nutrition that Lose It wrote into Apple Health: a backup for days with no Lose It report (never mixed with food entries).
     if (e['n:calories'] && sumOf(e['n:calories']) > 0) {

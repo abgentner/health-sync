@@ -33,6 +33,28 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.7.1 (November 6, 2026)
+
+- **Changed: body composition without the Withings API.** Withings asks for a company or a paid plan before giving out API keys, so SETUP Step 14 usually isn't possible for a personal account. The Weight page's body composition now works from what Withings already shares with Apple Health:
+  - **Lean Body Mass** is read from Health Auto Export (JSON and CSV, kept in kg). Add it to the automation (SETUP Step 11).
+  - With only **Body Fat Percentage**, fat and lean mass are worked out from it and that day's weight. Your existing body fat history counts, so the fat-versus-lean breakdown may show straight away.
+  - The card says *Withings via Apple Health*. Muscle, bone, water, visceral fat and BMR still need the API, and the Withings code in the script stays for that case.
+- Tests: 169 checks, up from 164: Lean Body Mass in pounds read as kg, fat and lean from body fat % and weight, the CSV column, the loss mix from Apple Health alone, and Withings direct still winning when there is one.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `importers.js` | Lean Body Mass from Health Auto Export |
+  | `rules.js` | `compOf`: body composition from Withings direct, or else from Apple Health |
+  | `index.html` | Body composition card and the Coach use it; card says where it came from; version and script tags |
+  | `tests.html` | 5 new checks (169 in all) |
+  | `SETUP.md` | Step 11: tick Lean Body Mass; Step 14: needs Withings' paid or company plan |
+  | `README.md` | Weight page › Body composition; Tests |
+  | `CHANGELOG.md` | This entry |
+  | `email-to-drive.gs` | **Version number only** (3.7 → 3.7.1) |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `core.js`, `sync.js`, `config.js`, `.github/` | Not changed |
+
 ### v3.7 (November 6, 2026)
 
 - **New: Withings, read directly** (SETUP Step 14, optional). Apple Health only gets weight, body fat %, BMI and lean mass from Withings. The script now reads everything the scale measures: **muscle, bone, water, visceral fat, basal metabolic rate and metabolic age** too. Connecting goes through the script's web app address, because a Withings sign-in code lasts only 30 seconds, too short to copy by hand. The first sync loads your whole history. Each day keeps its **first** weigh-in (the morning one), which now ranks above Apple Health's copy; a weight typed in by hand still wins. Data health has a Withings row.

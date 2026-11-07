@@ -401,7 +401,17 @@ function paceAlert(k = todayKey()) {
 }
 
 /* ---- body composition (Withings), waist and the monthly strength check ---- */
-// d.comp: what the Withings scale measured with the day's first weigh-in. Masses are kg; shown in your weight unit.
+// d.comp: what the Withings scale measured with the day's first weigh-in (only with Withings' paid API). Masses are kg;
+// shown in your weight unit. Without it, compOf works out fat and lean mass from what Withings shares with Apple Health:
+// Lean Body Mass if Health Auto Export sends it, or else body fat % × that day's weight.
+function compOf(d) {
+  if (d?.comp && (d.comp.fatKg != null || d.comp.leanKg != null || d.comp.fatPct != null)) return d.comp;
+  const h = d?.health, wKg = d?.weight == null ? null : (d.weightUnit || 'lb') === 'kg' ? d.weight : d.weight / 2.20462;
+  if (!h || wKg == null || (h.leanKg == null && h.bodyFat == null)) return null;
+  const leanKg = h.leanKg ?? wKg * (1 - h.bodyFat / 100), r1 = v => Math.round(v * 10) / 10;
+  if (leanKg <= 0 || leanKg >= wKg) return null;
+  return { fatPct: r1(h.bodyFat ?? (wKg - leanKg) / wKg * 100), fatKg: r1(wKg - leanKg), leanKg: r1(leanKg), source: 'health' };
+}
 const COMP_FIELDS = [
   { key: 'fatPct', name: 'Body fat', unit: '%', dp: 1, lower: true },
   { key: 'fatKg', name: 'Fat mass', mass: true, dp: 1, lower: true },
@@ -414,22 +424,22 @@ const COMP_FIELDS = [
   { key: 'metabolicAge', name: 'Metabolic age', unit: 'years', dp: 0, lower: true },
 ];
 const kgIn = (kg, unit) => kg == null ? null : unit === 'lb' ? kg * 2.20462 : kg;
-const compDays = (end = todayKey()) => Object.keys(data.days).filter(k => k <= end && data.days[k].comp).sort();
+const compDays = (end = todayKey()) => Object.keys(data.days).filter(k => k <= end && compOf(data.days[k])).sort();
 // Latest reading of a field, and the change from about `days` earlier (the reading closest to then, within a week).
 function compChange(key, days, end = todayKey()) {
-  const ks = compDays(end).filter(k => data.days[k].comp[key] != null);
+  const ks = compDays(end).filter(k => compOf(data.days[k])[key] != null);
   if (!ks.length) return null;
   const now = ks[ks.length - 1], target = addDays(now, -days);
   const then = ks.filter(k => k <= addDays(target, 7) && k >= addDays(target, -7)).sort((a, b) => Math.abs(keyToDate(a) - keyToDate(target)) - Math.abs(keyToDate(b) - keyToDate(target)))[0];
-  const v = data.days[now].comp[key], w = then && then !== now ? data.days[then].comp[key] : null;
+  const v = compOf(data.days[now])[key], w = then && then !== now ? compOf(data.days[then])[key] : null;
   return { k: now, v, thenK: then !== now ? then : null, then: w, diff: w == null ? null : v - w };
 }
 // What the weight lost was made of, from the scale's fat and lean readings. Each end is the average of its first or
 // last 3 readings, because a single body-composition reading swings with hydration. Needs 4 weeks between the ends.
 function lossMix(start, end = todayKey()) {
-  const ks = compDays(end).filter(k => k >= start && data.days[k].comp.fatKg != null && data.days[k].comp.leanKg != null);
+  const ks = compDays(end).filter(k => k >= start && compOf(data.days[k]).fatKg != null && compOf(data.days[k]).leanKg != null);
   if (ks.length < 6 || (keyToDate(ks[ks.length - 1]) - keyToDate(ks[0])) / 864e5 < 28) return null;
-  const mean = (list, f) => avg(list.map(k => data.days[k].comp[f]));
+  const mean = (list, f) => avg(list.map(k => compOf(data.days[k])[f]));
   const a = ks.slice(0, 3), b = ks.slice(-3), u = weightUnit();
   const fat = kgIn(mean(b, 'fatKg') - mean(a, 'fatKg'), u), lean = kgIn(mean(b, 'leanKg') - mean(a, 'leanKg'), u), total = fat + lean;
   const leanShare = total < 0 ? Math.max(0, -lean) / -total : null;

@@ -518,6 +518,26 @@ describe('Withings (read directly by the script)', () => {
   test('a weight typed by hand still wins', () => { fresh(); const d = day('2026-10-06'); d.weight = 263; d.weightUnit = 'lb'; d.weightSource = 'manual'; file([wg('2026-10-06T07:00:00', [[1, 12000, -2]])]); eq(getDay('2026-10-06').weight, 263); });
 });
 
+describe('Body composition through Apple Health (no Withings API)', () => {
+  test('Lean Body Mass from Health Auto Export is read, in kg', () => {
+    fresh(); hae([{ name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-10-07 00:00:00 -0700', qty: 264.6 }] }, { name: 'lean_body_mass', units: 'lb', data: [{ date: '2026-10-07 00:00:00 -0700', qty: 181.9 }] }]);
+    near(getDay('2026-10-07').health.leanKg, 82.5, 0.1); const c = compOf(getDay('2026-10-07')); near(c.fatKg, 37.5, 0.2); eq(c.source, 'health');
+  });
+  test('with only body fat %, fat and lean mass come from it and the weight', () => {
+    fresh(); hae([{ name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-10-08 00:00:00 -0700', qty: 264.6 }] }, { name: 'body_fat_percentage', units: '%', data: [{ date: '2026-10-08 00:00:00 -0700', qty: 30 }] }]);
+    const c = compOf(getDay('2026-10-08')); near(c.fatKg, 36, 0.1); near(c.leanKg, 84, 0.1); eq(c.fatPct, 30);
+  });
+  test('the CSV export’s "Lean Body Mass (lb)" column works too', () => {
+    fresh(); importCsv('HealthAutoExport.csv', 'Date,Weight & Body Mass (lb),Lean Body Mass (lb)\n2026-10-09 00:00:00,264.6,181.9\n');
+    near(getDay('2026-10-09').health.leanKg, 82.5, 0.1);
+  });
+  test('the loss mix works from Apple Health alone', () => {
+    fresh(); for (let i = 0; i < 40; i++) { const d = day(addDays('2026-09-01', i)); d.weight = Math.round((270 - i * 0.3) * 10) / 10; d.weightUnit = 'lb'; d.health = { bodyFat: Math.round((32 - i * 0.05) * 10) / 10 }; }
+    const m = lossMix('2026-09-01', '2026-10-10'); ok(m && m.total < 0 && m.fat < m.lean, 'mostly fat', m);
+  });
+  test('Withings direct, when there is one, still wins', () => { fresh(); const d = day('2026-10-10'); d.weight = 264; d.weightUnit = 'lb'; d.health = { bodyFat: 30 }; d.comp = { fatKg: 40, leanKg: 80, source: 'withings' }; eq(compOf(d).source, 'withings'); });
+});
+
 describe('Body measures', () => {
   const comp = (k, fatKg, leanKg) => { const d = day(k); d.comp = { fatKg, leanKg, source: 'withings' }; d.weight = Math.round((fatKg + leanKg) * 2.20462 * 10) / 10; d.weightUnit = 'lb'; };
   test('what the loss was made of: fat vs lean, from the first and last 3 readings', () => {

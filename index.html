@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.7 -->
+<!-- Health Sync app · version 3.7.1 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -931,13 +931,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <div id="update-bar" role="status" hidden><span id="update-msg"></span><button class="btn small" id="update-go">Update now</button><button class="del" id="update-x" aria-label="Later">×</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="core.js?v=3.7"></script>
-<script src="importers.js?v=3.7"></script>
-<script src="rules.js?v=3.7"></script>
-<script src="sync.js?v=3.7"></script>
+<script src="core.js?v=3.7.1"></script>
+<script src="importers.js?v=3.7.1"></script>
+<script src="rules.js?v=3.7.1"></script>
+<script src="sync.js?v=3.7.1"></script>
 <script>
 'use strict';
-const APP_VERSION = '3.7';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.7.1';   // bump with every release; shown in the footer and Settings
 
 /* ================= storage backends ================= */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
@@ -1863,8 +1863,8 @@ function dayDigest(k) {
     anchors: Object.fromEntries(c.names.map((nm, i) => { const s = anchorState(d, i, undefined, c, k); return [nm, { checked: s.pending ? 'pending' : s.half ? 'half (counts 0.5)' : s.on, by: s.manual ? 'hand' : 'data', detail: s.auto?.why || '' }]; })),
     mood: d?.feel?.mood ?? null, energy: d?.feel?.energy ?? null, stress: d?.feel?.stress ?? null, tags: d?.feel?.tags?.length ? d.feel.tags : null, notes: d?.feel?.notes || null,
     intimacy: pvOf(d),
-    body_composition: d?.comp ? (() => { const u = d.weightUnit || weightUnit(), m = v => v == null ? null : `${fmtN(kgIn(v, u), 1)} ${u}`;
-      return { body_fat_pct: d.comp.fatPct ?? null, fat_mass: m(d.comp.fatKg), lean_mass: m(d.comp.leanKg), muscle_mass: m(d.comp.muscleKg), water: m(d.comp.waterKg), bone: m(d.comp.boneKg), visceral_fat_index: d.comp.visceral ?? null, scale_bmr_cal: d.comp.bmr ?? null }; })() : null,
+    body_composition: compOf(d) ? (() => { const c = compOf(d), u = d.weightUnit || weightUnit(), m = v => v == null ? null : `${fmtN(kgIn(v, u), 1)} ${u}`;
+      return { body_fat_pct: c.fatPct ?? null, fat_mass: m(c.fatKg), lean_mass: m(c.leanKg), muscle_mass: m(c.muscleKg), water: m(c.waterKg), bone: m(c.boneKg), visceral_fat_index: c.visceral ?? null, scale_bmr_cal: c.bmr ?? null }; })() : null,
     waist: d?.waist ? `${d.waist.v} ${d.waist.unit}` : null,
     pushups_max_set: d?.pushups ?? null,
   };
@@ -2778,12 +2778,12 @@ function renderWeightExtras() {
   // --- body composition from the Withings scale (needs the script's Withings connection, v3.7+)
   const comps = compDays(today);
   if (comps.length) {
-    const lastC = data.days[comps[comps.length - 1]].comp, fmtC = (f, v) => v == null ? '—' : f.mass ? `${fmtN(kgIn(v, u), 1)} ${u}` : `${fmtN(v, f.dp)}${f.unit ? (f.unit === '%' ? '%' : ' ' + f.unit) : ''}`;
+    const lastC = compOf(data.days[comps[comps.length - 1]]), fmtC = (f, v) => v == null ? '—' : f.mass ? `${fmtN(kgIn(v, u), 1)} ${u}` : `${fmtN(v, f.dp)}${f.unit ? (f.unit === '%' ? '%' : ' ' + f.unit) : ''}`;
     const rowsC = COMP_FIELDS.filter(f => lastC[f.key] != null).map(f => { const c = compChange(f.key, 30, today), dv = c?.diff == null ? null : f.mass ? kgIn(c.diff, u) : c.diff;
       const good = dv == null || Math.abs(dv) < (f.dp ? 0.05 : 0.5) ? '' : (dv < 0) === !!f.lower ? 'good' : 'bad';
       return `<div class="li"><span class="n">${esc(f.name)}${f.hint ? ` <span class="muted small">· ${esc(f.hint)}</span>` : ''}</span><span class="x"><b>${fmtC(f, lastC[f.key])}</b>${dv != null ? ` <span class="small ${good || 'muted'}">${!good ? '±0' : `${dv > 0 ? '+' : '−'}${fmtN(Math.abs(dv), f.dp)}`}</span>` : ''}</span></div>`; });
     const mix = lossMix(G.startDate || comps[0], today);
-    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Body composition</h2><span class="muted small">Withings · ${esc(fmtDay(comps[comps.length - 1], { month: 'short', day: 'numeric' }))} · change over 30 days</span></div>
+    cards.push(`<div class="card wt-card"><div class="card-h"><h2>Body composition</h2><span class="muted small">${lastC.source === 'withings' ? 'Withings' : 'Withings via Apple Health'} · ${esc(fmtDay(comps[comps.length - 1], { month: 'short', day: 'numeric' }))} · change over 30 days</span></div>
       <div class="list small">${rowsC.join('')}</div>
       ${mix ? `<p class="small" style="margin:10px 0 0${mix.flag ? ';color:var(--bad)' : ''}"><b>Since ${esc(fmtDay(mix.from, { month: 'short', day: 'numeric' }))}:</b> ${esc(mix.text)}${mix.flag ? ' That’s a lot of lean mass. Protein toward 130 g a day and two strength sessions a week protect it.' : ''}</p>` : ''}
       <div class="muted small" style="margin-top:6px">A smart scale estimates these from a small current through your feet, so single readings swing with water. Trust the direction over weeks, not one morning.</div></div>`);

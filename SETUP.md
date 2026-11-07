@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.7** · November 6, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.7.1** · November 6, 2026 · same version as the app, the script and the other docs · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -420,7 +420,7 @@ Once set up, this runs on its own in the background. You never export anything b
 | Setting | Choose |
 |---|---|
 | Data type | **Health Metrics** |
-| Metrics | **Step Count, Sleep Analysis, Resting Heart Rate, Active Energy, Flights Climbed, Dietary Energy, Protein, Carbohydrates, Total Fat**, plus **Weight & Body Mass** and **Body Fat Percentage** (from your Withings scale), and **Heart Rate Variability, Water, VO2 Max, Mindful Minutes** if you like. Add **Number of Alcoholic Beverages** too if you log drinks in Apple Health; otherwise the app counts them from your Lose It log |
+| Metrics | **Step Count, Sleep Analysis, Resting Heart Rate, Active Energy, Flights Climbed, Dietary Energy, Protein, Carbohydrates, Total Fat**, plus **Weight & Body Mass**, **Body Fat Percentage** and **Lean Body Mass** (from your Withings scale; the last two give the Weight page's fat-versus-lean breakdown), and **Heart Rate Variability, Water, VO2 Max, Mindful Minutes** if you like. Add **Number of Alcoholic Beverages** too if you log drinks in Apple Health; otherwise the app counts them from your Lose It log |
 | Export format | **JSON** |
 | Aggregation / Time grouping | **Day**. This one really matters. With **Minutes** or **Hours**, Health Auto Export lumps your iPhone's and Garmin's steps into the same buckets and adds them together (e.g. 14,922 instead of 11,442). Health Sync ignores steps, active calories and flights from those files and says so in the Import tab. (Sleep is read correctly either way.) |
 | Date range | **Last 7 Days** (or "since last sync"). Days are replaced, never doubled. |
@@ -665,6 +665,8 @@ You need **Step 9 done first** (the script).
 ---
 
 ## Step 14 — Everything your Withings scale measures (optional, about 15 minutes)
+
+> **Only if you have access to Withings' developer API.** As of November 2026, Withings asks for a company or a paid plan before it gives you API keys, so for a personal account this step is usually not possible. **You don't need it for the main thing:** with **Body Fat Percentage** and **Lean Body Mass** in your Health Auto Export automation (Step 11), the Weight page already shows body fat %, fat and lean mass, and what your loss was made of. This step adds only muscle, bone, water, visceral fat, BMR and metabolic age. The script code stays in place in case you get API access later.
 
 **Why:** Withings shares only **weight, body fat %, BMI and lean mass** with Apple Health. **Muscle, bone, water, visceral fat, basal metabolic rate and metabolic age** never get there, because Apple Health has no place for most of them. With this step, your Google script reads all of it straight from Withings every hour. The Weight page then shows **Body composition** and **what your weight loss was made of** (fat versus lean), and the Coach uses it. It also gives the app each day's **first** weigh-in (the morning one), which is the one to compare day to day.
 
