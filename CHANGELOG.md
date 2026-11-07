@@ -34,8 +34,9 @@
 ### v3.8.3 (November 7, 2026)
 
 - **Fixed: the header on a phone.** With the ♥ pace chip and the ⚠ data-issues chip both showing, they pushed the status dot and **Sync** off the right edge and squeezed "Health Sync" onto two lines. On narrow screens the chips now get their own line under the logo, status and Sync; with no chips, the header is one line as before. Desktop is unchanged.
+- **Fixed: a flaky screenshot check.** On the first run of this release, the phone dashboard picture caught its charts blank and failed; a rerun passed. The check waited a fixed 0.4 seconds after switching screen size, and Chart.js sometimes takes longer to redraw on GitHub's machines. It now redraws the charts itself and takes pictures until two in a row are identical. A check that fails at random is worse than none, because you learn to ignore it.
 - **Tests:** GitHub's app start-up check now opens the app at phone width (360 px) with both chips showing, and fails if a chip covers the status dot or Sync, or the header runs off the edge. 178 checks unchanged.
-- **Files:** `index.html` (phone styles, version), `.github/run-tests.mjs` (the phone header check), `README.md`, `SETUP.md`, `ALTERNATIVES.md` (version number only). `email-to-drive.gs` not changed: stays 3.7.1, nothing to paste.
+- **Files:** `index.html` (phone styles, version), `.github/run-tests.mjs` (the phone header check), `.github/screens.mjs` (waits for the charts), `README.md`, `SETUP.md`, `ALTERNATIVES.md` (version number only). `email-to-drive.gs` not changed: stays 3.7.1, nothing to paste.
 
 ### v3.8.2 (November 7, 2026)
 

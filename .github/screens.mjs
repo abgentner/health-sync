@@ -81,8 +81,16 @@ try {
   for (const s of SHOTS) {
     await page.setViewport({ width: s.width, height: 900, deviceScaleFactor: 1 });
     await page.evaluate(sh => { if (typeof closeMetric === 'function' && metricKey) closeMetric(); dashDate = todayKey(); goTab(sh.metric ? 'dash' : sh.tab); if (sh.metric) openMetric(sh.metric); else render(); window.scrollTo(0, 0); }, s);
-    await new Promise(r => setTimeout(r, 400));
-    const shot = await page.screenshot({ fullPage: true });
+    // Chart.js redraws its charts after a resize in its own time, and a fixed wait sometimes caught them blank on GitHub's
+    // slower machines (v3.8.3). So redraw them now, then take pictures until two in a row are identical.
+    await page.evaluate(() => { for (const c of Object.values(window.Chart?.instances || {})) c.resize(); });
+    let shot = await page.screenshot({ fullPage: true });
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 300));
+      const next = await page.screenshot({ fullPage: true });
+      if (Buffer.compare(next, shot) === 0) break;
+      shot = next;
+    }
     if (OUT || UPDATE) { const dir = OUT || saved; await mkdir(dir, { recursive: true }); await writeFile(join(dir, s.name + '.png'), shot); console.log(`saved ${s.name}.png`); continue; }
     const file = join(saved, s.name + '.png');
     if (!existsSync(file)) { await mkdir('screens-new', { recursive: true }); await writeFile(join('screens-new', s.name + '.png'), shot); console.log(`NEW   ${s.name}: no saved picture yet (see screens-new/; run "Update screenshots" to keep it)`); continue; }
