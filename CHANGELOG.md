@@ -31,6 +31,11 @@
 6. **Push or upload all the app files together.** They only work as a set.
 7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
 
+### v3.8.2 (November 7, 2026)
+
+- **Fixed: the Coach's instruction on the private marks.** It told Claude to treat declined days as weighing on your mood, which handed it a conclusion before it looked at your data. It now tells it to check: compare mood, energy and stress on and after those days with other days, mention a difference only with at least 3 such days and a gap of at least half a point, call it a pattern rather than a cause, and otherwise draw no link.
+- **Files:** `coach.js` (the instruction, in both the weekly and period reviews), `index.html` (version), `README.md`, `SETUP.md`, `ALTERNATIVES.md` (version number only). `email-to-drive.gs` not changed: stays 3.7.1, nothing to paste.
+
 ### v3.8.1 (November 7, 2026)
 
 **No change in what the app does.** This release adds a type check, the last item from the architecture review.

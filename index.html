@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.8.1 -->
+<!-- Health Sync app · version 3.8.2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -939,25 +939,25 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <script>
 'use strict';
 // Kept here, in the page itself, so the update check and the tests can read the version without loading the app.
-const APP_VERSION = '3.8.1';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.8.2';   // bump with every release; shown in the footer and Settings
 // The script has its own version, which moves only when email-to-drive.gs itself changes (from v3.8). This is the
 // newest one; Data health asks you to paste it only when yours is older. tests.html checks it matches the script file.
 const SCRIPT_LATEST = '3.7.1';
 const versionLess = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); return false; };
 </script>
-<script src="core.js?v=3.8.1"></script>
-<script src="importers.js?v=3.8.1"></script>
-<script src="rules.js?v=3.8.1"></script>
-<script src="migrate.js?v=3.8.1"></script>
-<script src="sync.js?v=3.8.1"></script>
-<script src="drive.js?v=3.8.1"></script>
-<script src="dashboard.js?v=3.8.1"></script>
-<script src="log.js?v=3.8.1"></script>
-<script src="coach.js?v=3.8.1"></script>
-<script src="training.js?v=3.8.1"></script>
-<script src="health.js?v=3.8.1"></script>
-<script src="weight.js?v=3.8.1"></script>
-<script src="metrics.js?v=3.8.1"></script>
-<script src="main.js?v=3.8.1"></script>
+<script src="core.js?v=3.8.2"></script>
+<script src="importers.js?v=3.8.2"></script>
+<script src="rules.js?v=3.8.2"></script>
+<script src="migrate.js?v=3.8.2"></script>
+<script src="sync.js?v=3.8.2"></script>
+<script src="drive.js?v=3.8.2"></script>
+<script src="dashboard.js?v=3.8.2"></script>
+<script src="log.js?v=3.8.2"></script>
+<script src="coach.js?v=3.8.2"></script>
+<script src="training.js?v=3.8.2"></script>
+<script src="health.js?v=3.8.2"></script>
+<script src="weight.js?v=3.8.2"></script>
+<script src="metrics.js?v=3.8.2"></script>
+<script src="main.js?v=3.8.2"></script>
 </body>
 </html>
