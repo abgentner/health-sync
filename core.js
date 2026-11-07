@@ -21,6 +21,7 @@ const dateKey = d => ymd(d.getFullYear(), d.getMonth() + 1, d.getDate());
 const todayKey = () => dateKey(new Date());
 const keyToDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 const addDays = (k, n) => { const d = keyToDate(k); d.setDate(d.getDate() + n); return dateKey(d); };
+/** @type {(k: string, opts?: Intl.DateTimeFormatOptions) => string} */
 const fmtDay = (k, opts = { weekday: 'short', month: 'short', day: 'numeric' }) => keyToDate(k).toLocaleDateString(undefined, opts);
 const fmtN = (n, dp = 0) => n == null || isNaN(n) ? '—' : Number(n).toLocaleString(undefined, { maximumFractionDigits: dp, minimumFractionDigits: 0 });
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
@@ -41,8 +42,8 @@ function parseDate(s) {
   if (m) { let y = +m[3]; if (y < 100) y += 2000; return validKey(y, +m[1], +m[2]); }
   if (/[a-z]{3}/i.test(s) && /\d/.test(s)) {                    // "Oct 12, 2026", "Mon, Oct 12, 2026"
     let d = new Date(s);
-    if (isNaN(d) && !/\d{4}/.test(s)) d = new Date(s + ', ' + new Date().getFullYear());
-    if (!isNaN(d)) return validKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    if (isNaN(+d) && !/\d{4}/.test(s)) d = new Date(s + ', ' + new Date().getFullYear());
+    if (!isNaN(+d)) return validKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
   }
   return null;
 }
@@ -87,9 +88,17 @@ function download(name, text, type) {
 /**
  * One day, data.days["YYYY-MM-DD"]. Every field is optional; a day with nothing left in it is deleted (touch()).
  * @typedef {Object} Day
- * @property {number} [steps]             daily total; stepsSource 'health' | 'garmin' | 'loseit' | 'manual' (SOURCE_RANK), stepsVia device
+ * @property {number} [steps]             daily total
+ * @property {'health'|'garmin'|'loseit'|'manual'} [stepsSource]   which source the total came from (SOURCE_RANK)
+ * @property {string} [stepsVia]          the device behind Apple Health's copy
  * @property {number[]} [stepsHours]      24 hourly counts, the shape of the day only
- * @property {number} [weight]            in weightUnit 'lb' | 'kg'; weightSource 'withings' | 'health' | 'garmin' | 'loseit' | 'manual'
+ * @property {number} [weight]
+ * @property {'lb'|'kg'} [weightUnit]
+ * @property {'withings'|'health'|'garmin'|'loseit'|'manual'} [weightSource]
+ * @property {string} [weightVia]
+ * @property {number} [restingHR]         from Garmin's day file
+ * @property {string} [loseItGen]         when the day's Lose It report was made (ISO); loseItAt once it's final
+ * @property {string} [loseItAt]
  * @property {{hours:number, score?:number, start?:string, source:string, via?:string}} [sleep]
  * @property {Object[]} [food]            Lose It entries: { name, meal, calories, protein, carbs, fat, …, source }; loseItGen/loseItAt when the report was made
  * @property {Object} [nutrition]         whole-day nutrients from a Lose It PDF

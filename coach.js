@@ -22,7 +22,7 @@ function dayDigest(k) {
     calories: t.hasFood ? Math.round(t.calIn) : null,
     nutrients: t.hasNutr ? Object.fromEntries(NUTRIENTS.map(n => [`${n.key}_${n.u}`, r(t[n.key])])) : null,
     calories_by_meal: Object.keys(meals).length ? meals : null,
-    vitamins_minerals: d?.micros ? Object.fromEntries(MICROS.filter(m => d.micros[m.key] != null).map(m => [m.name, `${Math.round(d.micros[m.key] * 10) / 10} ${m.u}${m.dv ? ` (${Math.round(d.micros[m.key] / m.dv * 100)}% DV)` : ''}`])) : null,
+    vitamins_minerals: d?.micros ? Object.fromEntries(MICROS.filter(m => d.micros[m.key] != null).map(m => [m.name, `${Math.round(d.micros[m.key] * 10) / 10} ${m.u}${m.dv ? ` (${Math.round(d.micros[m.key] / +m.dv * 100)}% DV)` : ''}`])) : null,
     foods: foods.length ? foods : null,
     steps: d?.steps ?? null,
     steps_by_time: (() => { const h = stepsByHour(k); if (!h) return null; const s = (a, b) => Math.round(h.slice(a, b).reduce((x, y) => x + y, 0)); return { before_noon: s(0, 12), noon_to_5pm: s(12, 17), after_5pm: s(17, 24) }; })(),
@@ -53,7 +53,7 @@ function periodStats(ks) {
     anchors: `${boxN(ks.reduce((n, k) => n + anchorCount(getDay(k)), 0))} of ${c.names.length * ks.length}`,
     avg_steps: a(v(d => d?.steps)), avg_sleep_h: a(v(sleepHours)), avg_resting_hr: a(v(d => healthValue(d, 'restingHR'))),
     avg_calories_logged_days: a(food.map(t => t.calIn)), avg_protein_g: a(food.map(t => t.protein)), avg_fiber_g: a(food.map(t => t.fiber)), avg_sodium_mg: a(food.map(t => t.sodium)),
-    vitamins_minerals_avg_pct_dv: (() => { const Dm = D.filter(d => d?.micros); if (!Dm.length) return null; return Object.fromEntries(MICROS.filter(m => m.dv).map(m => [m.name, Dm.map(d => d.micros[m.key]).filter(v => v != null)]).filter(([, a]) => a.length).map(([n, a]) => { const m = MICROS.find(x => x.name === n); return [n, Math.round(avg(a) / m.dv * 100) + '%']; })); })(),
+    vitamins_minerals_avg_pct_dv: (() => { const Dm = D.filter(d => d?.micros); if (!Dm.length) return null; return Object.fromEntries(MICROS.filter(m => m.dv).map(m => [m.name, Dm.map(d => d.micros[m.key]).filter(v => v != null)]).filter(([, a]) => a.length).map(([n, a]) => { const m = MICROS.find(x => x.name === n); return [n, Math.round(avg(a) / +m.dv * 100) + '%']; })); })(),
     workouts: D.reduce((n, d) => n + (d?.workouts?.length || 0), 0), exercise_min: Math.round(T.reduce((n, t) => n + t.exMin, 0)),
     weight_trend: (() => { const S = weightSeries(), a = ks.map(k => trendOn(S, k)).find(v => v != null), b = trendOn(S, ks[ks.length - 1]), r = weightRate(S, ks[ks.length - 1]); return a == null || b == null ? null : `${a.toFixed(1)} → ${b.toFixed(1)} ${S.unit} (trend; recent rate ${r == null ? 'n/a' : r.toFixed(2)} ${S.unit}/week)`; })(),
     weight_first_last: (() => { const w = D.filter(d => d?.weight != null); return w.length ? `${w[0].weight} → ${w[w.length - 1].weight} ${w[0].weightUnit || 'lb'}` : null; })(),
@@ -67,7 +67,7 @@ function periodStats(ks) {
   };
 }
 function buildDigest(start, end, opts = {}) {
-  const n = Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1, ks = windowKeys(end, n), c = anchorCfg(), cc = coachCfg();
+  const n = Math.round((+keyToDate(end) - +keyToDate(start)) / 864e5) + 1, ks = windowKeys(end, n), c = anchorCfg(), cc = coachCfg();
   const prior = []; for (let i = 1; i <= 4; i++) { const e = addDays(start, -1 - (i - 1) * n); prior.push({ period: fmtRange(addDays(e, -(n - 1)), e), ...periodStats(windowKeys(e, n)) }); }
   const prev = Object.values(reviews()).filter(r => r.kind === 'week' && r.end < start && r.status === 'done').sort((a, b) => b.end.localeCompare(a.end))[0];
   return {
@@ -177,7 +177,7 @@ const reportSchema = () => ({
   },
 });
 function reportDigest(kind, start, end, subjects, opts) {
-  const from = gradedFrom(start), ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(from)) / 864e5) + 1).filter(k => k < todayKey());
+  const from = gradedFrom(start), ks = windowKeys(end, Math.round((+keyToDate(end) - +keyToDate(from)) / 864e5) + 1).filter(k => k < todayKey());
   const prevAll = reportOf(kind, prevPeriod(kind, start)[0]);
   const prevCard = prevAll?.card || (kind !== 'adhoc' ? (() => { const [a, b] = prevPeriod(kind, start); return b >= dataStart() ? quickCard(a, b) : null; })() : null);
   const base = buildDigest(from, end, { kind: kind === 'adhoc' ? 'adhoc' : kind, question: opts.question });
@@ -214,6 +214,7 @@ function assignmentResults(kind, before) {
 const prevAssignmentsFor = (kind, start) => kind === 'adhoc' ? [] : (reportOf(kind, prevPeriod(kind, start)[0])?.assignments || []);
 
 // Streams the answer so long reviews never time out; onText receives the length written so far.
+/** @param {{ system: string, user: string, schema: any, effort?: string, maxTokens?: number, onText?: (n: number) => void, what?: string }} o */
 async function callClaude({ system, user, schema, effort = 'medium', maxTokens = 16000, onText, what = 'Coach' }) {
   const key = coachCfg().apiKey;
   if (!key) throw new Error('Add your Anthropic API key in Settings › Coach first.');
@@ -300,7 +301,7 @@ async function addCredit(type) {
 const loggedDays = ks => ks.filter(k => totals(getDay(k)).hasFood).length;
 async function writeReview(key, { kind, start, end, question = '', email = true, force = false, rewrite = '' }) {
   const from = gradedFrom(start);
-  const ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(from)) / 864e5) + 1);
+  const ks = windowKeys(end, Math.round((+keyToDate(end) - +keyToDate(from)) / 864e5) + 1);
   const old = reviews()[key];
   const now = new Date().toISOString();
   const base = { key, kind, start, end, question, createdAt: now, note: old?.note || '', basis: reviewBasis(from, end),
@@ -322,7 +323,7 @@ async function writeReview(key, { kind, start, end, question = '', email = true,
       onText: n => { coachProgress = `Writing your ${LEVELS[kind].toLowerCase()} report… ${Math.round(n / 5)} words`; const el = $('#coach-progress'); if (el) el.textContent = coachProgress; } });
     // Assignments: Claude's marks become the graded subject; carried ones count how many times they've moved.
     // Each assignment's measure over the period it was set in, against the period it was for.
-    const [pa, pb] = kind === 'adhoc' ? [] : prevPeriod(kind, start), beforeKs = pa ? windowKeys(pb, Math.round((keyToDate(pb) - keyToDate(pa)) / 864e5) + 1) : [];
+    const [pa, pb] = kind === 'adhoc' ? [] : prevPeriod(kind, start), beforeKs = pa ? windowKeys(pb, Math.round((+keyToDate(pb) - +keyToDate(pa)) / 864e5) + 1) : [];
     const marks = prevAssignments.length ? prevAssignments.map((a, i) => { const m = out.assignments_review?.[i] ? { ...out.assignments_review[i], assignment: a.text } : { assignment: a.text, status: 'missed', evidence: 'not marked' };
       const ch = a.measure && a.measure !== 'none' ? measureChange(a.measure, beforeKs, ks) : null; return ch ? { ...m, change: ch } : m; }) : [];
     const card = finishCard(subjects, marks);
@@ -385,7 +386,7 @@ async function sendReviewEmail(r) {
 const COACH_HOUR = 12;
 const reviewDueAt = sun => { const d = keyToDate(addDays(sun, 1)); d.setHours(COACH_HOUR, 0, 0, 0); return d.getTime(); };
 // What a review was based on, day by day: [day, calories logged (null = none), workouts]. Used to notice later changes.
-const reviewBasis = (start, end) => windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1)
+const reviewBasis = (start, end) => windowKeys(end, Math.round((+keyToDate(end) - +keyToDate(start)) / 864e5) + 1)
   .map(k => { const d = getDay(k), t = totals(d); return [k, t.hasFood ? Math.round(t.calIn) : null, (d?.workouts || []).length]; });
 // Has the data under a review changed enough to rewrite it? Returns the reason, or '' for no (small changes don't count).
 function basisChange(was, now) {

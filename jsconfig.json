@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true,
+    "target": "es2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true
+  },
+  "files": ["globals.d.ts", "core.js", "importers.js", "rules.js", "migrate.js", "sync.js", "drive.js", "dashboard.js", "log.js", "coach.js", "training.js", "health.js", "weight.js", "metrics.js", "main.js"]
+}

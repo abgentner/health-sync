@@ -2,6 +2,7 @@
 // Health Sync · the Weight page: latest weigh-in, progress, body composition, burn, maintenance.
 // One of the app's screen files: classic scripts that share one global scope, loaded in order by index.html.
 /* ================= weight: trend, goals, BMI, predictions ================= */
+/** @type {[string, number, number, string][]} */
 const BMI_CATS = [['Underweight', 0, 18.5, 'var(--c-steps)'], ['Normal', 18.5, 25, 'var(--good)'], ['Overweight', 25, 30, '#d79a00'], ['Obese class I', 30, 35, 'var(--c-cal)'], ['Obese class II', 35, 40, 'var(--bad)'], ['Obese class III', 40, 99, 'var(--c-mood)']];
 const bmiOf = (w, unit, hIn) => w == null || !hIn ? null : (unit === 'kg' ? w * 2.20462 : w) * 703 / (hIn * hIn);
 const weightForBmi = (b, unit, hIn) => { const lb = b * hIn * hIn / 703; return unit === 'kg' ? lb / 2.20462 : lb; };
@@ -55,14 +56,14 @@ function renderWeightExtras() {
   const ch = d => { const a = trendOn(S, addDays(today, -d)); return a == null ? null : trendNow - a; };
   const allCh = G.start != null ? trendNow - G.start : null;
   cards.push(`<div class="card wt-card"><div class="card-h"><h2>Trend change</h2><span class="muted small">${u}, by trend weight</span></div>
-    <div class="wt-4">${[['7 days', ch(7)], ['30 days', ch(30)], ['90 days', ch(90)], ['All time', allCh]].map(([l, v]) => `<div class="${v == null ? '' : v < 0 ? 'down' : v > 0 ? 'up' : ''}"><b>${sgn(v)}</b><span>${l}</span></div>`).join('')}</div>
+    <div class="wt-4">${/** @type {[string, number | null][]} */ ([['7 days', ch(7)], ['30 days', ch(30)], ['90 days', ch(90)], ['All time', allCh]]).map(([l, v]) => `<div class="${v == null ? '' : v < 0 ? 'down' : v > 0 ? 'up' : ''}"><b>${sgn(v)}</b><span>${l}</span></div>`).join('')}</div>
     <div class="muted small" style="margin-top:8px">Rate: ${sgn(weightRate(S))} ${u}/week recently · ${sgn(trendRate(S, 7))} over 7 days</div></div>`);
 
   // --- recent stats (last 10 days of weigh-ins)
   const recent = S.rows.filter(r => r.w != null && r.k >= addDays(today, -9));
   if (recent.length) {
     const hi = recent.reduce((a, b) => b.w > a.w ? b : a), lo = recent.reduce((a, b) => b.w < a.w ? b : a);
-    const ago = k => { const n = Math.round((keyToDate(today) - keyToDate(k)) / 864e5); return n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`; };
+    const ago = k => { const n = Math.round((+keyToDate(today) - +keyToDate(k)) / 864e5); return n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`; };
     cards.push(`<div class="card wt-card"><div class="card-h"><h2>Last 10 days</h2></div><div class="wt-4">
       <div class="hi"><b>${f1(hi.w)}</b><span>high · ${ago(hi.k)}</span></div><div><b>${f1(last.w)}</b><span>latest · ${ago(last.k)}</span></div>
       <div class="tr"><b>${f1(trendNow)}</b><span>trend</span></div><div class="lo"><b>${f1(lo.w)}</b><span>low · ${ago(lo.k)}</span></div></div>
@@ -73,7 +74,7 @@ function renderWeightExtras() {
   if (G.heightIn) {
     const b = bmiOf(trendNow, u, G.heightIn), lo = 15, hi = 42, pos = Math.max(0, Math.min(1, (b - lo) / (hi - lo)));
     const cat = BMI_CATS.find(c => b >= c[1] && b < c[2]);
-    const seg = BMI_CATS.map(c => `<path d="${arcPath(110, 112, 88, Math.max(0, (c[1] - lo) / (hi - lo)) + 0.004, Math.min(1, (c[2] - lo) / (hi - lo)) - 0.004)}" stroke="${c[3]}" class="g-seg"/>`).join('');
+    const seg = BMI_CATS.map(c => `<path d="${arcPath(110, 112, 88, Math.max(0, (+c[1] - lo) / (hi - lo)) + 0.004, Math.min(1, (+c[2] - lo) / (hi - lo)) - 0.004)}" stroke="${c[3]}" class="g-seg"/>`).join('');
     const mx = 110 - 88 * Math.cos(Math.PI * pos), my = 112 - 88 * Math.sin(Math.PI * pos);
     const minW = S.rows.filter(r => r.w != null && r.k >= addDays(today, -9)).reduce((m, r) => Math.min(m, r.w), Infinity);
     cards.push(`<div class="card wt-card"><div class="card-h"><h2>Body mass index</h2><span class="muted small">height ${Math.floor(G.heightIn / 12)}′ ${fmtN(G.heightIn % 12, 1)}″</span></div>
@@ -87,12 +88,13 @@ function renderWeightExtras() {
   const R = weightRates(today);
   if (G.goal != null && R) {
     const r = R[predMode], rows = [];
+    /** @type {any[]} */
     const ahead = P ? P.items.filter(x => !x.reached) : [{ w: G.goal, goal: true }];
     for (const x of ahead) rows.push({ w: x.w, label: x.goal ? 'Goal' : `Milestone ${x.n}`, k: forecastDay(R, r, x.w, today), goal: x.goal });
     for (const e of G.events) if (e.date >= today) rows.push({ w: forecastWeight(R, r, e.date), label: e.name, k: e.date, event: true });
     rows.sort((a, b) => (a.k || '9999').localeCompare(b.k || '9999'));
     const toward = forecastDay(R, r, G.goal, today) != null;
-    const inW = k => { const d = Math.round((keyToDate(k) - keyToDate(today)) / 864e5); return d < 14 ? plural(d, 'day') : d < 70 ? plural(Math.round(d / 7), 'week') : plural(Math.round(d / 30.4), 'month'); };
+    const inW = k => { const d = Math.round((+keyToDate(k) - +keyToDate(today)) / 864e5); return d < 14 ? plural(d, 'day') : d < 70 ? plural(Math.round(d / 7), 'week') : plural(Math.round(d / 30.4), 'month'); };
     cards.push(`<div class="card wt-card"><div class="card-h"><h2>Predictions</h2><span class="muted small">from ${f1(R.base)} ${u} on ${esc(fmtDay(R.baseK, { month: 'short', day: 'numeric' }))}</span></div>
       <div class="seg wt-seg" id="wt-pred">${[['current', 'Last 4 weeks', R.current], ['overall', 'Average', R.overall], ['commit', 'Commitment', R.commit]].map(([k, l, v]) => `<button data-p="${k}" class="${predMode === k ? 'on' : ''}">${l}<small>${v == null ? '—' : `${sgn(v)}/wk`}</small></button>`).join('')}</div>
       <p class="small" style="margin:10px 0 6px">${r == null ? 'Not enough weigh-ins yet for this rate.' : toward ? `At ${sgn(r)} ${u} a week from your latest weigh-in:` : `At ${sgn(r)} ${u} a week you're not moving toward your goal, so only event-date weights are shown.`}</p>

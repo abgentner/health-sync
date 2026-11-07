@@ -68,8 +68,8 @@ function healthDate(s) {
   s = String(s || '').trim();
   if (!s) return null;
   let d = new Date(s);
-  if (isNaN(d)) d = new Date(s.replace(/\s+at\s+/i, ' '));
-  return isNaN(d) ? null : d;
+  if (isNaN(+d)) d = new Date(s.replace(/\s+at\s+/i, ' '));
+  return isNaN(+d) ? null : d;
 }
 function impAppleHealth(name, text) {
   const steps = {}, asleep = {}, inBed = {}, weight = {}, mindful = {}, extra = {};
@@ -81,7 +81,7 @@ function impAppleHealth(name, text) {
     if (kind === 'sleep' || kind === 'mindful') {
       const a = healthDate(p[1]), b = healthDate(p[2]);
       if (!a || !b || b <= a) continue;
-      const mins = (b - a) / 60000;
+      const mins = (+b - +a) / 60000;
       if (kind === 'mindful') { const k = dateKey(a); mindful[k] = (mindful[k] || 0) + mins; lines++; continue; }
       const k = dateKey(b), stage = (p[3] || '').toLowerCase();   // sleep counts for the day you wake up
       if (/awake/.test(stage)) continue;
@@ -185,7 +185,7 @@ function impHaeJson(name, j) {
         const skip = /awake|in ?bed/i.test(r.value || '');
         if (hrs == null && r.startDate && r.endDate && !skip) {
           const a = haeTime(r.startDate), b = haeTime(r.endDate);
-          if (a && b && b > a) { const k = haeDay(r.endDate); add(k, 'sleepRaw', (b - a) / 36e5); via(k, 'sleep', r.source); const bt = String(r.startDate).match(/[ T](\d{2}:\d{2})/), e = (days[k] ||= {}); if (bt && (!e.sleepStartAt || a < e.sleepStartAt)) { e.sleepStartAt = a; e.sleepStart = bt[1]; } continue; }
+          if (a && b && b > a) { const k = haeDay(r.endDate); add(k, 'sleepRaw', (+b - +a) / 36e5); via(k, 'sleep', r.source); const bt = String(r.startDate).match(/[ T](\d{2}:\d{2})/), e = (days[k] ||= {}); if (bt && (!e.sleepStartAt || a < e.sleepStartAt)) { e.sleepStartAt = a; e.sleepStart = bt[1]; } continue; }
         }
         if (/min/i.test(m.units || '') && hrs) hrs /= 60;
         if (hrs) { const k = haeDay(r.sleepEnd || r.date); add(k, 'sleep', hrs); via(k, 'sleep', r.source || r.sleepSource); const bt = String(r.sleepStart || r.inBedStart || '').match(/[ T](\d{2}:\d{2})/); if (bt) (days[k] ||= {}).sleepStart = bt[1]; }
@@ -222,13 +222,14 @@ const MICROS = [
 const MICRO_BY = Object.fromEntries(MICROS.map(m => [m.key, m]));
 // Convert between g, mg and mcg.
 const massTo = (v, from, to) => { const f = { g: 1e6, mg: 1e3, mcg: 1, 'µg': 1, ug: 1 }; const a = f[String(from || to).toLowerCase()], b = f[to]; return a && b ? v * a / b : v; };
+/** @type {[RegExp, string][]} */
 const HAE_COLS = [
   [/^step count/, 'steps'], [/^sleep analysis.*(total|asleep)|^total sleep/, 'sleep'], [/^sleep analysis \[(core|deep|rem)\]/, 'sleepStage'], [/^(weight|body mass)/, 'weight'],
   [/^resting heart rate/, 'restingHR'], [/^heart rate variability/, 'hrv'], [/^active energy/, 'activeCal'], [/^flights climbed/, 'flights'],
   [/^(dietary )?water/, 'water'], [/^vo2 ?max|^cardio fitness/, 'vo2max'], [/^body fat/, 'bodyFat'], [/^mindful/, 'mindful'], [/^(number of )?alcoholic beverages/, 'drinks'], [/^lean body mass/, 'leanKg'],
   [/^dietary energy/, 'n:calories'], [/^protein/, 'n:protein'], [/^carbohydrates/, 'n:carbs'], [/^total fat/, 'n:fat'], [/^saturated fat/, 'n:satFat'],
   [/^fiber/, 'n:fiber'], [/^sugar/, 'n:sugar'], [/^sodium/, 'n:sodium'], [/^cholesterol/, 'n:cholesterol'],
-  ...MICROS.map(m => [new RegExp('^' + m.name.toLowerCase().replace(/ \(.*\)/, '').replace(/[()]/g, '') + ' \\('), 'x:' + m.key]),
+  ...MICROS.map(m => /** @type {[RegExp, string]} */ ([new RegExp('^' + String(m.name).toLowerCase().replace(/ \(.*\)/, '').replace(/[()]/g, '') + ' \\('), 'x:' + m.key])),
 ];
 function impHaeCsv(label, headers, body) {
   const dc = headers.find(h => /^date/.test(h)) || headers[0];
@@ -575,7 +576,7 @@ function microsHtml(d, k) {
   const rows = MICROS.filter(m => mi[m.key] != null);
   if (!rows.length) return '';
   return `<details class="micros"><summary class="sub-h" style="margin:14px 0 6px;cursor:pointer">Vitamins and minerals${foodPartial(d, k) ? ' · so far' : ''} <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(from Apple Health · % of daily value)</span></summary>
-    <div class="hbars" style="--c:var(--c-cal)">${rows.map(m => { const v = mi[m.key], pct = m.dv ? v / m.dv * 100 : null; return `<div class="hb"><span class="l">${esc(m.name)}</span><span class="t">${pct != null ? `<i style="width:${Math.min(100, Math.max(2, pct))}%"></i>` : ''}</span><span class="x">${fmtN(v, v < 10 ? 1 : 0)} ${m.u}${pct != null ? ` · ${Math.round(pct)}%` : ''}</span></div>`; }).join('')}</div>
+    <div class="hbars" style="--c:var(--c-cal)">${rows.map(m => { const v = mi[m.key], pct = m.dv ? v / +m.dv * 100 : null; return `<div class="hb"><span class="l">${esc(m.name)}</span><span class="t">${pct != null ? `<i style="width:${Math.min(100, Math.max(2, pct))}%"></i>` : ''}</span><span class="x">${fmtN(v, v < 10 ? 1 : 0)} ${m.u}${pct != null ? ` · ${Math.round(pct)}%` : ''}</span></div>`; }).join('')}</div>
     <p class="muted small" style="margin:6px 0 0">Counts only foods that have vitamin and mineral data in Lose It, so real intake may be higher.</p></details>`;
 }
 function foodPartial(d, k) {
@@ -805,7 +806,7 @@ async function importPdf(name, buf) {
         D.ex.push({ name: nm, mins: parseDuration(qty, 'hm'), cal });
       } else {
         const q = qty.match(/^([\d.]+|\d+\/\d+)\s+(.*)$/);
-        const qn = q ? (q[1].includes('/') ? q[1].split('/')[0] / q[1].split('/')[1] : +q[1]) : null;
+        const qn = q ? (q[1].includes('/') ? +q[1].split('/')[0] / +q[1].split('/')[1] : +q[1]) : null;
         D.food.push({ name: nm, meal, qty: qn, units: q ? q[2] : qty, cal });
       }
       continue;

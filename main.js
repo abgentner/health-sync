@@ -190,7 +190,7 @@ $('#m-quick').onclick = e => {
   renderMetric();
 };
 $('#m-tbody').onclick = e => { const tr = e.target.closest('tr[data-k]'); if (!tr) return; dashDate = tr.dataset.k; backToDash(); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && metricKey && !e.target.closest?.('input, textarea, select')) backToDash(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && metricKey && !/** @type {HTMLElement} */ (e.target).closest?.('input, textarea, select')) backToDash(); });
 window.addEventListener('popstate', () => {
   const m = location.hash.match(/^#m\/(\w+)/);
   if (m && METRICS[m[1]]) showMetric(m[1]); else if (metricKey) closeMetric();

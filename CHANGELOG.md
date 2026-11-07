@@ -27,9 +27,35 @@
 2. **Update the docs** for whatever changed. In particular, README for anything you can see or do, and SETUP for anything about setting up.
 3. **Add a CHANGELOG entry** with a table of every file and what changed in it. Mark files whose only change is the number as **Version number only**. Say whether the script changed (**Paste it**) or not.
 4. **Add a check to `tests.html`** for each fix or new rule, so it can't break again unnoticed. A change to saved data's shape gets a new numbered step in `migrate.js` (never an edit to an old one).
-5. **Run the tests and look at the screens:** `tests.html` all green, and `SCREENS_OUT=dir node .github/screens.mjs` to eyeball the six screens.
+5. **Run the type check, the tests and look at the screens:** `npx tsc -p jsconfig.json` with no errors, `tests.html` all green, and `SCREENS_OUT=dir node .github/screens.mjs` to eyeball the six screens. A new `.js` file goes in `jsconfig.json` and gets a script tag.
 6. **Push or upload all the app files together.** They only work as a set.
-7. **GitHub runs the tests and the screenshot comparison, and publishes only if both pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
+7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
+
+### v3.8.1 (November 7, 2026)
+
+**No change in what the app does.** This release adds a type check, the last item from the architecture review.
+- **New: a type check in GitHub's test run.** TypeScript's checker runs over every app file before the tests (`jsconfig.json`, `globals.d.ts`), with no build step: the app still ships as plain files, and nothing about how it runs changed.
+  - It catches misspelled or missing names: a misspelled function name made it fail, *"Cannot find name 'weightRatez'. Did you mean 'weightRate'?"*.
+  - It catches wrong kinds of arguments, and fields used on a day that aren't in its written description.
+  - It does **not** reliably catch a misspelled property on a plain object, which would need strict mode and its hundreds of noisy warnings.
+  - A guard fails the run if a file `index.html` loads isn't in the type check.
+- **First run:** 136 complaints, **none of them real bugs** and no missing names anywhere. 74 were date arithmetic (`dateA - dateB`), now written with an explicit `+` to convert each date to a number first, which gives the same result. The rest needed small notes on types the checker couldn't work out by itself.
+  - It also found that the written description of a day from v3.8 left out `stepsSource`, `weightSource`, `weightUnit`, `restingHR` and the Lose It report times. They're added now.
+- **Not done, on purpose: JavaScript modules.** The type check gives most of what modules would, which is catching mistakes across files. Modules would mean rewriting how every file reaches the others, plus the three test suites that look inside the app (`tests.html`, the real-file suite, the screenshot run). The one real hazard left, a file using something from a file that loads later, is caught by GitHub's app start-up check, which crashes on it. Worth revisiting only if the app gets a second developer or a build step.
+- Tests: 178 checks (unchanged), all real-file suites, and the 6 screenshots, unchanged by the date rewrite.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `jsconfig.json`, `globals.d.ts` | **New:** what the type check covers, and the names from outside |
+  | `core.js`, `importers.js`, `rules.js`, `coach.js`, `health.js`, `main.js`, `metrics.js`, `weight.js` and the other app files | Date arithmetic written with an explicit `+` where flagged; type notes; the day's description completed. No change in behavior |
+  | `.github/workflows/tests.yml` | Runs the type check; installs TypeScript |
+  | `.github/run-tests.mjs` | Fails if a loaded file isn't type checked |
+  | `index.html` | Version and script tags |
+  | `README.md` | How the app is split › Type check; Tests |
+  | `CHANGELOG.md` | Release checklist: the type check; this entry |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | `email-to-drive.gs` | **Not changed: stays 3.7.1. Nothing to paste.** |
 
 ### v3.8 (November 7, 2026)
 

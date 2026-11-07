@@ -118,7 +118,7 @@ function renderAnchorSummary() {
   const c = anchorCfg(), per = c.names.length, max = per * 7, goal = Math.min(c.target, max);
   const ws = weekStart(dashDate), got = weekTotal(ws), today = todayKey();
   const end = addDays(ws, 6);
-  const daysLeft = today < ws ? 7 : today > end ? 0 : Math.round((keyToDate(end) - keyToDate(today)) / 864e5) + 1;
+  const daysLeft = today < ws ? 7 : today > end ? 0 : Math.round((+keyToDate(end) - +keyToDate(today)) / 864e5) + 1;
   const need = Math.max(0, goal - got);
   const msg = got >= goal ? `🎉 Goal reached — ${Math.round(got / max * 100)}% this week.`
     : daysLeft === 0 ? `Finished at ${boxN(got)} of ${max} (${Math.round(got / max * 100)}%). New week, fresh boxes.`
@@ -464,7 +464,7 @@ function renderUsage() {
   const since = devs.map(u => u.since).filter(Boolean).sort()[0];
   $('#s-use-sub').textContent = since ? `since ${fmtDay(since, { month: 'short', day: 'numeric' })} · ${plural(devs.length, 'device')}` : 'counting from now';
   el.innerHTML = all.sort((a, b) => (tot[b[0]]?.[0] || 0) - (tot[a[0]]?.[0] || 0)).map(([k, name]) => { const t = tot[k];
-    return `<div class="li"><span class="n">${esc(name)}</span><span class="x${t ? '' : ' muted'}">${t ? `${plural(t[0], 'time')} · last ${esc(daysAgo(Math.round((keyToDate(todayKey()) - keyToDate(t[1])) / 864e5)))}` : 'never opened'}</span></div>`; }).join('');
+    return `<div class="li"><span class="n">${esc(name)}</span><span class="x${t ? '' : ' muted'}">${t ? `${plural(t[0], 'time')} · last ${esc(daysAgo(Math.round((+keyToDate(todayKey()) - +keyToDate(t[1])) / 864e5)))}` : 'never opened'}</span></div>`; }).join('');
 }
 function renderSettings() {
   renderUsage();

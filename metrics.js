@@ -80,10 +80,10 @@ function renderMetric() {
     if (a > b) [a, b] = [b, a];
     $('#m-from').value = a; $('#m-to').value = b;
     end = b;
-    n = Math.round((keyToDate(b) - keyToDate(a)) / 864e5) + 1;
+    n = Math.round((+keyToDate(b) - +keyToDate(a)) / 864e5) + 1;
   } else {
     n = +$('#m-range').value;
-    if (!n) n = allKeys.length ? Math.max(7, Math.round((keyToDate(end) - keyToDate(allKeys[0])) / 864e5) + 1) : 30;
+    if (!n) n = allKeys.length ? Math.max(7, Math.round((+keyToDate(end) - +keyToDate(allKeys[0])) / 864e5) + 1) : 30;
   }
   const keys = windowKeys(end, n);
   const vals = keys.map(k => metricValue(key, k, wUnit));
@@ -276,7 +276,7 @@ function metricExtra(key, keys, vals, color, unit) {
   }
   if (key === 'ex') {
     const types = {};
-    let dist = 0, longest = null;
+    let dist = 0, longest = /** @type {any} */ (null);
     D.forEach((d, i) => (d.workouts || []).forEach(w => { const e = types[w.type || 'Workout'] ||= { min: 0, n: 0 }; e.min += w.durationMin || 0; e.n++; dist += w.distance || 0; if (!longest || (w.durationMin || 0) > (longest.durationMin || 0)) longest = w; }));
     const rows = Object.entries(types).sort((a, b) => b[1].min - a[1].min).map(([t, e]) => [t, e.min, plural(e.n, 'workout')]);
     if (!rows.length) return ['By activity', none];
@@ -288,7 +288,7 @@ function metricExtra(key, keys, vals, color, unit) {
     keys.forEach((k, i) => { if (vals[i] != null) (weeks[weekStart(k)] ||= []).push(vals[i]); });
     const rows = Object.entries(weeks).sort().map(([w, a]) => [w, avg(a)]);
     if (!rows.length) return ['Weekly averages', none];
-    return ['Weekly averages', `<div class="list">${rows.reverse().slice(0, 16).map(([w, v], i, arr) => { const prev = arr[i + 1]?.[1]; const dlt = prev != null ? v - prev : null; return `<div class="li"><span class="n">Week of ${esc(fmtDay(w, { month: 'short', day: 'numeric' }))}</span><span class="x">${fmtN(v, 1)} ${esc(unit)}${dlt != null ? ` <span class="muted">(${dlt > 0 ? '+' : ''}${fmtN(dlt, 1)})</span>` : ''}</span></div>`; }).join('')}</div>`];
+    return ['Weekly averages', `<div class="list">${rows.reverse().slice(0, 16).map(([w, v], i, arr) => { const prev = arr[i + 1]?.[1]; const dlt = prev != null ? +v - +prev : null; return `<div class="li"><span class="n">Week of ${esc(fmtDay(String(w), { month: 'short', day: 'numeric' }))}</span><span class="x">${fmtN(v, 1)} ${esc(unit)}${dlt != null ? ` <span class="muted">(${dlt > 0 ? '+' : ''}${fmtN(dlt, 1)})</span>` : ''}</span></div>`; }).join('')}</div>`];
   }
   if (key === 'mood') {
     const F = D.map(d => d.feel).filter(Boolean);

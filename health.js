@@ -35,6 +35,7 @@ function healthRows() {
   // Each measure on its own: a source can keep delivering files while one measure inside them stops (for example sleep).
   // [name, has it, days a gap is normal, what to check, only shown once it has ever arrived]
   const yest = addDays(todayKey(), -1);
+  /** @type {[string, (d: Day) => boolean, number, string, boolean?][]} */
   const MEASURES = [
     ['Steps', d => d.steps != null && d.stepsSource !== 'manual', 2, 'Steps come from Apple Health, or from Garmin on days Apple Health has none. Check that Step Count is in the Health Auto Export automation, and the Garmin row above.'],
     ['Sleep', d => d.sleep?.hours != null && d.sleep.source !== 'manual', 2, 'Sleep comes from Garmin: straight from Garmin (check the Garmin row above, and that the watch was worn and has synced), or through Apple Health (check that Sleep Analysis is in the Health Auto Export automation). Import results below show what each file held.'],
@@ -45,8 +46,8 @@ function healthRows() {
   for (const [name, has, okDays, fix, optional] of MEASURES) {
     const k = Object.keys(data.days).filter(x => x <= yest && has(data.days[x])).sort().pop();
     if (!k && optional) continue;
-    const gap = k ? Math.round((keyToDate(yest) - keyToDate(k)) / 864e5) : null;
-    const c = k == null ? 'warn' : gap < okDays ? 'ok' : gap < okDays * 2 ? 'warn' : 'bad';
+    const gap = k ? Math.round((+keyToDate(yest) - +keyToDate(k)) / 864e5) : null;
+    const c = k == null ? 'warn' : gap < okDays ? 'ok' : gap < +okDays * 2 ? 'warn' : 'bad';
     rows.push([c, name, k ? `Latest: ${fmtDay(k)} (${gap ? `${gap + 1} days ago` : 'yesterday'})` : 'Never received', c === 'ok' ? '' : fix]);
   }
   const cc = coachCfg();

@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.8** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.7.1) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.8.1** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.7.1) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -572,7 +572,7 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 **`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 178 checks as of v3.8, including Withings, body composition, waist, push-ups, your learned burn, maintenance phases, Today and assignment results. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 178 checks as of v3.8.1 (plus the type check and 6 screenshots), including Withings, body composition, waist, push-ups, your learned burn, maintenance phases, Today and assignment results. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.
@@ -594,5 +594,10 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
     - **`main.js`**: startup and wiring, loaded last
 
   `tests.html` loads the logic files directly.
+
+**Type check (since v3.8.1):** GitHub runs TypeScript's checker over every app file before the tests, with no build step: the app still ships as plain files. `jsconfig.json` lists the files and `globals.d.ts` names what comes from outside (the CDN libraries, `APP_VERSION`).
+- **What it catches:** a misspelled or missing function or variable name anywhere in the app (for example `weightRatez`), wrong kinds of arguments, and fields used on a day that aren't in its written description in `core.js`.
+- **What it doesn't:** a misspelled property on a plain object (`S.unti` for `S.unit`). Catching those needs TypeScript's strict mode, which buries the useful warnings under hundreds of noisy ones, so the tests and screenshots cover that instead.
+- **A new `.js` file must go in `jsconfig.json`;** the test run fails if one is missing.
 
 **The real-file suite** lives in a separate **private** repository, [abgentner/health-sync-real-tests](https://github.com/abgentner/health-sync-real-tests), because it holds your real exports. Never put those files in this repository, which is public. Every night, GitHub runs the current app code against your real files and checks known values, such as "Oct 15 = 11,442 steps, 1,818 cal, 145 g protein". It emails you when a check fails, and you can see every run under that repository's **Actions** tab. It holds the full suites from the work Mac (133 checks of the app against your real exports, and 59 of the Google script against a stand-in Google and a fake Garmin), and you can add more files and checks over time. Its README explains how.

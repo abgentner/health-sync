@@ -14,6 +14,12 @@ const server = http.createServer(async (req, res) => {
 await new Promise(r => server.once('listening', r));
 const { port } = server.address();
 
+// Every file index.html loads must be in the type check (jsconfig.json), so a new screen file can't slip past it.
+{ const tags = [...(await readFile(join(root, 'index.html'), 'utf8')).matchAll(/src="(\w+\.js)\?v=/g)].map(m => m[1]);
+  const checked = JSON.parse(await readFile(join(root, 'jsconfig.json'), 'utf8')).files;
+  const missing = tags.filter(f => !checked.includes(f));
+  if (missing.length) { console.error(`FAIL  not in jsconfig.json (so not type checked): ${missing.join(', ')}`); process.exit(1); } }
+
 const browser = await puppeteer.launch({ args: ['--no-sandbox'] });
 let code = 1;
 try {

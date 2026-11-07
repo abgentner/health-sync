@@ -253,11 +253,11 @@ function weightSeries() {
   const ks = Object.keys(data.days).filter(k => data.days[k].weight != null).sort();
   if (!ks.length) return { unit, rows: [], byKey: {} };
   const rows = [];
-  let t = null, lastK = null;
+  let t = /** @type {any} */ (null), lastK = null;
   for (let k = ks[0]; k <= todayKey(); k = addDays(k, 1)) {
     const d = data.days[k], w = d?.weight != null ? toU(d) : null;
     if (w != null) {
-      const gap = lastK ? Math.round((keyToDate(k) - keyToDate(lastK)) / 864e5) : 0;
+      const gap = lastK ? Math.round((+keyToDate(k) - +keyToDate(lastK)) / 864e5) : 0;
       if (gap > TREND_GAP_DAYS) for (let i = rows.length - gap + TREND_GAP_DAYS + 1; i < rows.length; i++) rows[i].t = null;
       t = t == null || gap > TREND_GAP_DAYS ? w : t + TREND_ALPHA * (w - t);
       lastK = k;
@@ -284,7 +284,7 @@ function weightRate(S, k = todayKey()) {
 function weightRates(k = todayKey()) {
   const S = weightSeries(), G = weightGoals(S), A = weighInAge(k);
   if (!A) return null;
-  const weeks = G.startDate ? (keyToDate(A.k) - keyToDate(G.startDate)) / 864e5 / 7 : 0;
+  const weeks = G.startDate ? (+keyToDate(A.k) - +keyToDate(G.startDate)) / 864e5 / 7 : 0;
   const toGoal = G.goal == null ? -1 : Math.sign(G.goal - A.w) || -1;
   return { base: A.w, baseK: A.k, unit: S.unit,
     commit: G.rate ? Math.abs(G.rate) * toGoal : null,
@@ -292,8 +292,8 @@ function weightRates(k = todayKey()) {
     overall: G.start != null && weeks >= 1 ? (A.w - G.start) / weeks : null };
 }
 // When a forecast at `rate` reaches weight w, or what it says on day k2. Null if the rate isn't heading toward w.
-const forecastDay = (R, rate, w, k = todayKey()) => rate == null || Math.abs(rate) < 0.01 || Math.sign(rate) !== Math.sign(w - R.base) ? null : addDays(k, Math.max(1, Math.round((w - R.base) / rate * 7 - (keyToDate(k) - keyToDate(R.baseK)) / 864e5)));
-const forecastWeight = (R, rate, k2) => rate == null ? null : R.base + rate * (keyToDate(k2) - keyToDate(R.baseK)) / 864e5 / 7;
+const forecastDay = (R, rate, w, k = todayKey()) => rate == null || Math.abs(rate) < 0.01 || Math.sign(rate) !== Math.sign(w - R.base) ? null : addDays(k, Math.max(1, Math.round((w - R.base) / rate * 7 - (+keyToDate(k) - +keyToDate(R.baseK)) / 864e5)));
+const forecastWeight = (R, rate, k2) => rate == null ? null : R.base + rate * (+keyToDate(k2) - +keyToDate(R.baseK)) / 864e5 / 7;
 function weightGoals(S) {
   const c = weightCfg(), first = S.rows.find(r => r.w != null);
   const start = c.start ?? first?.w ?? null, startDate = c.startDate || first?.k || null;
@@ -307,7 +307,7 @@ const daysAgo = n => n === 0 ? 'today' : n === 1 ? 'yesterday' : n < 14 ? `${n} 
 function weighInAge(k = todayKey()) {
   const S = weightSeries(), last = [...S.rows].reverse().find(r => r.k <= k && r.w != null);
   if (!last) return null;
-  const days = Math.round((keyToDate(k) - keyToDate(last.k)) / 864e5), u = S.unit;
+  const days = Math.round((+keyToDate(k) - +keyToDate(last.k)) / 864e5), u = S.unit;
   const level = days <= 2 ? 'fresh' : days < 7 ? 'aging' : 'stale';
   const rate = weightRate(S, last.k), estimate = level !== 'fresh' && rate != null && last.t != null ? last.t + rate * days / 7 : null;
   const age = days < 14 ? plural(days, 'day') : days < 60 ? plural(Math.round(days / 7), 'week') : plural(Math.round(days / 30.4), 'month');
@@ -333,6 +333,7 @@ function weightMilestones(k = todayKey()) {
   ws.push(G.goal);
   const cur = A.w, rows = S.rows.filter(r => r.k <= k && (!G.startDate || r.k >= G.startDate));
   const R = weightRates(k), rate = R.current;
+  /** @type {any[]} */
   const items = ws.map((w, i) => {
     const hit = rows.find(r => before(r.w, w) || before(r.t, w));
     return { w, n: i + 1, goal: i === ws.length - 1, reached: hit ? hit.k : null, eta: hit ? null : forecastDay(R, rate, w, k) };
@@ -351,7 +352,7 @@ function weightMilestones(k = todayKey()) {
 // last 2 weeks only (noisier, so a higher bar), or over twice your committed rate. Needs 3 weeks of weigh-ins,
 // 8 in the last 4 weeks and 6 in the last 2.
 function weighInSlope(k, days) {
-  const S = weightSeries(), pts = S.rows.filter(r => r.w != null && r.k > addDays(k, -days) && r.k <= k).map(r => [(keyToDate(r.k) - keyToDate(k)) / 864e5, r.w]);
+  const S = weightSeries(), pts = S.rows.filter(r => r.w != null && r.k > addDays(k, -days) && r.k <= k).map(r => [(+keyToDate(r.k) - +keyToDate(k)) / 864e5, r.w]);
   if (pts.length < 2) return { rate: null, n: pts.length };
   const mx = avg(pts.map(p => p[0])), my = avg(pts.map(p => p[1])), sxx = pts.reduce((s, p) => s + (p[0] - mx) ** 2, 0);
   return { rate: sxx ? pts.reduce((s, p) => s + (p[0] - mx) * (p[1] - my), 0) / sxx * 7 : null, n: pts.length };   // units per week
@@ -412,7 +413,7 @@ function compChange(key, days, end = todayKey()) {
   const ks = compDays(end).filter(k => compOf(data.days[k])[key] != null);
   if (!ks.length) return null;
   const now = ks[ks.length - 1], target = addDays(now, -days);
-  const then = ks.filter(k => k <= addDays(target, 7) && k >= addDays(target, -7)).sort((a, b) => Math.abs(keyToDate(a) - keyToDate(target)) - Math.abs(keyToDate(b) - keyToDate(target)))[0];
+  const then = ks.filter(k => k <= addDays(target, 7) && k >= addDays(target, -7)).sort((a, b) => Math.abs(+keyToDate(a) - +keyToDate(target)) - Math.abs(+keyToDate(b) - +keyToDate(target)))[0];
   const v = compOf(data.days[now])[key], w = then && then !== now ? compOf(data.days[then])[key] : null;
   return { k: now, v, thenK: then !== now ? then : null, then: w, diff: w == null ? null : v - w };
 }
@@ -420,7 +421,7 @@ function compChange(key, days, end = todayKey()) {
 // last 3 readings, because a single body-composition reading swings with hydration. Needs 4 weeks between the ends.
 function lossMix(start, end = todayKey()) {
   const ks = compDays(end).filter(k => k >= start && compOf(data.days[k]).fatKg != null && compOf(data.days[k]).leanKg != null);
-  if (ks.length < 6 || (keyToDate(ks[ks.length - 1]) - keyToDate(ks[0])) / 864e5 < 28) return null;
+  if (ks.length < 6 || (+keyToDate(ks[ks.length - 1]) - +keyToDate(ks[0])) / 864e5 < 28) return null;
   const mean = (list, f) => avg(list.map(k => compOf(data.days[k])[f]));
   const a = ks.slice(0, 3), b = ks.slice(-3), u = weightUnit();
   const fat = kgIn(mean(b, 'fatKg') - mean(a, 'fatKg'), u), lean = kgIn(mean(b, 'leanKg') - mean(a, 'leanKg'), u), total = fat + lean;
@@ -434,14 +435,14 @@ const waistIn = w => w ? (w.unit === 'cm' ? w.v / 2.54 : w.v) : null;
 function waistStatus(k = todayKey()) {
   const ks = Object.keys(data.days).filter(x => x <= k && data.days[x].waist).sort(), last = ks[ks.length - 1];
   const h = weightCfg().heightIn, cur = last ? data.days[last].waist : null;
-  const firstK = ks[0], days = last ? Math.round((keyToDate(k) - keyToDate(last)) / 864e5) : null;
+  const firstK = ks[0], days = last ? Math.round((+keyToDate(k) - +keyToDate(last)) / 864e5) : null;
   return { k: last || null, w: cur, days, due: !last || days >= 7, ratio: cur && h ? waistIn(cur) / h : null,
     change: ks.length > 1 ? waistIn(cur) - waistIn(data.days[firstK].waist) : null, since: ks.length > 1 ? firstK : null, n: ks.length };
 }
 // Monthly strength check: d.pushups = the most push-ups in one set. Holding it while losing weight is a sign muscle is holding.
 function strengthCheck(k = todayKey()) {
   const ks = Object.keys(data.days).filter(x => x <= k && data.days[x].pushups != null).sort(), last = ks[ks.length - 1];
-  const days = last ? Math.round((keyToDate(k) - keyToDate(last)) / 864e5) : null;
+  const days = last ? Math.round((+keyToDate(k) - +keyToDate(last)) / 864e5) : null;
   return { k: last || null, v: last ? data.days[last].pushups : null, first: ks.length > 1 ? data.days[ks[0]].pushups : null, firstK: ks[0] || null, days, due: !last || days >= 30, n: ks.length };
 }
 
@@ -504,7 +505,7 @@ function phaseOffer(k = todayKey()) {
   const P = weightPlan(), ph = phaseOf(k), A = weighInAge(k), S = weightSeries(), t = trendOn(S, k);
   if (!A) return null;
   if (ph.kind === 'practice') {
-    const left = Math.round((keyToDate(ph.until) - keyToDate(k)) / 864e5) + 1, f = weighInSlope(k, 14);
+    const left = Math.round((+keyToDate(ph.until) - +keyToDate(k)) / 864e5) + 1, f = weighInSlope(k, 14);
     return { kind: 'practicing', ph, left, steady: f.rate == null ? null : Math.abs(f.rate) <= (S.unit === 'lb' ? 1 : 0.45), rate: f.rate };
   }
   if (ph.kind === 'maintain') {
@@ -534,12 +535,13 @@ function rangeAlert(k = todayKey()) {
 // A nudge, not a plan: it speaks only when there's something to act on (a body that needs an easy day, or strength
 // training that's due), and says nothing otherwise. Strength protects muscle while you lose weight.
 function strengthWeek(k = todayKey()) {
-  const ws = weekStart(k), ks = windowKeys(k, Math.round((keyToDate(k) - keyToDate(ws)) / 864e5) + 1);
+  const ws = weekStart(k), ks = windowKeys(k, Math.round((+keyToDate(k) - +keyToDate(ws)) / 864e5) + 1);
   const n = strengthSummary(ks).sessions.length, target = rubric().strengthPerWeek;
   const prior = strengthSummary(windowKeys(k, 60)).sessions.map(s => s.k).sort();
   const last = prior[prior.length - 1] || null;
-  return { n, target, last, daysSince: last ? Math.round((keyToDate(k) - keyToDate(last)) / 864e5) : null, daysLeft: 8 - ks.length };   // days left including today
+  return { n, target, last, daysSince: last ? Math.round((+keyToDate(k) - +keyToDate(last)) / 864e5) : null, daysLeft: 8 - ks.length };   // days left including today
 }
+/** @returns {{ kind: 'easy' | 'lift' | null, text?: string, why?: string[], strength: ReturnType<typeof strengthWeek> }} */
 function todaySuggestion(k = todayKey()) {
   const r = readiness(k), ls = loadStatus(k), sw = strengthWeek(k), out = { strength: sw };
   const doneToday = (getDay(k)?.workouts || []).some(isStrength);
@@ -691,9 +693,9 @@ const RUBRIC_DEFAULT = { proteinG: 100, calorieFloor: 1500, sessionsPerWeek: 4, 
 const rubric = () => { const r = data.coachCfg?.rubric || {}; return { ...RUBRIC_DEFAULT, ...r, credits: { ...RUBRIC_DEFAULT.credits, ...(r.credits || {}) } }; };
 const SUBJECTS = [['anchors', 'Daily anchors'], ['nutrition', 'Nutrition'], ['logging', 'Logging'], ['training', 'Training'], ['sleep', 'Sleep habits'], ['assignments', 'Assignments']];
 const GRADE_STEPS = [[97, 'A+', 4], [93, 'A', 4], [90, 'A-', 3.7], [87, 'B+', 3.3], [83, 'B', 3], [80, 'B-', 2.7], [77, 'C+', 2.3], [73, 'C', 2], [70, 'C-', 1.7], [67, 'D+', 1.3], [63, 'D', 1], [60, 'D-', 0.7], [0, 'F', 0]];
-const toGrade = score => { const g = GRADE_STEPS.find(([min]) => score >= min - 1e-9); return { grade: g[1], points: g[2] }; };
+const toGrade = score => { const g = GRADE_STEPS.find(([min]) => score >= +min - 1e-9); return { grade: g[1], points: g[2] }; };
 const GPA_STEPS = [[3.85, 'A'], [3.5, 'A-'], [3.15, 'B+'], [2.85, 'B'], [2.5, 'B-'], [2.15, 'C+'], [1.85, 'C'], [1.5, 'C-'], [1.15, 'D+'], [0.85, 'D'], [0.5, 'D-'], [0, 'F']];
-const gpaLetter = gpa => GPA_STEPS.find(([min]) => gpa >= min - 1e-9)[1];
+const gpaLetter = gpa => GPA_STEPS.find(([min]) => gpa >= +min - 1e-9)[1];
 const clamp01 = x => Math.max(0, Math.min(1, x));
 const pct = x => Math.round(x * 100);
 // Full credit at or past the target; half credit within 10% of it; nothing beyond that.
@@ -709,7 +711,7 @@ function scoreParts(parts) {
   return w ? Math.round(live.reduce((s, p) => s + p.score * p.weight, 0) / w * 1000) / 10 : null;
 }
 function gradeSubjects(start, end) {
-  const R = rubric(), ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey());
+  const R = rubric(), ks = windowKeys(end, Math.round((+keyToDate(end) - +keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey());
   const n = ks.length, weeks = n / 7, D = ks.map(k => [k, getDay(k)]), out = {};
   if (!n) return out;
   // Daily anchors: boxes ticked against the weekly goal, scaled to the period.
@@ -771,7 +773,7 @@ function finishCard(subjects, marks) {
     card.creditsAll += credits;
     const g = score == null ? null : toGrade(score);
     card.subjects.push({ key, name, credits, score, grade: g ? g.grade : 'I', points: g?.points ?? null, incomplete: s.incomplete || (score == null ? 'no data' : ''), parts: (s.parts || []).map(p => ({ ...p, score: p.score == null ? null : pct(p.score) })) });
-    if (g && credits) { pts += g.points * credits; card.credits += credits; }
+    if (g && credits) { pts += +g.points * credits; card.credits += credits; }
   }
   card.gpa = card.credits ? Math.round(pts / card.credits * 100) / 100 : null;
   card.grade = card.gpa == null ? 'I' : gpaLetter(card.gpa);
@@ -779,7 +781,7 @@ function finishCard(subjects, marks) {
 }
 // Results, not choices: tracked next to the grades, never graded.
 function periodOutcomes(start, end) {
-  const ks = windowKeys(end, Math.round((keyToDate(end) - keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey()), D = ks.map(getDay);
+  const ks = windowKeys(end, Math.round((+keyToDate(end) - +keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey()), D = ks.map(getDay);
   const S = weightSeries(), a = trendOn(S, addDays(start, -1)) ?? trendOn(S, start), b = trendOn(S, ks[ks.length - 1] || end), w = weightCfg();
   const av = f => { const v = D.map(f).filter(x => x != null); return v.length ? Math.round(avg(v) * 10) / 10 : null; };
   const perWeek = a != null && b != null && ks.length ? Math.round((b - a) / ks.length * 7 * 100) / 100 : null;
