@@ -16,7 +16,8 @@ import puppeteer from 'puppeteer';
 const root = process.cwd(), saved = join(root, '.github/screens');
 const UPDATE = process.env.UPDATE_SCREENS === '1', OUT = process.env.SCREENS_OUT || null;
 const T0 = Date.parse('2026-11-04T10:30:00-08:00');   // a Wednesday morning, Pacific time
-const MAX_CHANGED = 0.001;                            // more than 0.1% of the pixels changed = a real change
+const MAX_CHANGED_PX = 50;   // GitHub draws the same screen identically run to run, so 50+ changed pixels is a real change
+                             // (a share of the page would let a recoloured gauge slip through on a long page)
 const SHOTS = [
   { name: 'dashboard', width: 1280, tab: 'dash' },
   { name: 'weight', width: 1280, metric: 'weight' },
@@ -90,11 +91,11 @@ try {
     }
     const diff = new PNG({ width: a.width, height: a.height });
     const n = pixelmatch(a.data, b.data, diff.data, a.width, a.height, { threshold: 0.1 }), share = n / (a.width * a.height);
-    if (share > MAX_CHANGED) {
+    if (n > MAX_CHANGED_PX) {
       failed++; await mkdir('screens-diff', { recursive: true });
       await writeFile(join('screens-diff', s.name + '-diff.png'), PNG.sync.write(diff)); await writeFile(join('screens-diff', s.name + '-now.png'), shot);
-      console.error(`FAIL  ${s.name}: ${(share * 100).toFixed(2)}% of the pixels changed (see screens-diff/)`);
-    } else console.log(`same  ${s.name}`);
+      console.error(`FAIL  ${s.name}: ${n} pixels changed, ${(share * 100).toFixed(2)}% of the page (see screens-diff/)`);
+    } else console.log(`same  ${s.name}${n ? ` (${n} pixels differ, under the limit)` : ''}`);
   }
   if (errors.length) { failed++; for (const e of errors) console.error('FAIL  page error:', e); }
 } catch (e) { failed++; console.error('Could not draw the screens:', e.message); }
