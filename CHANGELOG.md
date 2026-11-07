@@ -42,7 +42,8 @@
 - **First run:** 136 complaints, **none of them real bugs** and no missing names anywhere. 74 were date arithmetic (`dateA - dateB`), now written with an explicit `+` to convert each date to a number first, which gives the same result. The rest needed small notes on types the checker couldn't work out by itself.
   - It also found that the written description of a day from v3.8 left out `stepsSource`, `weightSource`, `weightUnit`, `restingHR` and the Lose It report times. They're added now.
 - **Not done, on purpose: JavaScript modules.** The type check gives most of what modules would, which is catching mistakes across files. Modules would mean rewriting how every file reaches the others, plus the three test suites that look inside the app (`tests.html`, the real-file suite, the screenshot run). The one real hazard left, a file using something from a file that loads later, is caught by GitHub's app start-up check, which crashes on it. Worth revisiting only if the app gets a second developer or a build step.
-- Tests: 178 checks (unchanged), all real-file suites, and the 6 screenshots, unchanged by the date rewrite.
+- Tests: 178 checks (unchanged) and all real-file suites pass.
+- **Fixed in the screenshot check:** the first push of this release was stopped by it. Exactly 260 pixels changed on all six screens, which was the footer's version number (3.8 → 3.8.1). That would have happened every release, so the pictures now show a fixed version, and the reference pictures were saved again. Nothing else on any screen changed, which confirms the date rewrite left them as they were.
 - **Files in this release:**
 
   | File | What changed |

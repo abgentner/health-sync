@@ -76,6 +76,8 @@ try {
     localStorage.setItem('hs-settings', JSON.stringify({ units: 'imperial', theme: 'light', span: 7 }));
   });
   await page.evaluate(async () => { if (window.Chart) Chart.defaults.animation = false; await startApp('local'); });
+  // The version shows in the footer and would change every picture every release, so the pictures show a fixed one.
+  await page.evaluate(() => $$('.app-ver').forEach(el => { el.textContent = 'v0.0'; }));
   for (const s of SHOTS) {
     await page.setViewport({ width: s.width, height: 900, deviceScaleFactor: 1 });
     await page.evaluate(sh => { if (typeof closeMetric === 'function' && metricKey) closeMetric(); dashDate = todayKey(); goTab(sh.metric ? 'dash' : sh.tab); if (sh.metric) openMetric(sh.metric); else render(); window.scrollTo(0, 0); }, s);
