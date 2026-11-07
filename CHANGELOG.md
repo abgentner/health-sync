@@ -34,7 +34,8 @@
 ### v3.8.2 (November 7, 2026)
 
 - **Fixed: the Coach's instruction on the private marks.** It told Claude to treat declined days as weighing on your mood, which handed it a conclusion before it looked at your data. It now tells it to check: compare mood, energy and stress on and after those days with other days, mention a difference only with at least 3 such days and a gap of at least half a point, call it a pattern rather than a cause, and otherwise draw no link.
-- **Files:** `coach.js` (the instruction, in both the weekly and period reviews), `index.html` (version), `README.md`, `SETUP.md`, `ALTERNATIVES.md` (version number only). `email-to-drive.gs` not changed: stays 3.7.1, nothing to paste.
+- **Files:** `coach.js` (the instruction, in both the weekly and period reviews), `index.html` (version), `README.md` (Log today › Private now describes the check), `SETUP.md`, `ALTERNATIVES.md` (version number only).
+- Tests: no logic changed (the numbers the Coach is sent are the same), so the checks are unchanged; GitHub's type check, tests and screenshots passed. `email-to-drive.gs` not changed: stays 3.7.1, nothing to paste.
 
 ### v3.8.1 (November 7, 2026)
 
