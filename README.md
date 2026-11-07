@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.6.1** · November 6, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.7** · November 6, 2026 · same version as the app, the script and the other docs · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -54,7 +54,7 @@ Several sources often report the same thing. For each measure the app keeps one 
 |---|---|---|
 | **Steps** | You → Apple Health → Garmin → Lose It | Apple Health's daily total already merges your iPhone and Garmin steps without double counting |
 | **Sleep** | You → Garmin → Apple Health → Lose It | Garmin's own data has the sleep score; Apple Health's copy is the same night without it |
-| **Weight** | You → Apple Health → Garmin → Lose It | Your Withings scale writes to Apple Health |
+| **Weight** | You → Withings (direct) → Apple Health → Garmin → Lose It | Read straight from Withings (v3.7+, SETUP Step 14) the app keeps each day's **first** weigh-in, the morning one, with its body composition. Without that connection, Withings' copy in Apple Health is used |
 | **Resting heart rate** | Apple Health → Garmin | |
 | **HRV** | Apple Health and Garmin are kept as **two separate measures** | They aren't the same number: Apple's is SDNN, Garmin's is overnight RMSSD |
 | **Body Battery, stress** | Garmin only | |
@@ -74,6 +74,7 @@ The Sleep, Steps and Weight pages show where each day's value came from, includi
 | **Lose It report** | An email arrived in the last 36 h | No email for 36 h (amber) or 72 h (red), or saving failed |
 | **Apple Health** | Health Auto Export updated in the last 36 h | Late, or it's sending **minute-by-minute** data (set Time Grouping to **Day**) |
 | **Strava** | Connected, no errors | The sync failed (run `stravaCheck`) |
+| **Withings** | Connected; shows the last weigh-in it read | The sync failed, or the sign-in expired (run `withingsLink` again). Gray means not connected: weight still comes through Apple Health |
 | **Garmin** | Updated in the last few hours; shows when your watch last synced, how far back history has loaded, and when the key expires | Watch not synced for 12 h (amber; email after a day), key expires within 30 days (amber, plus a weekly email), key expired or sync failed (red), Garmin asked the script to slow down (amber with the time it resumes, no email) |
 | **Coach** | Last week's review is written | It's 2+ days late (see the Coach tab) |
 | **Steps, Sleep, Weight, Resting heart rate, Food** | The newest automatic value is from yesterday or the day before (weight: within the last week) | Steps, sleep, resting heart rate and food: newest value 3–4 days old (amber) or older (red). Weight: over a week old (amber) or over two weeks (red). Each row says what to check |
@@ -107,6 +108,7 @@ The measure rows exist because a source can keep delivering files while one meas
   - **Exercise** is minutes per day across all days that have any data, so a day without a workout counts as 0.
   - The app remembers which button you picked.
 - **Tabs along the top:** Dashboard · **Training** · **Coach** · **Plan** · Log today · History · Import · Settings.
+- **Today** (under the tiles): **one thing to do today, only when there is one.** It says *Take it easy today* when readiness or a training-load spike calls for it, or *A good day to lift* when you're short of your strength sessions for the week (2 by default) and haven't lifted in 3 days. Otherwise it says nothing needs changing. The header always shows **strength N of 2 this week**, because lifting is what keeps muscle while you lose weight. On today it also reminds you when your **waist** (weekly) or **push-ups** (monthly) are due.
 - **Readiness** (under the tiles): today's training call, *Ready for a hard session*, *Normal training* or *Take it easy today*, with the main reasons. **Training ›** opens the [Training](#training) tab. It follows the date you pick, so you can look back at any day.
 - **Daily anchors** (top of the Trends card): this week's habit boxes, for example **15 of 28 · goal 23**.
   - A bar of 28 boxes fills in as you go. The dashed boxes after the goal are your **weekly buffer** for real life.
@@ -116,14 +118,15 @@ The measure rows exist because a source can keep delivering files while one meas
 - **Click any chart, tile, the anchors box or the mood words** to open that metric's [detail page](#metric-detail-pages).
 - **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep (with Garmin's sleep score when there is one).
 - **Body & recovery:** resting heart rate, Apple Health's HRV, active calories, alcoholic drinks and the rest of Apple Health's measures, plus **Overnight HRV, Body Battery (high) and Stress** from Garmin. Only measures you actually have are shown. Click one for its detail page.
-- **Patterns:** what your evenings do to the next day, over the last 90 days. For each of these habits:
-  - drinks
-  - a big dinner (over your Dinner Boundary)
-  - a salty day, a sugary day
-  - under-eating (below the calorie floor)
-  - a workout after 7 pm
+- **Patterns:** what your evenings do to the next day, over the last 90 days. Since v3.7 it asks a **short list of questions**, each habit only against what it could plausibly change:
+  - drinks → sleep, sleep score, HRV, resting heart rate
+  - a big dinner (over your Dinner Boundary) → sleep, sleep score, the next morning's weigh-in
+  - a workout after 7 pm → sleep, sleep score
+  - under-eating (below the calorie floor) → next-day energy and mood
+  - a salty day → the next morning's weigh-in
+  - ↗ Me · ♡ N → next-day mood, energy and stress
 
-  it compares the next night and morning (sleep, sleep score, HRV, resting heart rate, energy, mood and the scale) with days without the habit. For example: *"After evenings with a drink (20 of them): lower HRV (43 vs 50 ms), less sleep (6.4 vs 7.2 h)."* A pattern only shows with **at least 5 days each way**, and only when the difference is bigger than your normal day-to-day swing. It's a pattern, not proof: it can't rule out something else that tends to happen on the same days. The Coach sees these too.
+  It used to compare every habit with every outcome (42 comparisons), and with that many, two or three look real by chance alone. Each one compares the next night and morning with days without the habit, and it must also **hold up in both halves**: the earlier and the later half of those days have to point the same way. One odd stretch can't make a pattern. For example: *"After evenings with a drink (20 of them): lower HRV (43 vs 50 ms), less sleep (6.4 vs 7.2 h)."* A pattern only shows with **at least 5 days each way**, and only when the difference is bigger than your normal day-to-day swing. It's a pattern, not proof: it can't rule out something else that tends to happen on the same days. The Coach sees these too.
 - **Workouts / Food / How you felt:** the details for the selected day.
 - **Trends:** charts for steps, weight, calories, exercise, mood and sleep. Pick the last 7 days, 30 days, 90 days or 12 months. Hover over a bar or point to see its exact number.
 - **Mood words:** a word cloud of your feelings over the same period as the Trends charts.
@@ -167,7 +170,7 @@ Click any chart or summary tile on the Dashboard (or the daily anchors box, or t
 
 ### Weight page (trend, goals, BMI, predictions)
 
-Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale → Apple Health → Health Auto Export**. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
+Open it by clicking the Weight tile or chart. Weigh-ins come in automatically from your **Withings scale**: directly, with body composition, once it's connected (SETUP Step 14), or through Apple Health and Health Auto Export. Weighing **most mornings** works best: same time, after the bathroom, before food or drink.
 
 - **Latest weigh-in (top of the page):** your most recent reading, large, with its date and how old it is. Up to 2 days old it's current. From **3 days** it turns amber ("getting old"). From **a week** it turns red: it says you've probably changed since then, and estimates where your trend likely is now at your pace before it. The trend weight sits beside it. The Dashboard's Weight tile also leads with the latest weigh-in and its age (red "weigh in" after a week), with the trend underneath.
 - **Pace alarm:** losing faster than about **1% of body weight a week for 4 weeks** costs muscle as well as fat. The Weight page then shows **Losing too fast** in red, and a red **♥ Losing too fast** chip appears at the top of every screen; tap it to open the Weight page. It isn't counted as a data issue. Over **1.25% a week across the last 2 weeks** only, or over twice your committed rate, shows **Watch your pace** in amber, with an amber ♥ chip. The pace is a straight line fitted through your actual weigh-ins, because the smoothed trend reacts too slowly to warn in time. Daily water swings of a couple of pounds don't set it off. It needs 3 weeks of weigh-ins, with at least 6 in the last 2 weeks. The fix it suggests: eat a little more on very low days, keep protein at target, and keep strength training.
@@ -182,7 +185,7 @@ Open it by clicking the Weight tile or chart. Weigh-ins come in automatically fr
   - A milestone counts the **first day you weigh in at or under it**, and stays reached. Progress and pounds to go are measured from your latest weigh-in, like the scale. Forecasts use your recent rate.
 - **Trend change:** trend weight change over 7 days, 30 days, 90 days and all time, plus your rate per week.
 - **Last 10 days:** high, latest, trend and low, so a heavy morning has context.
-- **Body mass index:** a BMI gauge for your trend weight, and the weight range for each category at your height. BMI is a rough screen that doesn't separate muscle from fat, so body fat % from Withings is a better guide.
+- **Body mass index:** a BMI gauge for your trend weight, and the weight range for each category at your height. BMI is a rough screen that doesn't separate muscle from fat, so body composition and your waist are better guides.
 - **Predictions** start from your **latest weigh-in**. Pick the rate:
   - **Last 4 weeks** (the default): a straight line through your recent weigh-ins. Progress uses the same rate, so their dates match.
   - **Average:** everything you've lost since your start date, per week.
@@ -190,7 +193,14 @@ Open it by clicking the Weight tile or chart. Weigh-ins come in automatically fr
 
   You'll see the date you're projected to reach each milestone still ahead and your goal, plus your predicted weight on any **events** you add (a reunion, a trip). The chart's dashed projection follows the same choice. These are straight lines, so treat distant dates as rough.
 - **Layout:** on a computer, Progress has its own column on the left, and Trend change, Last 10 days, BMI and Predictions sit beside it. On a phone they stack.
-- **Goals and settings** (bottom of the page): goal weight, height, starting weight and date (the first weigh-in if left blank), milestone size, committed rate, and events. They sync to all your devices.
+- **Body composition** (with Withings connected, SETUP Step 14): body fat %, fat mass, lean mass, muscle, water, bone, visceral fat and the scale's basal metabolic rate, from each day's first weigh-in, with the change over 30 days. Underneath, **what the loss was made of**: *"Of the 9 lb lost, about 6.5 is fat and 2.4 lean mass (27% lean)."* Each end is the average of 3 readings, because a single reading swings with water. If more than about 30% of the loss is lean mass, it turns red and says why: protein toward 130 g and two strength sessions a week protect it.
+- **Waist:** your latest measurement, the change since the first, and waist ÷ height.
+- **Your burn:** what you **actually** burn a day, learned from your own numbers (the way MacroFactor works): your average calories on fully logged days, plus what the scale says that eating did (3,500 cal per lb), over the last 4 weeks. It needs 21 of 28 days fully logged in Lose It and 8 weigh-ins; missed snacks make the burn look lower than it is. Then:
+  - **As you get lighter:** what your current calorie goal will do at each weight ahead. You burn about 10 cal a day less per pound lost, so the same food loses less each month. That slowdown is expected, not a plateau.
+  - **Suggested day's calorie goal:** your burn minus enough to lose your committed rate, capped at 1% of body weight a week, never under the 1,500 floor. **Use it** sets the day's calorie goal for the meal boxes.
+- **Maintenance, practised on the way down:** most people regain because the plan stops at the goal. So at each **checkpoint** (every 25 lb: 250 and 225 by default), the page offers **2 weeks of maintenance practice** at your learned burn. During it, your meal boxes tick when the day is within that, and the card shows how steady you're holding. The scale may rise 2–4 lb in the first days: that's water and stored carbs refilling, not fat. **Skip this one** is fine too.
+- **Your goal is a range** (your goal ± 5 lb by default). When your trend is inside it, the page offers **Switch to maintenance**: you eat about your burn, and the ♥ alarm watches for drifting up instead. It turns amber (**Above your range**) when your trend has been over the top for 2 weeks. **Back to losing** undoes it any time.
+- **Goals and settings** (bottom of the page): goal weight, height, starting weight and date (the first weigh-in if left blank), milestone size, committed rate, **goal range** and **maintenance practice checkpoints**, and events. They sync to all your devices.
 
 **Getting back to the Dashboard:** click **← Dashboard** (top left), press **Esc**, or use your browser's or mouse's **Back** button.
 
@@ -242,6 +252,7 @@ How hard to train, and whether your training is building sensibly. It uses the d
 - for each subject: grade, trend against last time, **praise** (left empty if nothing went well, never padding), **criticism** (the biggest shortfall and its cost), one **suggestion**, and the parts behind the grade
 - results (not graded), swaps that fit your plan, and attendance (days logged)
 - **assignments:** last period's marked done, partly or missed, and 1–3 new ones (3 goals for next year on a yearly card). An unfinished assignment can carry over, and the card shows **carried 2×**. **After two carries, it can only carry again with a stated reason; otherwise it must be retired with one.** Nothing is dropped quietly.
+  - **Did it help?** Each assignment names one measure that should move if it works (sleep, steps, protein, strength sessions, drinks…). On the next card, the app shows that measure for the period the assignment was set in against the period it was for, for example *"Sleep: 6.4 → 6.9 h"*, green when it moved the right way. It's a link, not proof, because other things change at the same time. Under each one you tap **Did it help? Yes / Somewhat / No**. Later report cards read the results and your answers, build on what worked, and don't set again what didn't.
 - the **GPA**, the change from last time, and your **year-to-date GPA**
 
 **When they're written:**
@@ -363,6 +374,11 @@ Health Sync picks the new files up by itself.
 ### Log today
 
 The **Daily anchors** boxes are at the top (see above). Below them, record your feelings, weight, steps, workouts and food by hand for any day. Use the date bar to fill in past days. **Always click Save day.**
+
+**Measurements** (next to Weight and Steps):
+- **Waist, at the navel, weekly.** Same spot, same time of day (morning), tape snug but not pressing. During fast weight loss it shows fat coming off better than the scale can. The Weight page shows it against your height: under half your height is the usual healthy line (36 in at 6′0″).
+- **Push-ups, the most in one set, monthly.** A simple check that muscle is holding while you lose weight: if the number holds or rises, it is.
+- The card says when either is due, and so does the Dashboard's **Today** card.
 
 **Body:** log anything sore, stiff or painful. Pick the area, choose **Soreness** (muscle, after training), **Pain** (sharp, in a joint, or not from training) or **Stiffness**, give it 0–10, add a note if you like ("worse on stairs"), and click **Add**. Log it again on the following days, even if it's lower, so the app can see whether it's settling. Readiness and the Coach use it, and the Training tab flags pain that keeps coming back.
 
@@ -554,7 +570,7 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 **`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 135 checks as of v3.6. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 164 checks as of v3.7, including Withings, body composition, waist, push-ups, your learned burn, maintenance phases, Today and assignment results. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.

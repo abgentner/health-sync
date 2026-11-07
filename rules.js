@@ -74,9 +74,11 @@ function autoAnchor(d, i, c = anchorCfg(), k = d?._k) {
   }
   // Meal boxes: staying within the day's calorie goal ticks them all, whatever the split between meals.
   // Only for a day at or above the calorie floor, so logging half a day (or barely eating) can't tick both.
-  if ((r.type === 'budget' || r.type === 'meal') && c.dayGoal && d?.food?.length) {
+  // While practising maintenance or maintaining, the goal is your maintenance calories (see phaseOf).
+  const goal = dayGoalOn(k, c);
+  if ((r.type === 'budget' || r.type === 'meal') && goal && d?.food?.length) {
     const day = d.food.reduce((s, f) => s + (f.calories || 0), 0), floor = rubric().calorieFloor;
-    if (day <= c.dayGoal && day >= floor) return { ok: true, why: `Day ${fmtN(day)} of ${fmtN(c.dayGoal)} cal · within the day’s goal` };
+    if (day <= goal && day >= floor) return { ok: true, why: `Day ${fmtN(day)} of ${fmtN(goal)} cal · within the day’s goal` };
   }
   if (r.type === 'budget') {
     if (!d?.food?.length) return { ok: false, why: 'no food logged yet' };
@@ -260,7 +262,7 @@ const TREND_ALPHA = 0.1;
 const TREND_GAP_DAYS = 21;
 const weightCfg = () => {
   const c = data.weightCfg || {};
-  return { heightIn: c.heightIn ?? null, goal: c.goal ?? null, start: c.start ?? null, startDate: c.startDate || null,
+  return { ...c, heightIn: c.heightIn ?? null, goal: c.goal ?? null, start: c.start ?? null, startDate: c.startDate || null,
     step: c.step ?? 5, rate: c.rate ?? 1, events: Array.isArray(c.events) ? c.events : [] };
 };
 function weightSeries() {
@@ -392,8 +394,197 @@ function weightPace(k = todayKey()) {
 // The pace alarm is about your health, not your data, so it gets its own chip at the top of the app (♥ Losing too fast)
 // instead of counting as a data issue. Tapping it opens the Weight page.
 function paceAlert(k = todayKey()) {
+  const ra = rangeAlert(k);
+  if (ra) return ra;
   const p = weightPace(k);
   return p && p.status !== 'ok' ? { level: p.status === 'fast' ? 'bad' : 'warn', label: p.status === 'fast' ? 'Losing too fast' : 'Watch your pace', text: p.text } : null;
+}
+
+/* ---- body composition (Withings), waist and the monthly strength check ---- */
+// d.comp: what the Withings scale measured with the day's first weigh-in. Masses are kg; shown in your weight unit.
+const COMP_FIELDS = [
+  { key: 'fatPct', name: 'Body fat', unit: '%', dp: 1, lower: true },
+  { key: 'fatKg', name: 'Fat mass', mass: true, dp: 1, lower: true },
+  { key: 'leanKg', name: 'Lean mass', mass: true, dp: 1, hint: 'everything that isn’t fat: muscle, bone, water, organs' },
+  { key: 'muscleKg', name: 'Muscle mass', mass: true, dp: 1 },
+  { key: 'waterKg', name: 'Water', mass: true, dp: 1 },
+  { key: 'boneKg', name: 'Bone mass', mass: true, dp: 1 },
+  { key: 'visceral', name: 'Visceral fat', unit: '', dp: 1, lower: true, hint: 'fat around the organs; an index, lower is better' },
+  { key: 'bmr', name: 'Basal metabolic rate', unit: 'cal/day', dp: 0, hint: 'the scale’s estimate of what you burn at rest' },
+  { key: 'metabolicAge', name: 'Metabolic age', unit: 'years', dp: 0, lower: true },
+];
+const kgIn = (kg, unit) => kg == null ? null : unit === 'lb' ? kg * 2.20462 : kg;
+const compDays = (end = todayKey()) => Object.keys(data.days).filter(k => k <= end && data.days[k].comp).sort();
+// Latest reading of a field, and the change from about `days` earlier (the reading closest to then, within a week).
+function compChange(key, days, end = todayKey()) {
+  const ks = compDays(end).filter(k => data.days[k].comp[key] != null);
+  if (!ks.length) return null;
+  const now = ks[ks.length - 1], target = addDays(now, -days);
+  const then = ks.filter(k => k <= addDays(target, 7) && k >= addDays(target, -7)).sort((a, b) => Math.abs(keyToDate(a) - keyToDate(target)) - Math.abs(keyToDate(b) - keyToDate(target)))[0];
+  const v = data.days[now].comp[key], w = then && then !== now ? data.days[then].comp[key] : null;
+  return { k: now, v, thenK: then !== now ? then : null, then: w, diff: w == null ? null : v - w };
+}
+// What the weight lost was made of, from the scale's fat and lean readings. Each end is the average of its first or
+// last 3 readings, because a single body-composition reading swings with hydration. Needs 4 weeks between the ends.
+function lossMix(start, end = todayKey()) {
+  const ks = compDays(end).filter(k => k >= start && data.days[k].comp.fatKg != null && data.days[k].comp.leanKg != null);
+  if (ks.length < 6 || (keyToDate(ks[ks.length - 1]) - keyToDate(ks[0])) / 864e5 < 28) return null;
+  const mean = (list, f) => avg(list.map(k => data.days[k].comp[f]));
+  const a = ks.slice(0, 3), b = ks.slice(-3), u = weightUnit();
+  const fat = kgIn(mean(b, 'fatKg') - mean(a, 'fatKg'), u), lean = kgIn(mean(b, 'leanKg') - mean(a, 'leanKg'), u), total = fat + lean;
+  const leanShare = total < 0 ? Math.max(0, -lean) / -total : null;
+  return { from: a[0], to: b[b.length - 1], fat, lean, total, unit: u, leanShare,
+    flag: leanShare != null && leanShare > 0.3 && -total >= 4,
+    text: total < 0 ? `Of the ${fmtN(-total, 1)} ${u} lost, about ${fmtN(Math.max(0, -fat), 1)} is fat and ${fmtN(Math.max(0, -lean), 1)} lean mass (${Math.round((leanShare || 0) * 100)}% lean).` : `Up ${fmtN(total, 1)} ${u}: fat ${fmtN(fat, 1)}, lean ${fmtN(lean, 1)}.` };
+}
+// Waist: d.waist = { v, unit: 'in' | 'cm' }, measured weekly. Waist ÷ height under 0.5 is the usual healthy line.
+const waistIn = w => w ? (w.unit === 'cm' ? w.v / 2.54 : w.v) : null;
+function waistStatus(k = todayKey()) {
+  const ks = Object.keys(data.days).filter(x => x <= k && data.days[x].waist).sort(), last = ks[ks.length - 1];
+  const h = weightCfg().heightIn, cur = last ? data.days[last].waist : null;
+  const firstK = ks[0], days = last ? Math.round((keyToDate(k) - keyToDate(last)) / 864e5) : null;
+  return { k: last || null, w: cur, days, due: !last || days >= 7, ratio: cur && h ? waistIn(cur) / h : null,
+    change: ks.length > 1 ? waistIn(cur) - waistIn(data.days[firstK].waist) : null, since: ks.length > 1 ? firstK : null, n: ks.length };
+}
+// Monthly strength check: d.pushups = the most push-ups in one set. Holding it while losing weight is a sign muscle is holding.
+function strengthCheck(k = todayKey()) {
+  const ks = Object.keys(data.days).filter(x => x <= k && data.days[x].pushups != null).sort(), last = ks[ks.length - 1];
+  const days = last ? Math.round((keyToDate(k) - keyToDate(last)) / 864e5) : null;
+  return { k: last || null, v: last ? data.days[last].pushups : null, first: ks.length > 1 ? data.days[ks[0]].pushups : null, firstK: ks[0] || null, days, due: !last || days >= 30, n: ks.length };
+}
+
+/* ---- your real burn, learned from your own numbers ---- */
+// The way MacroFactor does it: what you ate on fully logged days, plus what the scale says that eating did.
+// Burn = average calories eaten + weight change × 3,500 cal per lb. Over 4 weeks so water swings average out.
+// Missed snacks make the burn look lower than it is, so it needs 3 of every 4 days fully logged.
+const CAL_PER_LB = 3500, BURN_PER_LB = 10;   // as you get lighter you burn about 10 cal a day less per lb lost
+function learnedBurn(end = addDays(todayKey(), -1), days = 28) {
+  const ks = windowKeys(end, days);
+  const full = ks.filter(k => { const d = getDay(k), t = totals(d); return t.hasFood && !t.fromHealth && loseItFinal(d, k) && !foodPartial(d, k); });
+  const S = weightSeries(), slope = weighInSlope(end, days), u = S.unit;
+  const need = Math.ceil(days * 0.75);
+  if (full.length < need) return { ok: false, why: `Needs ${need} of the last ${days} days fully logged in Lose It (${full.length} so far).`, logged: full.length };
+  if (slope.n < 8 || slope.rate == null) return { ok: false, why: `Needs 8 weigh-ins in the last ${days} days (${slope.n} so far).` };
+  const lbWk = u === 'lb' ? slope.rate : slope.rate * 2.20462;
+  const intake = avg(full.map(k => totals(getDay(k)).calIn)), burn = intake - lbWk * CAL_PER_LB / 7;
+  const A = weighInAge(end), wLb = A ? (u === 'lb' ? A.w : A.w * 2.20462) : null;
+  if (burn < 1200 || burn > 6000) return { ok: false, why: `The numbers don’t add up (${fmtN(Math.round(burn))} cal a day), which usually means meals are missing from the log.`, intake, burn };
+  return { ok: true, burn: Math.round(burn / 10) * 10, intake: Math.round(intake), lbWk, days: full.length, weighIns: slope.n, wLb, end };
+}
+// What eating `cal` a day does as you get lighter: your burn drops about 10 cal a day per lb lost, so the same
+// calories lose less each month. Weights are in your unit.
+function burnAt(B, w, unit = weightUnit()) { const lb = unit === 'lb' ? w : w * 2.20462; return B.burn - BURN_PER_LB * (B.wLb - lb); }
+function slowdown(B, cal, weights, unit = weightUnit()) {
+  return weights.map(w => { const burn = burnAt(B, w, unit), lbWk = (burn - cal) * 7 / CAL_PER_LB; return { w, burn: Math.round(burn / 10) * 10, rate: unit === 'lb' ? lbWk : lbWk / 2.20462 }; });
+}
+// A suggested day's calorie goal: your burn minus a deficit for your committed rate, capped at 1% of body weight a week,
+// never under your calorie floor. While practising maintenance or maintaining, it's your burn.
+function suggestedGoal(B, k = todayKey()) {
+  if (!B?.ok) return null;
+  const ph = phaseOf(k), floor = rubric().calorieFloor;
+  if (ph.kind !== 'lose') return { cal: Math.max(floor, Math.round(B.burn / 50) * 50), rate: 0, why: 'your learned burn, to hold steady' };
+  const u = weightUnit(), commit = weightCfg().rate || 1, commitLb = u === 'lb' ? commit : commit * 2.20462, cap = B.wLb * 0.01;
+  const rate = Math.min(commitLb, cap), cal = Math.max(floor, Math.round((B.burn - rate * CAL_PER_LB / 7) / 50) * 50);
+  return { cal, rate: (B.burn - cal) * 7 / CAL_PER_LB, why: `your burn minus enough to lose about ${fmtN(u === 'lb' ? rate : rate / 2.20462, 1)} ${u} a week${rate < commitLb ? ' (capped at 1% of body weight)' : ''}` };
+}
+
+/* ---- phases: losing, practising maintenance, maintaining ---- */
+// Most people regain because the plan stops at the goal. So the app rehearses maintenance on the way down (2 weeks at
+// your burn at each checkpoint, 250 and 225 by default), and treats the goal as a range (goal ± 5) to stay inside.
+// weightCfg().phase = { kind: 'practice' | 'maintain', since, until?, cal, checkpoint? }; no phase = losing.
+function weightPlan() {
+  const c = data.weightCfg || {}, G = weightGoals(weightSeries());
+  let cps = Array.isArray(c.checkpoints) ? c.checkpoints : null;
+  if (!cps && G.start != null && G.goal != null && G.goal < G.start) { cps = []; for (let w = Math.floor((G.start - 1) / 25) * 25; w > G.goal + 10; w -= 25) cps.push(w); }
+  return { checkpoints: cps || [], practiceDone: Array.isArray(c.practiceDone) ? c.practiceDone : [], range: c.range ?? 5, phase: c.phase || null, goal: G.goal };
+}
+function phaseOf(k = todayKey()) {
+  const P = weightPlan(), ph = P.phase;
+  if (!ph || k < ph.since) return { kind: 'lose' };
+  if (ph.kind === 'practice' && ph.until && k > ph.until) return { kind: 'lose', justFinished: ph };
+  return ph;
+}
+// The calories that tick both meal boxes on day k: the maintenance calories while practising or maintaining.
+const dayGoalOn = (k, c = anchorCfg()) => { const ph = k ? phaseOf(k) : { kind: 'lose' }; return ph.kind !== 'lose' && ph.cal ? ph.cal : c.dayGoal; };
+// What the Weight page should offer now: a practice block at a checkpoint you've reached, maintenance at your range,
+// or the result of a finished practice block.
+function phaseOffer(k = todayKey()) {
+  const P = weightPlan(), ph = phaseOf(k), A = weighInAge(k), S = weightSeries(), t = trendOn(S, k);
+  if (!A) return null;
+  if (ph.kind === 'practice') {
+    const left = Math.round((keyToDate(ph.until) - keyToDate(k)) / 864e5) + 1, f = weighInSlope(k, 14);
+    return { kind: 'practicing', ph, left, steady: f.rate == null ? null : Math.abs(f.rate) <= (S.unit === 'lb' ? 1 : 0.45), rate: f.rate };
+  }
+  if (ph.kind === 'maintain') {
+    const top = P.goal + P.range, bottom = P.goal - P.range;
+    return { kind: 'maintaining', ph, top, bottom, trend: t, inRange: t != null && t <= top && t >= bottom };
+  }
+  if (ph.justFinished) {
+    const p = ph.justFinished, a = trendOn(S, p.since), b = trendOn(S, p.until);
+    return { kind: 'finished', ph: p, change: a != null && b != null ? b - a : null };
+  }
+  if (P.goal != null && t != null && t <= P.goal + P.range) return { kind: 'atGoal', top: P.goal + P.range, bottom: P.goal - P.range };
+  const cp = P.checkpoints.filter(w => !P.practiceDone.includes(w) && A.w <= w).sort((a, b) => a - b)[0];
+  return cp != null ? { kind: 'checkpoint', checkpoint: cp } : null;
+}
+// In maintenance the alarm is about drifting up out of your range: the trend over the top of it for 2 weeks.
+function rangeAlert(k = todayKey()) {
+  const ph = phaseOf(k);
+  if (ph.kind !== 'maintain') return null;
+  const P = weightPlan(), S = weightSeries(), top = P.goal + P.range;
+  const over = windowKeys(k, 14).every(x => { const t = trendOn(S, x); return t != null && t > top; });
+  if (!over) return null;
+  const t = trendOn(S, k);
+  return { level: t > top + 3 ? 'bad' : 'warn', label: 'Above your range', text: `Your trend has been over ${fmtN(top, 1)} ${S.unit} (the top of your range) for 2 weeks: ${fmtN(t, 1)} now. Go back to your losing calories until it’s inside again.` };
+}
+
+/* ---- the one thing to do today ---- */
+// A nudge, not a plan: it speaks only when there's something to act on (a body that needs an easy day, or strength
+// training that's due), and says nothing otherwise. Strength protects muscle while you lose weight.
+function strengthWeek(k = todayKey()) {
+  const ws = weekStart(k), ks = windowKeys(k, Math.round((keyToDate(k) - keyToDate(ws)) / 864e5) + 1);
+  const n = strengthSummary(ks).sessions.length, target = rubric().strengthPerWeek;
+  const prior = strengthSummary(windowKeys(k, 60)).sessions.map(s => s.k).sort();
+  const last = prior[prior.length - 1] || null;
+  return { n, target, last, daysSince: last ? Math.round((keyToDate(k) - keyToDate(last)) / 864e5) : null, daysLeft: 8 - ks.length };   // days left including today
+}
+function todaySuggestion(k = todayKey()) {
+  const r = readiness(k), ls = loadStatus(k), sw = strengthWeek(k), out = { strength: sw };
+  const doneToday = (getDay(k)?.workouts || []).some(isStrength);
+  if (r?.verdict === 'easy') return { ...out, kind: 'easy', text: 'Take it easy today: a walk or mobility, no hard session.', why: r.parts.filter(p => p.score < 0).map(p => p.text).concat(r.painNote || []).slice(0, 2) };
+  if (ls.band === 'spike') return { ...out, kind: 'easy', text: 'Keep today easy: your training load is a spike.', why: [ls.text] };
+  if (!doneToday && sw.n < sw.target && (sw.daysSince == null || sw.daysSince >= 3)) {
+    const tight = sw.target - sw.n >= sw.daysLeft;
+    return { ...out, kind: 'lift', text: `${r?.verdict === 'push' ? 'Recovery looks good: a' : 'A'} good day to lift.`,
+      why: [`Strength ${sw.n} of ${sw.target} this week${sw.daysSince != null ? `, last session ${daysAgo(sw.daysSince)}` : ''}${tight ? ` · ${plural(sw.daysLeft, 'day')} left` : ''}.`, 'Lifting is what keeps muscle while you lose weight.'] };
+  }
+  return { ...out, kind: null };
+}
+
+/* ---- did the assignment help? ---- */
+// Each assignment names one measure (Claude picks it from this list). The app compares it over the period the
+// assignment was set in with the period it was for. A link, not proof: other things change at the same time.
+const ASSIGN_MEASURES = {
+  steps: { name: 'Steps', unit: '/day', dp: 0, better: 1, of: ks => avg(ks.map(getDay).filter(d => d?.steps != null).map(d => d.steps)) },
+  sleep: { name: 'Sleep', unit: 'h', dp: 1, better: 1, of: ks => avg(ks.map(k => sleepHours(getDay(k))).filter(v => v != null)) },
+  protein: { name: 'Protein', unit: 'g', dp: 0, better: 1, of: ks => avg(ks.map(getDay).filter(d => totals(d).hasFood).map(d => totals(d).protein)) },
+  calories: { name: 'Calories', unit: 'cal', dp: 0, better: -1, of: ks => avg(ks.map(getDay).filter(d => totals(d).hasFood).map(d => totals(d).calIn)) },
+  fiber: { name: 'Fiber', unit: 'g', dp: 0, better: 1, of: ks => avg(ks.map(getDay).filter(d => totals(d).hasNutr).map(d => totals(d).fiber)) },
+  sodium: { name: 'Sodium', unit: 'mg', dp: 0, better: -1, of: ks => avg(ks.map(getDay).filter(d => totals(d).hasNutr).map(d => totals(d).sodium)) },
+  workouts: { name: 'Workouts', unit: '/week', dp: 1, better: 1, of: ks => ks.reduce((s, k) => s + (getDay(k)?.workouts?.length || 0), 0) / ks.length * 7 },
+  strength: { name: 'Strength sessions', unit: '/week', dp: 1, better: 1, of: ks => strengthSummary(ks).sessions.length / ks.length * 7 },
+  drinks: { name: 'Drinks', unit: '/week', dp: 1, better: -1, of: ks => ks.reduce((s, k) => s + (drinksOf(getDay(k)) || 0), 0) / ks.length * 7 },
+  anchors: { name: 'Anchor boxes', unit: '/week', dp: 1, better: 1, of: ks => ks.reduce((s, k) => s + anchorCount(getDay(k)), 0) / ks.length * 7 },
+  mood: { name: 'Mood', unit: '/5', dp: 1, better: 1, of: ks => avg(ks.map(getDay).filter(d => d?.feel?.mood).map(d => d.feel.mood)) },
+  energy: { name: 'Energy', unit: '/5', dp: 1, better: 1, of: ks => avg(ks.map(getDay).filter(d => d?.feel?.energy).map(d => d.feel.energy)) },
+};
+function measureChange(measure, beforeKs, afterKs) {
+  const M = ASSIGN_MEASURES[measure];
+  if (!M || !beforeKs.length || !afterKs.length) return null;
+  const a = M.of(beforeKs), b = M.of(afterKs);
+  if (a == null || b == null || isNaN(a) || isNaN(b)) return null;
+  const diff = b - a, small = Math.abs(diff) < Math.abs(a) * 0.03;
+  return { measure, name: M.name, unit: M.unit, dp: M.dp, before: a, after: b, diff, better: small ? null : diff * M.better > 0 };
 }
 
 /* ---- alcohol ---- */
@@ -432,18 +623,20 @@ function intimacySummary(ks) {
 }
 
 /* ---- patterns: what an evening does to the next day ---- */
-// For each habit on day d (drinks, a big dinner, a salty day…), compare the next night and morning (sleep, HRV,
-// resting heart rate, how you felt, the scale) with days without it. A pattern, not proof: it shows only with at least
-// 5 days each way and a difference that is bigger than the day-to-day noise.
+// A short list of questions worth asking (v3.7): each habit is compared only with the outcomes it could plausibly
+// change, the next night and morning against days without it. Asking everything of everything (42 comparisons) makes
+// two or three look real by chance alone. A pattern shows only with at least 5 days each way, a difference bigger
+// than the day-to-day noise, AND the same direction in the earlier and later halves of those days, so one odd stretch
+// can't make it.
+// Still a pattern, not proof.
 const PATTERN_FACTORS = [
-  { key: 'drinks', name: 'drinks', test: d => { const n = drinksOf(d); return n == null ? null : n >= 1; }, label: 'evenings with a drink' },
-  { key: 'bigDinner', name: 'a big dinner', test: d => { if (!d?.food?.some(f => f.meal === 'Dinner')) return null; const m = (anchorCfg().rules.find(r => r?.type === 'meal' && /dinner/i.test(r.meal)) || {}).max || 750;
+  { key: 'drinks', name: 'drinks', outcomes: ['sleep', 'score', 'hrv', 'rhr'], test: d => { const n = drinksOf(d); return n == null ? null : n >= 1; }, label: 'evenings with a drink' },
+  { key: 'bigDinner', name: 'a big dinner', outcomes: ['sleep', 'score', 'scale'], test: d => { if (!d?.food?.some(f => f.meal === 'Dinner')) return null; const m = (anchorCfg().rules.find(r => r?.type === 'meal' && /dinner/i.test(r.meal)) || {}).max || 750;
     return d.food.filter(f => f.meal === 'Dinner').reduce((s, f) => s + (f.calories || 0), 0) > m; }, label: 'days with a big dinner' },
-  { key: 'salty', name: 'a salty day', test: d => { const t = totals(d); return t.hasNutr && t.hasFood ? t.sodium > coachCfg().targets.sodiumMax : null; }, label: 'days over your sodium limit' },
-  { key: 'sugary', name: 'a sugary day', test: d => { const t = totals(d); return t.hasNutr && t.hasFood ? t.sugar > coachCfg().targets.sugarMax : null; }, label: 'days over your sugar limit' },
-  { key: 'underEat', name: 'under-eating', test: d => { const t = totals(d); return t.hasFood ? t.calIn < rubric().calorieFloor : null; }, label: `days under your calorie floor` },
-  { key: 'pvDeclined', name: '↗ Me · ♡ N', test: d => (d?.pv?.i === 'me' ? d.pv.c === false : null), label: 'days marked ↗ Me · ♡ N' },
-  { key: 'lateWorkout', name: 'a late workout', test: d => (d?.workouts?.length ? d.workouts.some(w => (minsOf(w.start) ?? 0) >= 19 * 60) : null), label: 'days with a workout after 7 pm' },
+  { key: 'salty', name: 'a salty day', outcomes: ['scale'], test: d => { const t = totals(d); return t.hasNutr && t.hasFood ? t.sodium > coachCfg().targets.sodiumMax : null; }, label: 'days over your sodium limit' },
+  { key: 'underEat', name: 'under-eating', outcomes: ['energy', 'mood'], test: d => { const t = totals(d); return t.hasFood ? t.calIn < rubric().calorieFloor : null; }, label: `days under your calorie floor` },
+  { key: 'pvDeclined', name: '↗ Me · ♡ N', outcomes: ['mood', 'energy', 'stress'], test: d => (d?.pv?.i === 'me' ? d.pv.c === false : null), label: 'days marked ↗ Me · ♡ N' },
+  { key: 'lateWorkout', name: 'a late workout', outcomes: ['sleep', 'score'], test: d => (d?.workouts?.length ? d.workouts.some(w => (minsOf(w.start) ?? 0) >= 19 * 60) : null), label: 'days with a workout after 7 pm' },
 ];
 const PATTERN_OUTCOMES = [
   { key: 'sleep', name: 'sleep', unit: 'h', dp: 1, min: 0.25, of: n => sleepHours(n), better: 1 },
@@ -452,13 +645,14 @@ const PATTERN_OUTCOMES = [
   { key: 'rhr', name: 'resting heart rate', unit: 'bpm', dp: 0, min: 1, of: n => healthValue(n, 'restingHR'), better: -1 },
   { key: 'energy', name: 'next-day energy', unit: '/5', dp: 1, min: 0.3, of: n => n?.feel?.energy ?? null, better: 1 },
   { key: 'mood', name: 'next-day mood', unit: '/5', dp: 1, min: 0.3, of: n => n?.feel?.mood ?? null, better: 1 },
+  { key: 'stress', name: 'next-day stress', unit: '/5', dp: 1, min: 0.3, of: n => n?.feel?.stress ?? null, better: -1 },
   { key: 'scale', name: 'the next morning’s weigh-in', unit: 'lb', dp: 1, min: 0.3, of: null, better: -1 },
 ];
 function findPatterns(end, days = 90) {
   const ks = windowKeys(addDays(end, -1), days), out = [];
   for (const F of PATTERN_FACTORS) {
     const hits = [];
-    for (const O of PATTERN_OUTCOMES) {
+    for (const O of PATTERN_OUTCOMES.filter(o => F.outcomes.includes(o.key))) {
       const yes = [], no = [];
       for (const k of ks) {
         const d = getDay(k), n = getDay(addDays(k, 1)), f = F.test(d);
@@ -467,12 +661,20 @@ function findPatterns(end, days = 90) {
         if (O.key === 'scale') v = d?.weight != null && n?.weight != null && (d.weightUnit || 'lb') === (n.weightUnit || 'lb') ? n.weight - d.weight : null;
         else v = O.of(n);
         if (v == null) continue;
-        (f ? yes : no).push(v);
+        (f ? yes : no).push({ v, k });
       }
+      // The days with data for this pair, split into an earlier and a later half (not calendar halves, so a habit
+      // you've only tracked recently can still show).
+      const order = [...yes, ...no].map(x => x.k).sort(), cut = order[Math.floor(order.length / 2)];
+      for (const x of [...yes, ...no]) x.late = x.k >= cut;
       if (yes.length < 5 || no.length < 5) continue;
-      const a = avg(yes), b = avg(no), all = [...yes, ...no], m = avg(all), sd = Math.sqrt(avg(all.map(x => (x - m) ** 2)));
-      const diff = a - b;
-      if (Math.abs(diff) < Math.max(O.min, sd * 0.4)) continue;
+      const vs = x => x.map(y => y.v), a = avg(vs(yes)), b = avg(vs(no)), all = vs([...yes, ...no]), m = avg(all), sd = Math.sqrt(avg(all.map(x => (x - m) ** 2)));
+      const diff = a - b, bar = Math.max(O.min, sd * 0.4);
+      if (Math.abs(diff) < bar) continue;
+      // Both halves must point the same way, each by at least half the bar, with 2+ days each way in each half.
+      const holds = [false, true].every(late => { const y = vs(yes.filter(x => x.late === late)), n = vs(no.filter(x => x.late === late));
+        return y.length >= 2 && n.length >= 2 && Math.sign(avg(y) - avg(n)) === Math.sign(diff) && Math.abs(avg(y) - avg(n)) >= bar / 2; });
+      if (!holds) continue;
       hits.push({ outcome: O.name, key: O.key, unit: O.unit, dp: O.dp, with: a, without: b, diff, worse: diff * O.better < 0, nWith: yes.length, nWithout: no.length, strength: Math.abs(diff) / (sd || 1) });
     }
     if (!hits.length) continue;
@@ -484,7 +686,7 @@ function findPatterns(end, days = 90) {
       return h.key === 'scale' ? `${amt} the next morning (${sg(h.with)} vs ${sg(h.without)} lb on average)` : amt;
     });
     out.push({ factor: F.key, label: F.label, nWith, worse: hits[0].worse, strength: hits[0].strength, hits,
-      text: `After ${F.label} (${nWith} of them): ${parts.join(', ')}.` });
+      text: `After ${F.label} (${nWith} of them): ${parts.join(', ')}. Held up in both halves of the data.` });
   }
   return out.sort((a, b) => b.strength - a.strength);
 }

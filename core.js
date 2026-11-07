@@ -121,7 +121,7 @@ function day(k) {
 }
 function touch(k) {
   const d = data.days[k];
-  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null && !d.body?.length && d.drinks == null && !hasPv(d.pv)) delete data.days[k];
+  if (d && !d.food?.length && !d.workouts?.length && d.steps == null && d.weight == null && !d.sleep && !hasFeel(d.feel) && !d.anchors?.some(v => v != null) && !d.healthFood && !d.micros && !d.stepsHours && !(d.health && Object.keys(d.health).length) && !d.garmin && d.restingHR == null && !d.body?.length && d.drinks == null && !hasPv(d.pv) && !d.comp && !d.waist && d.pushups == null) delete data.days[k];
   dirty.add(k);
 }
 const hasFeel = f => f && (f.mood || f.energy || f.stress || f.notes || (f.tags && f.tags.length));
@@ -161,7 +161,8 @@ const sleepHours = d => d?.sleep?.hours ?? null;
 // Which source wins when two fill the same field: later in the list wins, an equal source replaces itself, hand-entered always wins.
 // Steps and weight: Apple Health's daily total already merges iPhone + Garmin steps, and carries the Withings weigh-ins.
 // Sleep: Garmin's own export carries the sleep score, so it beats Apple's copy of the same night.
-const SOURCE_RANK = { steps: ['loseit', 'garmin', 'health', 'manual'], weight: ['loseit', 'garmin', 'health', 'manual'], sleep: ['loseit', 'health', 'garmin', 'manual'] };
+// Withings read directly (script v3.7+) beats Apple Health's copy of the same weigh-in: it's the morning reading, with body composition.
+const SOURCE_RANK = { steps: ['loseit', 'garmin', 'health', 'manual'], weight: ['loseit', 'garmin', 'health', 'withings', 'manual'], sleep: ['loseit', 'health', 'garmin', 'manual'] };
 function canSet(d, field, next) {
   const cur = field === 'steps' ? d.stepsSource : field === 'weight' ? d.weightSource : d.sleep?.hours != null ? d.sleep.source : null;
   if (!cur) return true;

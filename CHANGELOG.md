@@ -33,6 +33,40 @@
 6. **Push or upload all the app files together.** `index.html`, `core.js`, `importers.js`, `rules.js` and `sync.js` only work as a set.
 7. **GitHub runs the tests and publishes only if they pass** (since v3.3). Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published; open it to see the failing check. Then **paste the script** into script.google.com.
 
+### v3.7 (November 6, 2026)
+
+- **New: Withings, read directly** (SETUP Step 14, optional). Apple Health only gets weight, body fat %, BMI and lean mass from Withings. The script now reads everything the scale measures: **muscle, bone, water, visceral fat, basal metabolic rate and metabolic age** too. Connecting goes through the script's web app address, because a Withings sign-in code lasts only 30 seconds, too short to copy by hand. The first sync loads your whole history. Each day keeps its **first** weigh-in (the morning one), which now ranks above Apple Health's copy; a weight typed in by hand still wins. Data health has a Withings row.
+- **New on the Weight page:**
+  - **Body composition:** each measure, with the change over 30 days, and **what the loss was made of**, fat versus lean (each end averages 3 readings, because one reading swings with water). Red if over about 30% of the loss is lean mass.
+  - **Waist:** weekly, with waist ÷ height (under 0.5 is the usual healthy line).
+  - **Your burn,** learned from your own numbers: average calories on fully logged days, plus what the scale says that did (3,500 cal per lb), over 4 weeks. It needs 21 of 28 days fully logged and 8 weigh-ins, and refuses numbers that can't be right. It shows what your calorie goal will do **as you get lighter** (about 10 cal a day less burn per lb lost, so loss slows; expected, not a plateau), and a **suggested day's calorie goal** (burn minus your committed rate, capped at 1% of body weight a week, never under 1,500) with a **Use it** button.
+  - **Maintenance practice on the way down:** at each checkpoint (every 25 lb, so 250 and 225 by default), 2 weeks at your learned burn. Your meal boxes tick at that calorie level during it, and the page reports how steady you held.
+  - **Your goal is a range** (goal ± 5). Inside it, **Switch to maintenance**: eat about your burn, and the ♥ alarm watches for drifting up instead (**Above your range** after 2 weeks over the top).
+  - Goals and settings: goal range and checkpoints.
+- **New: Today** (Dashboard): one thing to do, only when there is one: *take it easy* (readiness or a load spike) or *a good day to lift* (short of your strength sessions this week and nothing for 3 days). The header always shows **strength N of 2 this week**. It also reminds you when your waist or push-ups are due.
+- **New: Measurements** (Log today): waist at the navel (weekly) and push-ups, most in one set (monthly).
+- **Changed: Patterns** ask a short list of questions, each habit only against what it could plausibly change. It was 42 comparisons; now it's 15. A pattern must also **hold up in both halves** of the days it's based on (the same direction, at least half the size). The sugary-day comparison is gone, and next-day stress is now checked for ↗ Me · ♡ N.
+- **New: did the assignment help?** Each report-card assignment names one measure. The next card shows it before and after (for example *Sleep: 6.4 → 6.9 h*), and you tap **Yes / Somewhat / No**. Later cards read the results and your answers.
+- **The Coach** gets body composition, waist, push-ups, strength sessions, your learned burn, what the loss was made of, and your phase.
+- Tests: 164 checks, up from 135. They cover the Withings reader (units, the first weigh-in, split readings, beating Apple Health both ways round, hand-typed weights winning), the loss mix, waist and push-ups, the learned burn (and refusing impossible numbers), the slowdown, the suggested goal, each phase, Today, assignment changes, and Patterns that hold in only one half. The script suite gets 16 Withings checks against a fake Withings server (75 in all): connecting through the web app, an old link refused, paging, only new weigh-ins, rotating refresh tokens and an expired sign-in. GitHub's app start-up check renders the new Weight cards and the Today card. Breaking the source order, the half-and-half rule or the token rotation makes them fail. Checked in screenshots at desktop size.
+- **Not checked:** a real Withings account. The API calls follow Withings' published format and a maintained open-source client, but the first real connection is the real test. The suggested goal and maintenance calories depend on your learned burn, which needs 4 weeks of full logging.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `email-to-drive.gs` | Withings: `withingsLink`, sign-in through the web app (`doGet`), hourly `syncWithings`, status and alerts. **Paste it, and deploy a new version of the web app** (SETUP 14a). |
+  | `importers.js` | Withings reader |
+  | `core.js` | Withings ranks above Apple Health for weight; days with only body measures are kept |
+  | `rules.js` | Body composition, loss mix, waist, push-ups, learned burn, slowdown, suggested goal, phases, range alarm, Today, assignment measures, Patterns rework |
+  | `index.html` | Today card, Measurements, Body composition, Waist, Your burn, phase cards and settings, assignment results and *Did it help?*, Withings Data health row, Coach data; version and script tags |
+  | `tests.html` | 29 new checks (164 in all) |
+  | `.github/run-tests.mjs` | App start-up check renders the new cards |
+  | `README.md` | Which source wins, Dashboard (Today, Patterns), Weight page, Log today, Coach assignments, Data health, Tests |
+  | `SETUP.md` | **New Step 14: Withings** |
+  | `CHANGELOG.md` | This entry |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | `sync.js`, `config.js` | Not changed |
+
 ### v3.6.1 (November 6, 2026)
 
 - **Fixed: an app window left open never saw new reports.** The app only looked in the Drive Inbox when it started or when you clicked **Sync** or **Check Inbox now**, and it never reloaded what your other devices had saved. So the Nov 6 Lose It report was saved to Drive by the script at 8:25, as its log shows, but an app window open since earlier didn't show it. Now an open window brings itself up to date when you come back to it, and every 10 minutes while it's on screen (at most once every 5 minutes). It saves, reloads, imports from the Inbox and refreshes Data health. It waits while you have unsaved changes in Log today or the plan.

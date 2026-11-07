@@ -42,6 +42,7 @@ async function importBuffer(name, buf) {
     const text = new TextDecoder('utf-8').decode(buf);
     let j = null; try { j = JSON.parse(text); } catch {}
     if (j && j.source === 'strava') return [impStrava(name, j)];
+    if (j && j.source === 'withings') return [impWithings(name, j)];
     if (j && (j.data?.metrics || j.metrics)) return [impHaeJson(name, j)];
     const tally = { steps: new Set(), sleep: new Set() };
     readGarminJson(text, tally);
@@ -489,6 +490,39 @@ function addWorkout(k, w) {
     d.workouts[twin] = w; return done();
   }
   d.workouts.push(w); return done();
+}
+
+/* ---- Withings, read directly by the script (v3.7+): { source: 'withings', measuregrps: [{ date, measures: [{ type, value, unit }] }] } ----
+   Apple Health only gets weight, body fat %, BMI and lean mass from Withings; this carries everything the scale measures.
+   A day keeps its FIRST weigh-in (the morning one, before food and drink), with the body composition measured with it. */
+const WITHINGS_FIELDS = { 1: 'weightKg', 5: 'leanKg', 6: 'fatPct', 8: 'fatKg', 76: 'muscleKg', 77: 'waterKg', 88: 'boneKg', 170: 'visceral', 226: 'bmr', 227: 'metabolicAge' };
+function impWithings(name, j) {
+  const byDay = {};
+  for (const g of j.measuregrps || []) {
+    const o = {};
+    for (const m of g.measures || []) { const f = WITHINGS_FIELDS[m.type]; if (f && typeof m.value === 'number') o[f] = m.value * 10 ** (m.unit || 0); }
+    if (!Object.keys(o).length || !g.date) continue;
+    (byDay[dateKey(new Date(g.date * 1000))] ||= []).push({ at: g.date, ...o });
+  }
+  let nW = 0, nC = 0;
+  for (const [k, gs] of Object.entries(byDay)) {
+    gs.sort((a, b) => a.at - b.at);
+    const first = gs.find(g => g.weightKg != null) || gs[0];
+    // Withings sometimes splits one weigh-in into several groups a few seconds apart; join those to it.
+    const near = gs.filter(g => Math.abs(g.at - first.at) <= 600), c = Object.assign({}, ...near.reverse(), first);
+    const d = day(k), r1 = v => v == null ? undefined : Math.round(v * 10) / 10;
+    const comp = { at: new Date(first.at * 1000).toISOString(), weightKg: r1(c.weightKg), fatPct: r1(c.fatPct), fatKg: r1(c.fatKg), leanKg: r1(c.leanKg), muscleKg: r1(c.muscleKg),
+      boneKg: r1(c.boneKg), waterKg: r1(c.waterKg), visceral: r1(c.visceral), bmr: c.bmr == null ? undefined : Math.round(c.bmr), metabolicAge: c.metabolicAge == null ? undefined : Math.round(c.metabolicAge), source: 'withings' };
+    for (const x of Object.keys(comp)) if (comp[x] === undefined) delete comp[x];
+    if (Object.keys(comp).length > 3) { d.comp = comp; nC++; }
+    if (c.weightKg != null && canSet(d, 'weight', 'withings')) {
+      const unit = d.weightUnit || weightUnit();
+      d.weight = Math.round((unit === 'lb' ? c.weightKg * 2.20462 : c.weightKg) * 10) / 10; d.weightUnit = unit; d.weightSource = 'withings'; delete d.weightVia; nW++;
+    }
+    touch(k);
+  }
+  const ks = Object.keys(byDay).sort();
+  return ks.length ? `${name}: Withings, ${plural(ks.length, 'day')} (${fmtRange(ks[0], ks[ks.length - 1])}): ${plural(nW, 'weigh-in')}, body composition on ${plural(nC, 'day')}` : `${name}: Withings, nothing new`;
 }
 
 function impStrava(name, j) {

@@ -491,6 +491,138 @@ describe('Daily anchors: other ways to fill a box', () => {
   test('weekly totals show halves: 22.5 → “22½”, 0.5 → “½”', () => eq([boxN(22.5), boxN(0.5), boxN(23)], ['22½', '½', '23']));
 });
 
+/* ================= v3.7: Withings, body measures, burn, phases, today, assignments ================= */
+const wg = (date, ms) => ({ date: Math.floor(new Date(date).getTime() / 1000), measures: ms.map(([type, value, unit]) => ({ type, value, unit })) });
+describe('Withings (read directly by the script)', () => {
+  const file = groups => impWithings('w.json', { source: 'withings', measuregrps: groups });
+  test('weight and everything the scale measures are read, in kg × 10^unit, weight shown in lb', () => {
+    fresh(); day('2026-10-01').weightUnit = 'lb';
+    file([wg('2026-10-02T07:05:00', [[1, 12040, -2], [6, 3150, -2], [8, 3793, -2], [5, 8247, -2], [76, 7830, -2], [77, 6010, -2], [88, 417, -2], [170, 145, -1], [226, 2410, 0], [227, 49, 0]])]);
+    const d = getDay('2026-10-02');
+    eq([d.weight, d.weightUnit, d.weightSource], [265.4, 'lb', 'withings']);
+    eq([d.comp.fatPct, d.comp.fatKg, d.comp.leanKg, d.comp.muscleKg, d.comp.waterKg, d.comp.boneKg, d.comp.visceral, d.comp.bmr, d.comp.metabolicAge], [31.5, 37.9, 82.5, 78.3, 60.1, 4.2, 14.5, 2410, 49]);
+  });
+  test('a day keeps its first (morning) weigh-in, not a later one', () => {
+    fresh(); file([wg('2026-10-03T19:30:00', [[1, 12200, -2]]), wg('2026-10-03T06:50:00', [[1, 12000, -2], [6, 31, 0]])]);
+    eq([getDay('2026-10-03').weight, getDay('2026-10-03').comp.fatPct], [264.6, 31]);
+  });
+  test('one weigh-in split over two groups seconds apart is joined', () => {
+    fresh(); file([wg('2026-10-04T07:00:00', [[1, 12000, -2]]), wg('2026-10-04T07:00:20', [[6, 30, 0], [76, 78, 0], [88, 4, 0]])]);
+    eq([getDay('2026-10-04').comp.fatPct, getDay('2026-10-04').comp.muscleKg], [30, 78]);
+  });
+  test('Withings beats Apple Health’s copy of the same weigh-in, both ways round', () => {
+    fresh(); hae([{ name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-10-05 00:00:00 -0700', qty: 266.0 }] }]);
+    file([wg('2026-10-05T07:00:00', [[1, 12000, -2]])]); eq(getDay('2026-10-05').weightSource, 'withings');
+    hae([{ name: 'weight_body_mass', units: 'lb', data: [{ date: '2026-10-05 00:00:00 -0700', qty: 266.0 }] }]); eq([getDay('2026-10-05').weight, getDay('2026-10-05').weightSource], [264.6, 'withings']);
+  });
+  test('a weight typed by hand still wins', () => { fresh(); const d = day('2026-10-06'); d.weight = 263; d.weightUnit = 'lb'; d.weightSource = 'manual'; file([wg('2026-10-06T07:00:00', [[1, 12000, -2]])]); eq(getDay('2026-10-06').weight, 263); });
+});
+
+describe('Body measures', () => {
+  const comp = (k, fatKg, leanKg) => { const d = day(k); d.comp = { fatKg, leanKg, source: 'withings' }; d.weight = Math.round((fatKg + leanKg) * 2.20462 * 10) / 10; d.weightUnit = 'lb'; };
+  test('what the loss was made of: fat vs lean, from the first and last 3 readings', () => {
+    fresh(); for (let i = 0; i < 40; i++) comp(addDays('2026-09-01', i), 40 - i * 0.2, 82 - i * 0.05);
+    const m = lossMix('2026-09-01', '2026-10-10');
+    near(m.fat, -7.5 * 2.20462 * 37 / 37.5, 0.4, 'fat lb'); ok(m.leanShare > 0.15 && m.leanShare < 0.25, 'about a fifth lean', m.leanShare); eq(m.flag, false);
+  });
+  test('losing over 30% lean is flagged', () => { fresh(); for (let i = 0; i < 40; i++) comp(addDays('2026-09-01', i), 40 - i * 0.1, 82 - i * 0.1); eq(lossMix('2026-09-01', '2026-10-10').flag, true); });
+  test('too few or too close readings: no mix', () => { fresh(); for (let i = 0; i < 10; i++) comp(addDays('2026-09-01', i), 40, 82); eq(lossMix('2026-09-01', '2026-10-10'), null); });
+  test('waist: due after a week, and waist ÷ height', () => {
+    fresh(); data.weightCfg = { heightIn: 72 }; day('2026-10-01').waist = { v: 44, unit: 'in' }; day('2026-10-08').waist = { v: 43, unit: 'in' };
+    const a = waistStatus('2026-10-10'), b = waistStatus('2026-10-15');
+    eq([a.due, b.due, a.change, Math.round(a.ratio * 100) / 100], [false, true, -1, 0.6]);
+  });
+  test('push-ups: due after 30 days', () => { fresh(); day('2026-09-01').pushups = 18; eq([strengthCheck('2026-09-20').due, strengthCheck('2026-10-05').due, strengthCheck('2026-10-05').v], [false, true, 18]); });
+  test('a day with only a waist or push-ups is kept', () => { fresh(); day('2026-10-02').waist = { v: 40, unit: 'in' }; touch('2026-10-02'); day('2026-10-03').pushups = 0; touch('2026-10-03'); ok(data.days['2026-10-02'] && data.days['2026-10-03'], 'both kept'); });
+});
+
+describe('Your burn, learned from your numbers', () => {
+  // 28 days: 2,000 cal a day fully logged, weigh-ins losing 2 lb a week → burn about 2,000 + 2 × 3,500 / 7 = 3,000.
+  function seed({ cal = 2000, lbWk = 2, logged = 28, end = '2026-10-28' } = {}) {
+    fresh();
+    for (let i = 0; i < 28; i++) {
+      const k = addDays(end, -27 + i), d = day(k);
+      d.weight = Math.round((270 - lbWk / 7 * i) * 10) / 10; d.weightUnit = 'lb';
+      if (i < logged) { d.food = [{ name: 'x', meal: 'Lunch', calories: cal, source: 'loseit' }]; d.loseItGen = d.loseItAt = new Date(keyToDate(addDays(k, 1)).getTime() + 8 * 36e5).toISOString(); }
+    }
+    return learnedBurn(end, 28);
+  }
+  test('burn = what you ate + what the scale says it did', () => { const B = seed(); ok(B.ok, 'learned', B); near(B.burn, 3000, 20, 'burn'); eq(B.intake, 2000); });
+  test('needs 3 of every 4 days fully logged', () => { const B = seed({ logged: 15 }); eq(B.ok, false); ok(/Needs 21 of the last 28 days/.test(B.why), 'says why', B.why); });
+  test('numbers that can’t be right (meals missing) are refused', () => eq(seed({ cal: 300, lbWk: -1 }).ok, false));
+  test('the slowdown: 25 lb lighter, the same food loses about 0.5 lb a week less', () => {
+    const B = seed(), [a, b] = slowdown(B, 2000, [B.wLb, B.wLb - 25]);
+    near(a.rate, 2, 0.1, 'now'); near(a.rate - b.rate, 25 * 10 * 7 / 3500, 0.05, 'slower'); });
+  test('suggested goal: burn minus the committed rate, capped at 1% of body weight, never under the floor', () => {
+    const B = seed(); data.weightCfg = { rate: 2 }; eq(suggestedGoal(B, '2026-10-29').cal, 2000);
+    data.weightCfg = { rate: 4 }; ok(suggestedGoal(B, '2026-10-29').cal > 1600, 'capped at 1% (about 2.6 lb)', suggestedGoal(B, '2026-10-29'));
+    data.weightCfg = { rate: 10 }; ok(suggestedGoal({ ...B, burn: 1700 }, '2026-10-29').cal >= 1500, 'floor');
+  });
+});
+
+describe('Maintenance phases', () => {
+  const W = (k, w) => { const d = day(k); d.weight = w; d.weightUnit = 'lb'; };
+  test('practice checkpoints default to every 25 lb between start and goal (250, 225)', () => { fresh(); data.weightCfg = { start: 274.8, goal: 200 }; W('2026-10-08', 274.8); eq(weightPlan().checkpoints, [250, 225]); });
+  test('reaching 250 offers a practice block; skipping it doesn’t offer it again', () => {
+    fresh(); data.weightCfg = { start: 274.8, goal: 200 }; W('2026-10-08', 274.8); W(todayKey(), 249.6);
+    eq(phaseOffer().kind, 'checkpoint'); eq(phaseOffer().checkpoint, 250);
+    data.weightCfg.practiceDone = [250]; eq(phaseOffer(), null);
+  });
+  test('during practice, the meal boxes tick at the maintenance calories', () => {
+    fresh(); const k = '2026-10-10'; data.weightCfg = { start: 274.8, goal: 200, phase: { kind: 'practice', since: '2026-10-05', until: '2026-10-18', cal: 2700 } };
+    const d = day(k); d.food = [{ name: 'a', meal: 'Lunch', calories: 1700, source: 'loseit' }, { name: 'b', meal: 'Dinner', calories: 900, source: 'loseit' }]; d.loseItGen = d.loseItAt = '2026-10-11T08:00:00Z';
+    eq([dayGoalOn(k), anchorState(getDay(k), 0).on, anchorState(getDay(k), 1).on], [2700, true, true]);
+    eq(dayGoalOn('2026-10-20'), anchorCfg().dayGoal, 'after it ends, back to the losing goal');
+  });
+  test('practice ends after 2 weeks and reports the trend change', () => {
+    fresh(); data.weightCfg = { start: 274.8, goal: 200, phase: { kind: 'practice', since: addDays(todayKey(), -20), until: addDays(todayKey(), -7), cal: 2700 } };
+    for (let i = 25; i >= 0; i--) W(addDays(todayKey(), -i), 250);
+    eq([phaseOf().kind, phaseOffer().kind], ['lose', 'finished']); near(phaseOffer().change, 0, 0.05);
+  });
+  test('in your goal range: maintenance is offered', () => { fresh(); data.weightCfg = { start: 274.8, goal: 200 }; for (let i = 30; i >= 0; i--) W(addDays(todayKey(), -i), 203); eq(phaseOffer().kind, 'atGoal'); });
+  test('maintaining: 2 weeks over the top of the range raises the alarm', () => {
+    fresh(); data.weightCfg = { start: 274.8, goal: 200, range: 5, phase: { kind: 'maintain', since: '2026-01-01', cal: 2600 } };
+    for (let i = 40; i >= 0; i--) W(addDays(todayKey(), -i), 209);
+    eq(paceAlert().label, 'Above your range');
+    for (let i = 40; i >= 0; i--) W(addDays(todayKey(), -i), 203); eq(paceAlert(), null);
+  });
+});
+
+describe('Today: one thing to do', () => {
+  test('no strength this week and none for 3+ days → a good day to lift', () => {
+    fresh(); const k = '2026-10-29'; day('2026-10-20').workouts = [{ title: 'Strength', type: 'strength_training', durationMin: 40 }];
+    const s = todaySuggestion(k); eq([s.kind, s.strength.n, s.strength.target], ['lift', 0, 2]); ok(/last session/.test(s.why[0]), 'says when', s.why);
+  });
+  test('lifted today, or 2 this week already → nothing to say', () => {
+    fresh(); const k = '2026-10-29'; day(k).workouts = [{ title: 'Gym', durationMin: 40 }]; eq(todaySuggestion(k).kind, null);
+    fresh(); day('2026-10-27').workouts = [{ title: 'Lift', durationMin: 40 }]; day('2026-10-28').workouts = [{ title: 'Lift', durationMin: 40 }]; eq(todaySuggestion('2026-10-29').kind, null);
+  });
+  test('lifted yesterday → wait (not every day)', () => { fresh(); day('2026-10-28').workouts = [{ title: 'Lift', durationMin: 40 }]; eq(todaySuggestion('2026-10-29').kind, null); });
+});
+
+describe('Did the assignment help?', () => {
+  test('sleep 6.4 → 6.9 h is better; a 1% change is no change', () => {
+    fresh(); const a = windowKeys('2026-10-07', 7), b = windowKeys('2026-10-14', 7);
+    a.forEach(k => day(k).sleep = { hours: 6.4, source: 'garmin' }); b.forEach(k => day(k).sleep = { hours: 6.9, source: 'garmin' });
+    const c = measureChange('sleep', a, b); near(c.diff, 0.5, 0.01); eq(c.better, true);
+    b.forEach(k => day(k).sleep = { hours: 6.45, source: 'garmin' }); eq(measureChange('sleep', a, b).better, null);
+  });
+  test('lower is better for drinks; no data → no change shown', () => {
+    fresh(); const a = windowKeys('2026-10-07', 7), b = windowKeys('2026-10-14', 7); a.slice(0, 4).forEach(k => day(k).drinks = 2); b.forEach(k => day(k).drinks = 0);
+    eq(measureChange('drinks', a, b).better, true); eq(measureChange('mood', a, b), null);
+  });
+});
+
+describe('Patterns: a short list, and it must hold up twice', () => {
+  test('an effect only in the earlier half of the days isn’t shown', () => {
+    fresh();
+    for (let i = 0; i < 60; i++) { const k = addDays('2026-08-03', i), d = day(k), n = day(addDays(k, 1)), drink = i % 3 === 0; d.drinks = drink ? 2 : 0;
+      n.sleep = { hours: drink && i < 30 ? 5.5 : 7.2 + (i % 2) * 0.1, source: 'garmin' }; }
+    eq(findPatterns('2026-10-02', 60).filter(p => p.factor === 'drinks').length, 0);
+  });
+  test('habits aren’t compared with outcomes they can’t plausibly change (under-eating vs HRV)', () => eq(PATTERN_FACTORS.find(f => f.key === 'underEat').outcomes.includes('hrv'), false));
+});
+
 /* ================= saving and merging (sync.js) ================= */
 // A pretend Google Drive: one saved copy that "the other device" can change directly.
 function memStore(init) {

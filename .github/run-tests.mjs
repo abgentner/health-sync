@@ -78,7 +78,24 @@ try {
   });
   const bgOk = Object.values(bg).every(Boolean);
   if (!bgOk) console.error(`FAIL  app start-up: background sync ${JSON.stringify(bg)}`);
-  const appOk = saved === 9 && half === '½' && paceOk && arcOk && pvOk && bgOk && !errors.length;
+  // v3.7 screens: with Withings body composition, a waist and 4 weeks of food and weigh-ins, the Weight page shows
+  // Body composition, Waist and Your burn, and the Dashboard shows the Today card.
+  const v37 = await app.evaluate(() => {
+    const t = todayKey();
+    for (let i = 40; i >= 1; i--) { const k = addDays(t, -i), d = day(k); d.weight = Math.round((260 + i * 0.25) * 10) / 10; d.weightUnit = 'lb'; d.weightSource = 'withings';
+      d.comp = { fatKg: 38 + i * 0.08, leanKg: 84 + i * 0.03, fatPct: 31, muscleKg: 79, boneKg: 4.2, waterKg: 60, visceral: 14, bmr: 2400, source: 'withings' };
+      d.food = [{ name: 'x', meal: 'Lunch', calories: 1900, source: 'loseit' }]; d.loseItGen = d.loseItAt = new Date(keyToDate(addDays(k, 1)).getTime() + 8 * 36e5).toISOString(); }
+    day(addDays(t, -3)).waist = { v: 44, unit: 'in' };
+    data.weightCfg = { ...(data.weightCfg || {}), goal: 200, heightIn: 72 };
+    dashDate = t; render(); openMetric('weight');
+    const w = document.querySelector('#m-weight').textContent;
+    return { comp: /Body composition/.test(w) && /Muscle mass/.test(w), waist: /Waist/.test(w) && /waist ÷ height/.test(w), burn: /Your burn/.test(w) && /cal a day you burn/.test(w), today: !document.querySelector('#ts-card').hidden };
+  });
+  const v37Ok = Object.values(v37).every(Boolean);
+  if (!v37Ok) console.error(`FAIL  app start-up: v3.7 screens ${JSON.stringify(v37)}`);
+  if (process.env.SHOTS) { await app.setViewport({ width: 1280, height: 2400 }); await app.screenshot({ path: process.env.SHOTS + '/weight.png', fullPage: true });
+    await app.evaluate(() => { closeMetric?.(); goTab('dash'); }); await app.screenshot({ path: process.env.SHOTS + '/dash.png' }); }
+  const appOk = saved === 9 && half === '½' && paceOk && arcOk && pvOk && bgOk && v37Ok && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);
