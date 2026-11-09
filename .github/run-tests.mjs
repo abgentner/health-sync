@@ -29,9 +29,13 @@ const { port } = server.address();
   if (outside.length || gone.length || named.length < 5) { console.error(`FAIL  libraries: loaded from outside: ${outside.join(', ') || 'none'} · missing from vendor/: ${gone.join(', ') || 'none'} · vendor files named: ${named.length} (expected 5)`); process.exit(1); } }
 
 const browser = await puppeteer.launch({ args: ['--no-sandbox'] });
+// HS_SHIFT_DAYS moves the pages' clock forward, to find checks that would start failing on a later date.
+const SHIFT = +process.env.HS_SHIFT_DAYS || 0;
+const warp = s => { const R = Date, off = s * 864e5; class D extends R { constructor(...a) { a.length ? super(...a) : super(R.now() + off); } static now() { return R.now() + off; } } window.Date = D; };
+const newPage = async () => { const p = await browser.newPage(); if (SHIFT) await p.evaluateOnNewDocument(warp, SHIFT); return p; };
 let code = 1;
 try {
-  const page = await browser.newPage();
+  const page = await newPage();
   page.on('pageerror', e => console.error('page error:', e.message));
   await page.goto(`http://127.0.0.1:${port}/tests.html`, { waitUntil: 'networkidle0', timeout: 60000 });
   await page.waitForFunction('window.TEST_RESULTS', { timeout: 60000 });
@@ -41,7 +45,7 @@ try {
   code = r.fail ? 1 : 0;
 
   // The real app starts, in this-computer-only mode with a made-up day, saves an edit, and shows no errors.
-  const app = await browser.newPage(), errors = [];
+  const app = await newPage(), errors = [];
   app.on('pageerror', e => errors.push(e.message));
   await app.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load', timeout: 60000 });
   await app.evaluate(() => localStorage.setItem('hs-local-data', JSON.stringify({ days: { '2026-10-01': { steps: 5 } } })));
