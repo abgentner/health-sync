@@ -81,13 +81,32 @@ try {
   for (const s of SHOTS) {
     await page.setViewport({ width: s.width, height: 900, deviceScaleFactor: 1 });
     await page.evaluate(sh => { if (typeof closeMetric === 'function' && metricKey) closeMetric(); dashDate = todayKey(); goTab(sh.metric ? 'dash' : sh.tab); if (sh.metric) openMetric(sh.metric); else render(); window.scrollTo(0, 0); }, s);
-    // Chart.js redraws its charts after a resize in its own time, and a fixed wait sometimes caught them blank on GitHub's
-    // slower machines (v3.8.3). So redraw them now, then take pictures until two in a row are identical.
-    await page.evaluate(() => { for (const c of Object.values(window.Chart?.instances || {})) c.resize(); });
-    let shot = await page.screenshot({ fullPage: true });
+    // A full-page picture makes the window as tall as the page while it takes it. On GitHub's Linux that also removes the
+    // 15 px scrollbar, so the page gets wider, Chart.js clears its charts to redraw them, and the picture caught them blank
+    // (the v3.10 phone Dashboard, every run). So make the window as tall as the page first, then take a normal picture.
+    for (let i = 0; i < 4; i++) {
+      const h = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
+      const vp = page.viewport();
+      if (vp && vp.height === h) break;
+      await page.setViewport({ width: s.width, height: h, deviceScaleFactor: 1 });
+      await new Promise(r => setTimeout(r, 200));
+    }
+    // Chart.js redraws after a resize in its own time (v3.8.3): redraw now, then take pictures until two in a row match.
+    const redraw = () => page.evaluate(() => { for (const c of Object.values(window.Chart?.instances || {})) { c.resize(); c.update('none'); } });
+    // Every chart on screen must have painted something, or the picture waits for it.
+    const blankCharts = () => page.evaluate(() => Object.values(window.Chart?.instances || {}).filter(c => c.canvas.offsetParent).map(c => {
+      const cv = c.canvas, d = cv.width && cv.height ? cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data : [];
+      for (let i = 3; i < d.length; i += 4) if (d[i]) return null;
+      return `${cv.id} ${cv.width}×${cv.height} (box ${cv.parentElement.clientWidth}×${cv.parentElement.clientHeight})`;
+    }).filter(Boolean));
+    await redraw();
+    let blank = await blankCharts();
+    for (let i = 0; i < 10 && blank.length; i++) { await new Promise(r => setTimeout(r, 300)); await redraw(); blank = await blankCharts(); }
+    if (blank.length) console.error(`WARN  ${s.name}: charts still blank: ${blank.join(', ')}`);
+    let shot = await page.screenshot();
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 300));
-      const next = await page.screenshot({ fullPage: true });
+      const next = await page.screenshot();
       if (Buffer.compare(next, shot) === 0) break;
       shot = next;
     }
