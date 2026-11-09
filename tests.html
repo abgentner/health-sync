@@ -638,6 +638,11 @@ describe('Today: one thing to do', () => {
     fresh(); day('2026-10-27').workouts = [{ title: 'Lift', durationMin: 40 }]; day('2026-10-28').workouts = [{ title: 'Lift', durationMin: 40 }]; eq(todaySuggestion('2026-10-29').kind, null);
   });
   test('lifted yesterday → wait (not every day)', () => { fresh(); day('2026-10-28').workouts = [{ title: 'Lift', durationMin: 40 }]; eq(todaySuggestion('2026-10-29').kind, null); });
+  test('no workouts at all in 4 weeks → no lifting nudge (v3.10)', () => {
+    fresh(); eq(todaySuggestion('2026-10-29').kind, null);
+    fresh(); day('2026-10-01').workouts = [{ title: 'Walk', type: 'walking', durationMin: 30 }]; eq(todaySuggestion('2026-10-29').kind, null);
+    fresh(); day('2026-10-10').workouts = [{ title: 'Walk', type: 'walking', durationMin: 30 }]; eq(todaySuggestion('2026-10-29').kind, 'lift');
+  });
 });
 
 describe('Did the assignment help?', () => {

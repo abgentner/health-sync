@@ -126,9 +126,36 @@ try {
   });
   const v37Ok = Object.values(v37).every(Boolean);
   if (!v37Ok) console.error(`FAIL  app start-up: v3.7 screens ${JSON.stringify(v37)}`);
+  // v3.10 layout: on a 375 px phone nothing scrolls sideways, the chosen tab scrolls into view and the tab bar shows it
+  // scrolls; the Save day bar stays on screen while Log has unsaved changes; on desktop the 1–5 buttons sit on one line;
+  // a new tab opens at its top.
+  await app.setViewport({ width: 375, height: 812 });
+  const v310p = await app.evaluate(async () => {
+    const tick = () => new Promise(r => setTimeout(r, 50));
+    goTab('dash'); await tick();
+    const wide = document.documentElement.scrollWidth <= innerWidth;
+    goTab('log'); await tick();
+    const n = document.querySelector('#tabs'), on = n.querySelector('.on').getBoundingClientRect(), nr = n.getBoundingClientRect();
+    const tabInView = on.left >= nr.left - 1 && on.right <= nr.right + 1, faded = /more-[lr]/.test(n.className);
+    document.querySelector('#tab-log .scale button').click(); window.scrollTo(0, 0); await tick();
+    const bar = document.querySelector('#l-savebar'), barShown = bar.classList.contains('dirty') && bar.getBoundingClientRect().bottom <= innerHeight;
+    renderLog(); const barGone = !bar.classList.contains('dirty');
+    return { wide, tabInView, faded, barShown, barGone };
+  });
+  await app.setViewport({ width: 1280, height: 900 });
+  const v310d = await app.evaluate(async () => {
+    const tick = () => new Promise(r => setTimeout(r, 50));
+    goTab('log'); await tick();
+    const oneLine = [...document.querySelectorAll('#tab-log .scale:not(.pv .scale)')].every(sc => new Set([...sc.children].map(b => Math.round(b.getBoundingClientRect().top))).size === 1);
+    window.scrollTo(0, 1500); goTab('train'); await tick();
+    return { oneLine, top: window.scrollY === 0 };
+  });
+  await app.setViewport({ width: 800, height: 600 });
+  const v310Ok = Object.values(v310p).every(Boolean) && Object.values(v310d).every(Boolean);
+  if (!v310Ok) console.error(`FAIL  app start-up: v3.10 layout phone ${JSON.stringify(v310p)} desktop ${JSON.stringify(v310d)}`);
   if (process.env.SHOTS) { await app.setViewport({ width: 1280, height: 2400 }); await app.screenshot({ path: process.env.SHOTS + '/weight.png', fullPage: true });
     await app.evaluate(() => { closeMetric?.(); goTab('dash'); }); await app.screenshot({ path: process.env.SHOTS + '/dash.png' }); }
-  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && sizeOk && arcOk && pvOk && bgOk && v37Ok && !errors.length;
+  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && sizeOk && arcOk && pvOk && bgOk && v37Ok && v310Ok && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

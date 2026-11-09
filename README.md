@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.9** · November 7, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.8) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.10** · November 8, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.8) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -109,24 +109,25 @@ The Sleep, Steps and Weight pages show where each day's value came from, includi
 
 ### Dashboard
 
-**Data file report (since v3.9), every 6 months:** a card at the top says how big your data file is, how much it grew since the last report and how soon, at that rate, it would reach 5 MB, and what takes the most room. Under 3 MB it says *fine, nothing to do*; from 3 MB *worth watching*; from 5 MB *time to move old years into archive files* (each sync downloads and saves the whole file). **Got it** hides it for 6 months. The first one appears as soon as you open v3.9.
+**Data file report (since v3.9), every 6 months:** a card at the top says how big your data file is, how much it grew since the last report and how soon, at that rate, it would reach 5 MB, and what takes the most room. Under 3 MB it says *fine, nothing to do*; from 3 MB *worth watching*; from 5 MB *time to move old years into archive files* (each sync downloads and saves the whole file). **Got it** hides it for 6 months. The first one appears once the file has a month of data in it (from v3.10; a brand-new file has nothing to report).
 
 - **Date bar:** use **‹ ›** to move between days, or **Today** to jump back.
-- **Day / 5 / 7 / 15 / 30-day average buttons:** choose what the six summary tiles show.
-- **Hide a tile:** hover over it and click 🙈 (or 👁 to bring it back), or use **Settings › Dashboard tiles**. Your choice is saved with your data, so it's the same on every computer.
+- **Day / 5 / 7 / 15 / 30-day average buttons:** choose what the six summary tiles show. On a phone they read **Day · 5d · 7d · 15d · 30d**.
+- **Hide a tile:** hover over it and click 🙈 (or 👁 to bring it back), or use **Settings › Display › Dashboard tiles**. Your choice is saved with your data, so it's the same on every computer.
   - **Day** shows just the selected day.
   - The **average** buttons always **end the day before** the selected date. Lose It and Garmin data usually arrives a day late, so today's numbers would be incomplete.
   - Days with no data for a measure are **skipped**, so they don't pull the average down. Each tile says how many days it's based on.
   - **Exercise** is minutes per day across all days that have any data, so a day without a workout counts as 0.
   - The app remembers which button you picked.
-- **Tabs along the top:** Dashboard · **Training** · **Coach** · **Plan** · Log today · History · Import · Settings.
-- **Today** (under the tiles): **one thing to do today, only when there is one.** It says *Take it easy today* when readiness or a training-load spike calls for it, or *A good day to lift* when you're short of your strength sessions for the week (2 by default) and haven't lifted in 3 days. Otherwise it says nothing needs changing. The header always shows **strength N of 2 this week**, because lifting is what keeps muscle while you lose weight. On today it also reminds you when your **waist** (weekly) or **push-ups** (monthly) are due.
+- **Tabs along the top:** Dashboard · **Training** · **Coach** · **Plan** · Log today · History · Import · Settings. On a phone the row scrolls sideways; a faded edge means there are more tabs that way, and the tab you're on always scrolls into view. Each tab opens at its top.
+- **Today** (under the tiles): **one thing to do today, only when there is one.** It says *Take it easy today* when readiness or a training-load spike calls for it, or *A good day to lift* when you're short of your strength sessions for the week (2 by default) and haven't lifted in 3 days. When there's nothing to do, the card doesn't show (from v3.10). Its header shows **strength N of 2 this week**, because lifting is what keeps muscle while you lose weight. On today it also reminds you when your **waist** (weekly) or **push-ups** (monthly) are due. It doesn't suggest lifting when there are no workouts at all in the last 4 weeks (a new file, or a watch that isn't syncing).
 - **Readiness** (under the tiles): today's training call, *Ready for a hard session*, *Normal training* or *Take it easy today*, with the main reasons. **Training ›** opens the [Training](#training) tab. It follows the date you pick, so you can look back at any day.
-- **Daily anchors** (top of the Trends card): this week's habit boxes, for example **15 of 28 · goal 23**.
+- **Workouts, Food and How you felt** (for the chosen day): when all three are empty, as on most mornings, they fold into one line, *Nothing logged for Sun, Nov 8 yet*, with a **Log today** button.
+- **Daily anchors** (its own card, right under the date bar, from v3.10): this week's habit boxes, for example **15 of 28 · goal 23**.
   - A bar of 28 boxes fills in as you go. The dashed boxes after the goal are your **weekly buffer** for real life.
   - Next to it, a little grid shows how many boxes you got each day (Mon–Sun).
   - Under it, a message tells you how many more you need and how many days are left.
-  - The **Daily anchors per week** chart shows each week's total against a dashed **goal line**. The current week is shown lighter, because it isn't finished yet.
+  - The **Daily anchors per week** chart (full width, at the top of Trends) shows each week's total against a dashed **goal line**. The current week is shown lighter, because it isn't finished yet.
 - **Click any chart, tile, the anchors box or the mood words** to open that metric's [detail page](#metric-detail-pages).
 - **Tiles:** steps, calories eaten (with protein, carbs and fat), exercise, weight, mood and sleep (with Garmin's sleep score when there is one).
 - **Body & recovery:** resting heart rate, Apple Health's HRV, active calories, alcoholic drinks and the rest of Apple Health's measures, plus **Overnight HRV, Body Battery (high) and Stress** from Garmin. Only measures you actually have are shown. Click one for its detail page.
@@ -192,9 +193,10 @@ Open it by clicking the Weight tile or chart. Weigh-ins come in automatically fr
 - **Progress** (like Happy Scale): **milestones** sit on round numbers between your start and goal (every 5 lb by default).
   - The **arc** fills as you work through the **current milestone**, with the pounds to go and its forecast date in the middle ("3.4 lb to 185 · about Dec 2").
   - A **bar** shows the whole way from start to goal, with a tick for each milestone and the % done.
-  - Lost, milestones reached (for example 5 of 7) and amount to go.
-  - **Every milestone is listed:** ✓ with the date you reached it, the next one highlighted with pounds to go, and a forecast date for each one ahead.
+  - Lost, milestones reached (for example 5) and amount to go. The arc says which one is next ("Next: milestone 6 of 7").
+  - **The milestones list:** ✓ with the date you reached it, the next one highlighted with pounds to go, and a forecast date for the next two after it. **Show all** opens the rest.
   - A milestone counts the **first day you weigh in at or under it**, and stays reached. Progress and pounds to go are measured from your latest weigh-in, like the scale. Forecasts use your recent rate.
+- **Three tiles** under the latest weigh-in (v3.10): **Average**, **Change** (first to last reading) and **Rate** (per week). The other detail pages have six; Weight drops Highest, Lowest and the period comparison because Last 10 days and Trend change already show them.
 - **Trend change:** trend weight change over 7 days, 30 days, 90 days and all time, plus your rate per week.
 - **Last 10 days:** high, latest, trend and low, so a heavy morning has context.
 - **Body mass index:** a BMI gauge for your trend weight, and the weight range for each category at your height. BMI is a rough screen that doesn't separate muscle from fat, so body composition and your waist are better guides.
@@ -385,7 +387,7 @@ Health Sync picks the new files up by itself.
 
 ### Log today
 
-The **Daily anchors** boxes are at the top (see above). Below them, record your feelings, weight, steps, workouts and food by hand for any day. Use the date bar to fill in past days. **Always click Save day.**
+The **Daily anchors** boxes are at the top (see above). Below them, record your feelings, weight, steps, workouts and food by hand for any day. Use the date bar to fill in past days. **Always click Save day.** As soon as anything is unsaved, the **Save day** bar stays pinned to the bottom of the screen with *Unsaved changes* next to it, so you don't have to scroll down for it.
 
 **Measurements** (next to Weight and Steps):
 - **Waist, at the navel, weekly.** Same spot, same time of day (morning), tape snug but not pressing. During fast weight loss it shows fat coming off better than the scale can. The Weight page shows it against your height: under half your height is the usual healthy line (36 in at 6′0″).
@@ -412,7 +414,7 @@ The **Daily anchors** boxes are at the top (see above). Below them, record your 
 
 ### History
 
-A table with one row per day. **Click any column header to sort** (click again to reverse). Click a row to open that day on the Dashboard.
+A table with one row per day. Mood shows its face and number (😐 3). **Click any column header to sort** (click again to reverse). Click a row to open that day on the Dashboard.
 
 ### Import
 
@@ -424,13 +426,13 @@ A table with one row per day. **Click any column header to sort** (click again t
 
 ### Settings
 
-**What you use** (top of Settings, since v3.8): how often you've opened each tab and detail page, added up across your devices, most-used first, with **never opened** at the bottom. Each device counts its own opens and saves them with its next save, so two devices never overwrite each other. It exists for the **feature freeze**: from v3.8, no new features for 2–4 weeks while the learned burn, assignment results and waist record collect data. After that, anything near the bottom of this list is a candidate to cut.
+**Settings, top to bottom (v3.10):** Where your data lives, Backups, Daily anchors, Coach, Display (units, theme and Dashboard tiles), About, and **What you use** folded at the bottom (click it to open).
+
+**What you use** (since v3.8): how often you've opened each tab and detail page, added up across your devices, most-used first, with **never opened** at the bottom. Each device counts its own opens and saves them with its next save, so two devices never overwrite each other. It exists for the **feature freeze**: from v3.8, no new features for 2–4 weeks while the learned burn, assignment results and waist record collect data. After that, anything near the bottom of this list is a candidate to cut.
 
 - **Where your data lives:** shows which Google account you're connected as. **Sign out** disconnects this computer.
-- **Units:** miles or kilometers. Match whatever Garmin Connect uses.
-- **Nightly backups:** the copies your script saved in Drive, newest first, each with a **Restore** button. See [Backups](#backups).
-- **Backup:** download a copy of your data, or bring one back from a file. See [Backups](#backups).
-- **Theme:** light, dark, or match your computer.
+- **Backups:** the nightly copies your script saved in Drive, newest first, each with **Replace with this**; and your own files: download a copy, or **Merge in a backup file…**. See [Backups](#backups).
+- **Display:** distance in miles or kilometers (match whatever Garmin Connect uses), the theme (light, dark, or match your computer), and which Dashboard tiles show.
 
 ---
 
@@ -483,7 +485,7 @@ Each release is either pushed straight to GitHub (when Claude works in your copy
 ## Backups
 
 **Nightly backups (since v3.9, script 3.8):** once a day, your Google script saves a copy of your data file as **Health Sync › Backups › health-data 2026-11-07.json** and keeps the newest **30**. Older ones go to the Drive trash, which keeps them 30 more days. There's nothing to set up beyond pasting the script.
-- **Settings › Nightly backups** lists them, newest first, with their size. **Restore** replaces **all** your data with that copy. It doesn't merge, because a backup is for undoing a bad save, and a merge would carry the bad data along.
+- **Settings › Backups** lists them, newest first, with their size. **Replace with this** replaces **all** your data with that copy. It doesn't merge, because a backup is for undoing a bad save, and a merge would carry the bad data along.
 - **Before it restores,** the app saves anything unsaved on this device and then saves your data as it is right now, as **health-data before restore 2026-11-07 1432.json** in the same folder. So a restore can itself be undone: restore that copy. If that copy can't be saved, nothing is restored.
 - **Kept from now:** your Coach settings (with your API key) and the screen-use counts.
 - **Your other devices** pick up the restored data on their next sync (within 10 minutes, or click Sync). A change one of them makes after that saves on top of it, as usual.
@@ -492,9 +494,9 @@ Each release is either pushed straight to GitHub (when Claude works in your copy
 
 **Copies of your own:**
 
-- **Settings → Download backup (JSON):** a complete copy of everything. Keep it somewhere safe.
-- **Settings → Download daily summary (CSV):** one row per day, which you can open in Excel or Google Sheets.
-- **Settings → Restore backup…:** brings back a backup file. Days in the backup replace the same days in your current data, and all other days stay as they are.
+- **Settings › Backups → Download backup (JSON):** a complete copy of everything. Keep it somewhere safe.
+- **Settings › Backups → Download daily summary (CSV):** one row per day, which you can open in Excel or Google Sheets.
+- **Settings → Merge in a backup file…:** brings back a backup file. Days in the file replace the same days in your current data, and all other days stay as they are. (This merges; the nightly copies' **Replace with this** doesn't.)
 
 ---
 

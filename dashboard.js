@@ -124,6 +124,13 @@ function renderDash() {
     ${f.tags?.length ? `<div style="margin-top:6px">${f.tags.map(t => `<span class="tag" style="margin:0 4px 4px 0">${esc(t)}</span>`).join('')}</div>` : ''}
     ${f.notes ? `<p style="margin:8px 0 0;white-space:pre-wrap">${esc(f.notes)}</p>` : ''}` : '<p class="muted small" style="margin:0">Nothing logged yet.</p>';
 
+  // Nothing on the chosen day yet (most mornings): one line instead of three empty cards (v3.10).
+  const dayEmpty = !ws.length && !fd.length && !totals(d).fromHealth && !hasFeel(f);
+  $('#d-day').hidden = dayEmpty; $('#d-day-empty').hidden = !dayEmpty;
+  if (dayEmpty) {
+    $('#d-day-empty-t').textContent = `Nothing logged for ${fmtDay(dashDate, { weekday: 'short', month: 'short', day: 'numeric' })} yet`;
+    $('#d-day-log').textContent = dashDate === todayKey() ? 'Log today' : 'Log this day';
+  }
   renderCharts();
   renderCloud();
   renderAnchorSummary();
@@ -257,7 +264,8 @@ function draw(id, type, labels, values, fmt, yOpts = {}) {
 /* ---- Dashboard: the data file report, twice a year (sizeReport in rules.js) ---- */
 function renderSizeReport() {
   const el = $('#size-card'); if (!el) return;
-  const R = sizeReport(); el.hidden = !R.due || store !== Drive && store !== LocalStore;
+  // Not on a brand-new file: the first report waits for a month of data (v3.10).
+  const R = sizeReport(); el.hidden = !R.due || R.days < 30 || store !== Drive && store !== LocalStore;
   if (el.hidden) return;
   const mb = n => `${(n / 1048576).toFixed(n < 10 * 1048576 ? 1 : 0)} MB`, f = k => fmtDay(k, { month: 'short', day: 'numeric', year: 'numeric' });
   const verdict = R.level === 'act' ? `<b>It's past 5 MB, so it's time to act:</b> each sync downloads and saves the whole file. Ask for old years to be moved into archive files (the app keeps reading them); nothing is lost.`

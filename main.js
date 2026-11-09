@@ -39,10 +39,10 @@ async function restoreBackup(file) {
   let incoming;
   try { incoming = normalize(JSON.parse(await file.text())); } catch { toast('That file is not a Health Sync backup.'); return; }
   const n = Object.keys(incoming.days).length;
-  if (!confirm(`Restore ${n} days from this backup? Days in the backup will replace the same days in your current data.`)) return;
+  if (!confirm(`Merge ${n} days from this file into your data? Its days replace the same days in your data; other days are kept.`)) return;
   for (const [k, v] of Object.entries(incoming.days)) { data.days[k] = v; dirty.add(k); }
   await runTask(persist);
-  render(); toast(`Restored ${n} days.`);
+  render(); toast(`Merged ${n} days from the file.`);
 }
 
 async function importLocalFiles(files) {
@@ -76,6 +76,7 @@ async function startApp(kind) {
   $('#welcome').hidden = true; $('#app').hidden = false;
   setStatus('Up to date');
   render();
+  requestAnimationFrame(navEdges);
   if (store === Drive) {
     const n = await checkInbox(true);
     if (n) { render(); toast(`Imported ${n} new file${n > 1 ? 's' : ''} from your Drive Inbox.`); }
@@ -143,6 +144,9 @@ $('#tabs').onclick = e => {
   noteUse('tab:' + b.dataset.tab);
   $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
   $$('section.tab').forEach(s => s.hidden = s.id !== 'tab-' + b.dataset.tab);
+  // A new tab starts at its top, and on a phone the tab bar scrolls so the chosen tab is in view (v3.10).
+  window.scrollTo(0, 0);
+  showActiveTab();
   if (b.dataset.tab === 'dash') renderCharts();
   if (b.dataset.tab === 'plan') loadPlanDocs(false).catch(e => toast(e.message, 6000));
   if (b.dataset.tab === 'coach') renderCoach();
@@ -150,9 +154,25 @@ $('#tabs').onclick = e => {
   if (b.dataset.tab === 'set') loadBackups();
 };
 $('#rd-more').onclick = () => goTab('train');
+$('#d-day-log').onclick = () => { logDate = dashDate; goTab('log'); renderLog(); };
 $('#tr-logbody').onclick = () => { logDate = dashDate; goTab('log'); renderLog(); $('#b-area').focus(); };
 $('#tab-train').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openMetric(b.dataset.open); });
 function goTab(t) { $(`#tabs button[data-tab="${t}"]`).click(); }
+// Phone tab bar: fade the edge that has more tabs past it, so it's clear the bar scrolls.
+function navEdges() {
+  const n = $('#tabs'); if (!n) return;
+  n.classList.toggle('more-l', n.scrollLeft > 2);
+  n.classList.toggle('more-r', n.scrollLeft + n.clientWidth < n.scrollWidth - 2);
+}
+function showActiveTab() {
+  const n = $('#tabs'), b = n && /** @type {HTMLElement | null} */ (n.querySelector('button.on')); if (!b) return;
+  const l = b.offsetLeft - n.offsetLeft, r = l + b.offsetWidth;
+  if (l < n.scrollLeft + 24) n.scrollLeft = Math.max(0, l - 24);
+  else if (r > n.scrollLeft + n.clientWidth - 24) n.scrollLeft = r - n.clientWidth + 24;
+  navEdges();
+}
+$('#tabs').addEventListener('scroll', navEdges, { passive: true });
+window.addEventListener('resize', navEdges);
 
 // Metric details: click a chart, tile, anchors box or the mood words card
 $('#tab-dash').addEventListener('click', e => {

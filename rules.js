@@ -547,7 +547,9 @@ function todaySuggestion(k = todayKey()) {
   const doneToday = (getDay(k)?.workouts || []).some(isStrength);
   if (r?.verdict === 'easy') return { ...out, kind: 'easy', text: 'Take it easy today: a walk or mobility, no hard session.', why: r.parts.filter(p => p.score < 0).map(p => p.text).concat(r.painNote || []).slice(0, 2) };
   if (ls.band === 'spike') return { ...out, kind: 'easy', text: 'Keep today easy: your training load is a spike.', why: [ls.text] };
-  if (!doneToday && sw.n < sw.target && (sw.daysSince == null || sw.daysSince >= 3)) {
+  // No workouts at all in 4 weeks (a new file, or the watch isn't syncing): no lifting nudge (v3.10).
+  const anyWorkouts = windowKeys(k, 28).some(x => getDay(x)?.workouts?.length);
+  if (anyWorkouts && !doneToday && sw.n < sw.target && (sw.daysSince == null || sw.daysSince >= 3)) {
     const tight = sw.target - sw.n >= sw.daysLeft;
     return { ...out, kind: 'lift', text: `${r?.verdict === 'push' ? 'Recovery looks good: a' : 'A'} good day to lift.`,
       why: [`Strength ${sw.n} of ${sw.target} this week${sw.daysSince != null ? `, last session ${daysAgo(sw.daysSince)}` : ''}${tight ? ` · ${plural(sw.daysLeft, 'day')} left` : ''}.`, 'Lifting is what keeps muscle while you lose weight.'] };

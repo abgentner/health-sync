@@ -17,7 +17,9 @@ function paintScales() {
   $$('#f-pv [data-pv]').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', pvDraft[g.dataset.pv] != null && pvDraft[g.dataset.pv] === pvVal(b))));
 }
 let logDirty = false;
-function markLogDirty() { logDirty = true; $('#l-msg').textContent = 'Unsaved changes'; }
+function markLogDirty() { logDirty = true; $('#l-msg').textContent = 'Unsaved changes'; $('#l-savebar').classList.add('dirty'); }
+// Clean again (saved, reloaded or deleted): the save bar goes back to its place at the bottom of the page.
+function logClean(msg = '') { logDirty = false; $('#l-msg').textContent = msg; $('#l-savebar').classList.remove('dirty'); }
 
 function renderLog() {
   $('#l-date').value = logDate;
@@ -44,7 +46,7 @@ function renderLog() {
     $('#f-meas-due').textContent = due.length ? `due: ${due.join(', ')}` : ''; }
   { const auto = d?.health?.drinks ?? (d?.food?.length ? loseItDrinks(d) : null); $('#f-drinks-auto').textContent = d?.drinks == null && auto != null ? `${fmtN(auto)} from ${d?.health?.drinks != null ? 'Apple Health' : 'your Lose It log'}. Type a number to override.` : 'Leave blank to use Lose It or Apple Health.'; }
   renderLogLists();
-  logDirty = false; $('#l-msg').textContent = '';
+  logClean();
 }
 function renderTagSugg() {
   const cur = new Set($('#f-tags').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
@@ -87,7 +89,7 @@ async function saveLogDay() {
   else { delete d.steps; delete d.stepsSource; }
   touch(k);
   await runTask(persist);
-  logDirty = false; $('#l-msg').textContent = 'Saved';
+  logClean('Saved');
   renderDash(); renderHist();
 }
 
@@ -422,7 +424,7 @@ function renderHist() {
   $('#h-empty').hidden = !!keys.length;
   $('#h-body').innerHTML = keys.map(k => {
     const d = getDay(k), t = totals(d);
-    return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${anchorCount(d) + '/' + anchorCfg().names.length}</td><td data-sort="${d.feel?.mood ?? ''}">${d.feel?.mood ? MOODS[d.feel.mood - 1] : '—'}</td></tr>`;
+    return `<tr data-k="${k}"><td>${esc(fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</td><td>${fmtN(d.steps)}</td><td>${t.hasFood ? fmtN(t.calIn) : '—'}</td><td>${t.hasFood ? fmtN(t.protein) : '—'}</td><td>${t.hasEx ? fmtN(t.exMin) : '—'}</td><td>${t.hasEx ? fmtN(t.burn) : '—'}</td><td>${d.weight != null ? fmtN(d.weight, 1) + ' ' + esc(d.weightUnit || 'lb') : '—'}</td><td>${fmtN(sleepHours(d), 1)}</td><td>${anchorCount(d) + '/' + anchorCfg().names.length}</td><td data-sort="${d.feel?.mood ?? ''}">${d.feel?.mood ? `${MOODS[d.feel.mood - 1]} ${d.feel.mood}` : '—'}</td></tr>`;
   }).join('');
   sortTable('h');
 }
@@ -487,7 +489,7 @@ function renderBackups() {
   if (!backupList) { el.innerHTML = '<p class="muted small" style="margin:0">Loading…</p>'; return; }
   if (!backupList.length) { el.innerHTML = `<p class="small" style="margin:0">No backups yet. ${scriptStat && !b ? `Your script is v${esc(scriptStat.scriptVersion || '?')}: paste v${esc(SCRIPT_LATEST)} (README › Updating the app) and the first copy is saved within the hour.` : 'The first copy is saved within the hour of pasting script v' + esc(SCRIPT_LATEST) + '.'}</p>`; return; }
   el.innerHTML = backupList.slice(0, 30).map((f, i) => `<div class="li"><span class="n">${esc(backupLabel(f.name))}${i === 0 ? ' <span class="tag">newest</span>' : ''}</span><span class="x small">${esc(fmtBytes(+f.size))}</span>
-    <button class="btn small ghost" data-bk="${esc(f.id)}" data-bk-name="${esc(f.name)}">Restore</button></div>`).join('');
+    <button class="btn small ghost" data-bk="${esc(f.id)}" data-bk-name="${esc(f.name)}">Replace with this</button></div>`).join('');
 }
 
 function renderSettings() {

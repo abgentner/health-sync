@@ -31,6 +31,49 @@
 6. **Push or upload all the app files together.** They only work as a set.
 7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
 
+### v3.10 (November 8, 2026) · script 3.8 (unchanged, nothing to paste)
+
+**Easier to read and less cluttered: the 19 fixes from the Nov 8 design review**, done at your request during the freeze. No change to your data or the rules, except the Today card's lifting nudge (below).
+- **Phone:**
+  - **The tab bar shows it scrolls.** The tab you're on always scrolls into view, so on Log today you can see you're on it, and a faded edge means more tabs that way. Tabs are a little tighter, so more fit.
+  - **No more sideways scrolling.** The period buttons read **Day · 5d · 7d · 15d · 30d** (the page was 402 px wide on a 375 px phone).
+  - **Body & recovery** shows its numbers side by side instead of three full-width boxes.
+  - **Weight milestones:** the "Milestone N" label is left out (it wrapped onto two lines); the weight and date say enough.
+- **Easier to read:** the light-mode grey for small text is darker (`--muted` #868a94 → #6b6f79: 3.5:1 → 5.0:1 on white, the 4.5:1 minimum for small text). Dark mode already passed. Example text in empty boxes is now grey italic with "e.g.", so it can't be mistaken for something you typed.
+- **Dashboard:**
+  - **Daily anchors** (21 of 28 · goal 23) has its own card under the date bar, instead of sitting inside Trends a screen and a half down. Its chart is full width at the top of Trends, so the other six charts pair up with none left alone.
+  - **Empty days fold up.** When the chosen day has no workouts, food or feelings yet (most mornings), one line says *Nothing logged for Sun, Nov 8 yet* with a **Log today** button, instead of three empty cards.
+  - **The Today card only shows when there's something to do** (it used to say "Nothing to change today."). It no longer suggests lifting when there are no workouts at all in the last 4 weeks (a new file, or a watch that isn't syncing).
+  - **The data file report waits for a month of data**, so a new file doesn't open with "0.0 MB, nothing to do".
+  - Cards side by side no longer stretch to the tallest one (Training's Body log was a big empty box).
+- **Log today:**
+  - **Mood, Energy and Stress** fit on one line on a computer (the 5 wrapped onto its own line).
+  - **The Save day bar stays on screen while anything is unsaved**, pinned to the bottom with *Unsaved changes*, and goes back to its place once saved.
+  - The Steps box says *Usually imported from Apple Health* (it said Garmin; Apple Health comes first for steps).
+- **Weight page:** three tiles instead of six: **Average**, **Change** and **Rate** (Highest, Lowest and the trend repeated Last 10 days and Trend change). The arc says **Next: milestone 3 of 15** and the box under it **2 milestones reached**: before, "Milestone 3 of 15" next to "2 of 15 milestones" read like a contradiction. The list shows the milestones reached, the next one and two after it; **Show all** opens the rest.
+- **History:** Mood shows its number next to the face (😐 3), since the faces are too small to tell apart.
+- **Settings:** a new order: Where your data lives, **Backups**, Daily anchors, Coach, **Display** (units, theme and Dashboard tiles), About, and **What you use** folded at the bottom. The two backup cards are one, with different words for the two things they do: a nightly copy's **Replace with this** (swaps all your data, as before) and **Merge in a backup file…** (adds a file's days, as before). Both used to say "Restore".
+- **Everywhere:** each tab opens at its top (it kept the last tab's scroll position), and animations stop when your computer or phone is set to reduce motion.
+- **Tests:** 207 checks, up from 206 (the lifting nudge with no workouts). The start-up check adds the v3.10 layout: on a 375 px phone, no sideways scroll, the chosen tab in view and the tab bar's fade, the save bar on screen while unsaved and gone after; on a computer, the 1–5 buttons on one line and a new tab at its top. **All 6 screenshots change** (mostly the darker grey), so run **Update screenshots** once.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `index.html` | Colours, phone and reduced-motion styles; short period labels; anchors card moved; empty-day line; Settings reordered (one Backups card, Display card, What you use folded); save bar; placeholders |
+  | `dashboard.js` | Empty-day line; data file report after a month of data |
+  | `main.js` | Tabs open at their top; phone tab bar scrolls to the chosen tab and fades its edges; empty-day Log button; "Merge" wording |
+  | `coach.js` | Today card hidden when there's nothing to do |
+  | `rules.js` | No lifting nudge without any workouts in 4 weeks (`todaySuggestion`) |
+  | `log.js` | Save bar; History mood number; "Replace with this" |
+  | `metrics.js` | Weight page: three stat tiles |
+  | `weight.js` | Milestone wording; list folds after the next three |
+  | `tests.html` | 1 new check |
+  | `.github/run-tests.mjs` | v3.10 layout checks |
+  | `core.js`, `importers.js`, `migrate.js`, `sync.js`, `drive.js`, `training.js`, `health.js` | Version number only (their `?v=` tag) |
+  | README | Dashboard, Log today, Weight page, History, Settings and Backups |
+  | SETUP, ALTERNATIVES | Version number only |
+  | `email-to-drive.gs` | Unchanged (3.8) |
+
 ### v3.9 (November 7, 2026) · script 3.8 (paste it)
 
 **Infrastructure, done during the freeze at your request, plus the Withings export.** Paste the script: it's what makes the nightly backups.

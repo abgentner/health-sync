@@ -667,7 +667,7 @@ function renderToday() {
     const due = [w.due && `waist${w.k ? ` (last ${daysAgo(w.days)})` : ''}`, sc.due && `push-ups${sc.k ? ` (last ${daysAgo(sc.days)})` : ''}`].filter(Boolean);
     if (due.length) lines.push(`<p class="small" style="margin:${s.kind ? '10px' : '0'} 0 0">Measure today: ${esc(due.join(' and '))}. <a href="#" id="ts-log">Log today ›</a></p>`);
   }
-  el.hidden = !lines.length && !s.strength.target;
+  el.hidden = !lines.length;
   $('#ts-str').textContent = s.strength.target ? `strength ${s.strength.n} of ${s.strength.target} this week` : '';
   $('#ts-body').innerHTML = lines.join('') || '<p class="muted small" style="margin:0">Nothing to change today.</p>';
   const a = $('#ts-log'); if (a) a.onclick = e => { e.preventDefault(); goTab('log'); };

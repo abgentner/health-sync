@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Health Sync app · version 3.9 -->
+<!-- Health Sync app · version 3.10 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -12,7 +12,7 @@
 :root{
   color-scheme:light;
   --bg:#f4f5f8; --bg-tint:#e9effb; --surface:#ffffff; --surface-2:#f2f3f6; --border:#e6e7ec;
-  --text:#14161c; --text-2:#545862; --muted:#868a94;
+  --text:#14161c; --text-2:#545862; --muted:#6b6f79;
   --accent:#2a78d6; --accent-2:#5b54d6; --accent-ink:#ffffff; --series:#2a78d6; --grid:#eceef2;
   --c-steps:#2a78d6; --c-cal:#eb6834; --c-ex:#1baf7a; --c-weight:#4a3aa7; --c-mood:#e87ba4; --c-sleep:#eda100; --c-anchor:#008300; --c-hr:#e34948; --c-hrv:#1baf7a;
   --good:#0f7a3a; --bad:#c23a39; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
@@ -68,6 +68,7 @@ a{color:var(--accent)}
 input[type=text],input[type=number],input[type=date],select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 11px;width:100%;transition:border-color .15s,box-shadow .15s}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 18%,transparent)}
 textarea{min-height:96px;resize:vertical}
+::placeholder{color:var(--muted);opacity:1;font-style:italic}
 label{display:block;font-size:13px;color:var(--text-2);margin-bottom:5px;font-weight:550}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .grow{flex:1;min-width:0}
@@ -98,6 +99,10 @@ nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:10px;scrollbar-width:non
 nav button{border:0;background:none;padding:7px 14px;cursor:pointer;color:var(--text-2);font-weight:550;border-radius:99px;white-space:nowrap;transition:background .15s,color .15s}
 nav button:hover{background:var(--surface-2);color:var(--text)}
 nav button.on{color:var(--surface);background:var(--text)}
+nav.more-r{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 48px),transparent)}
+nav.more-l.more-r{-webkit-mask-image:linear-gradient(90deg,transparent,#000 48px,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(90deg,transparent,#000 48px,#000 calc(100% - 48px),transparent)}
+nav.more-l:not(.more-r){-webkit-mask-image:linear-gradient(90deg,transparent,#000 48px);mask-image:linear-gradient(90deg,transparent,#000 48px)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.tile[data-metric]:hover,.hk-i:hover,.scale button:hover{transform:none}}
 main{padding:22px 0 64px}
 section.tab{display:flex;flex-direction:column;gap:16px}
 
@@ -144,17 +149,17 @@ main{padding-top:28px!important}
 .li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .li .x{font-variant-numeric:tabular-nums;color:var(--text-2);white-space:nowrap}
 .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:var(--surface-2);color:var(--text-2);margin-left:6px;vertical-align:1px;font-weight:550}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;align-items:start}
 .del{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 4px;font-size:18px;line-height:1;border-radius:6px}
 .del:hover{color:var(--bad);background:var(--surface-2)}
 .empty-note{color:var(--muted);font-size:13px;margin:0;padding:6px 0}
 
 /* mood */
-.scale{display:flex;gap:6px;flex-wrap:wrap}
-.scale button{border:1px solid var(--border);background:var(--surface);border-radius:12px;min-width:48px;height:46px;cursor:pointer;font-size:22px;transition:transform .1s,background .15s,border-color .15s}
+.scale{display:flex;gap:6px}
+.scale button{flex:1 1 0;min-width:0;max-width:48px;border:1px solid var(--border);background:var(--surface);border-radius:12px;height:46px;padding:0;cursor:pointer;font-size:22px;transition:transform .1s,background .15s,border-color .15s}
 .scale button:hover{transform:translateY(-1px);border-color:var(--accent)}
 .scale.num button{font-size:15px;font-weight:650}
-.pv{display:flex;align-items:center;gap:8px} .pv-k{color:var(--muted);font-size:15px;min-width:14px;text-align:center} .pv .scale button{min-width:38px;height:38px;padding:0 8px}
+.pv{display:flex;align-items:center;gap:8px} .pv-k{color:var(--muted);font-size:15px;min-width:14px;text-align:center} .pv .scale button{flex:none;max-width:none;min-width:38px;height:38px;padding:0 8px}
 .scale button.on{border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:var(--accent-ink);box-shadow:0 2px 8px color-mix(in oklab,var(--accent) 35%,transparent)}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px}
 
@@ -175,6 +180,7 @@ tbody tr:hover{background:var(--surface-2)}
 .seg button{border:0;background:none;padding:6px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2);border-radius:9px;white-space:nowrap}
 .seg button:hover{background:var(--surface-2)}
 .seg button.on{background:var(--text);color:var(--surface)}
+.seg .sh{display:none}
 .span-lbl{font-size:13px;color:var(--text-2);margin:-4px 2px 0}
 .cloud{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 16px;padding:18px 6px;min-height:140px;line-height:1.15}
 .cloud .w{cursor:default;border-radius:8px;padding:0 4px;transition:background .1s}
@@ -219,7 +225,7 @@ tbody tr:hover{background:var(--surface-2)}
 .anchor.half{border-color:color-mix(in oklab,var(--c-anchor) 55%,var(--border))}
 .anchor.half .ck{background:linear-gradient(90deg,var(--c-anchor) 50%,transparent 50%);border-color:var(--c-anchor);color:var(--text)}
 .anchor.pend .an-src{color:var(--muted)}
-.an-sum{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:center;padding:4px 0 18px;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.an-sum{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:center}
 .an-big{font-size:30px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .an-big .u{font-size:14px;color:var(--text-2);font-weight:550;margin-left:4px;letter-spacing:0}
 .an-msg{font-size:13.5px;color:var(--text-2);margin-top:2px}
@@ -241,18 +247,24 @@ tbody tr:hover{background:var(--surface-2)}
 [data-metric]{cursor:pointer}
 .charts>[data-metric]{border-radius:12px;padding:6px 8px 4px;margin:-6px -8px -4px;transition:background .15s}
 .charts>[data-metric]:hover{background:var(--surface-2)}
+.charts>.wide{grid-column:1/-1}
 .charts>[data-metric] h3::after,.card-h .more{content:"Details ›";margin-left:auto;font-size:12px;font-weight:600;color:var(--accent);opacity:0;transition:opacity .15s}
 .charts>[data-metric]:hover h3::after{opacity:1}
 .tile[data-metric]{transition:transform .12s,box-shadow .15s}
 .tile[data-metric]:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(20,22,28,.06),0 10px 24px rgba(20,22,28,.08)}
-.an-sum[data-metric]{border-radius:12px;transition:background .15s}
-.an-sum[data-metric]:hover{background:var(--surface-2)}
+.an-sum[data-metric]{border-radius:var(--radius);transition:border-color .15s}
+.an-sum[data-metric]:hover{border-color:var(--c-anchor)}
 .m-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .m-top .hello{display:flex;align-items:center;gap:10px}
 .m-top .sw{width:14px;height:14px;border-radius:4px;background:var(--c)}
 .m-top select{width:auto;margin-left:auto}
 .m-stats{grid-template-columns:repeat(6,minmax(0,1fr))}
 .m-stats .tile .v{font-size:24px}
+.m-stats.three{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.wt-all summary{cursor:pointer;color:var(--accent);font-weight:600;padding:9px 0;border-top:1px solid var(--border);list-style:none}
+.wt-all summary::-webkit-details-marker{display:none}
+.wt-all[open] summary{display:none}
+.wt-all .li:first-of-type{border-top:1px solid var(--border)}
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--text-2);margin-left:auto;flex-wrap:wrap}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend .bx{width:12px;height:12px;border-radius:3px;background:var(--c);opacity:.45}
@@ -320,6 +332,13 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 .rv-row summary:hover{background:var(--surface-2)}
 .rv-body{padding:4px 16px 16px}
 .rv-inc textarea{width:100%}
+.savebar.dirty{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:4;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.savebar.dirty #l-msg{color:var(--warn-ink);font-weight:600}
+.set-use summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px}
+.set-use summary::-webkit-details-marker{display:none}
+.set-use summary h2::before{content:'▸';display:inline-block;width:16px;color:var(--muted);transition:transform .15s}
+.set-use[open] summary h2::before{transform:rotate(90deg)}
+.set-use[open] summary{margin-bottom:12px}
 .hdr-chips{margin-left:auto;display:flex;align-items:center;gap:6px;min-width:0}
 .health-chip{white-space:nowrap;border:0;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;background:var(--warn-bg);color:var(--warn-ink)}
 .health-chip.bad{background:color-mix(in oklab,var(--bad) 15%,var(--surface));color:var(--bad)}
@@ -426,6 +445,16 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
   .hello{font-size:22px}
   .status .lbl{display:none}
   .seg button{padding:6px 8px}
+  .seg .lg{display:none} .seg .sh{display:inline}
+  nav button{padding:7px 11px}
+  /* Body & recovery: 3 small boxes across instead of a tall stack */
+  .hk{grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+  .hk-i{padding:8px 10px}
+  /* Weight milestones: the label wraps on a phone; the weight and date say enough */
+  .wt-mlist .wt-ml{display:none}
+  .m-stats.three .tile{padding:12px}
+  .m-stats.three .tile .v{font-size:20px}
+  .m-stats.three .tile .v .u{display:block;margin:2px 0 0}
   /* Phone header: the pace and data-issue chips get their own line under the logo, status and Sync (v3.8.3),
      instead of pushing them off the right edge. */
   .hdr{flex-wrap:wrap;height:auto;min-height:60px;padding:8px 0;row-gap:6px}
@@ -506,11 +535,12 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
       <button class="btn small ghost" id="d-today">Today</button>
     </div>
     <div class="seg" id="d-span" role="group" aria-label="Summary period">
-      <button data-n="1">Day</button><button data-n="5">5-day avg</button><button data-n="7">7-day avg</button><button data-n="15">15-day avg</button><button data-n="30">30-day avg</button>
+      <button data-n="1">Day</button><button data-n="5">5<span class="lg">-day avg</span><span class="sh">d</span></button><button data-n="7">7<span class="lg">-day avg</span><span class="sh">d</span></button><button data-n="15">15<span class="lg">-day avg</span><span class="sh">d</span></button><button data-n="30">30<span class="lg">-day avg</span><span class="sh">d</span></button>
     </div>
     </div>
   </div>
   <div class="span-lbl" id="d-span-lbl"></div>
+  <div class="card an-sum" id="an-sum" data-metric="anchor" role="button" tabindex="0" aria-label="Open daily anchors details"></div>
   <div class="tiles" id="d-tiles"></div>
   <div class="card" id="ts-card" hidden>
     <div class="card-h"><h2>Today</h2><span class="muted small" id="ts-str"></span></div>
@@ -529,7 +559,8 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div id="pt-body"></div>
     <p class="muted small" style="margin:8px 0 0">A pattern, not proof. The app asks a short list of questions (drinks and a big or late dinner against sleep and HRV, under-eating against energy and mood, a salty day against the scale). Each needs at least 5 days with the habit and 5 without, a difference bigger than your normal swing, and the same result in the earlier and later halves of those days.</p>
   </div>
-  <div class="cols">
+  <div class="card" id="d-day-empty" hidden><div class="row"><span class="grow small"><b id="d-day-empty-t"></b></span><button class="btn small" id="d-day-log">Log today</button></div></div>
+  <div class="cols" id="d-day">
     <div class="card"><div class="card-h"><h2>Workouts</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-workouts"></div></div>
     <div class="card"><div class="card-h"><h2>Food</h2><span class="muted small day-lbl"></span></div><div class="list" id="d-food"></div></div>
     <div class="card"><div class="card-h"><h2>How you felt</h2><span class="muted small day-lbl"></span><button class="btn small" id="d-editfeel" style="margin-left:auto">Edit</button></div><div id="d-feel"></div></div>
@@ -544,9 +575,8 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
         <option value="365">Last 12 months</option>
       </select>
     </div>
-    <div class="an-sum" id="an-sum" data-metric="anchor" role="button" tabindex="0" aria-label="Open daily anchors details"></div>
     <div class="charts">
-      <div data-metric="anchor" role="button" tabindex="0" aria-label="Open anchor details"><h3 style="--c:var(--c-anchor)"><span class="sw"></span><span id="an-chart-t">Daily anchors per week</span></h3><div class="chart-box"><canvas id="c-anchor"></canvas></div></div>
+      <div class="wide" data-metric="anchor" role="button" tabindex="0" aria-label="Open anchor details"><h3 style="--c:var(--c-anchor)"><span class="sw"></span><span id="an-chart-t">Daily anchors per week</span></h3><div class="chart-box"><canvas id="c-anchor"></canvas></div></div>
       <div data-metric="steps" role="button" tabindex="0" aria-label="Open steps details"><h3 style="--c:var(--c-steps)"><span class="sw"></span>Steps</h3><div class="chart-box"><canvas id="c-steps"></canvas></div></div>
       <div data-metric="weight" role="button" tabindex="0" aria-label="Open weight details"><h3 style="--c:var(--c-weight)"><span class="sw"></span>Weight</h3><div class="chart-box"><canvas id="c-weight"></canvas></div></div>
       <div data-metric="cal" role="button" tabindex="0" aria-label="Open cal details"><h3 style="--c:var(--c-cal)"><span class="sw"></span>Calories eaten</h3><div class="chart-box"><canvas id="c-cal"></canvas></div></div>
@@ -641,20 +671,20 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div class="chips" style="margin:0 0 10px"><button type="button" data-q="l7">Last 7 days</button><button type="button" data-q="wk">This week so far</button><button type="button" data-q="mo">This month so far</button><button type="button" data-q="l30">Last 30 days</button><button type="button" data-q="yr">This year so far</button></div>
     <div class="row" style="margin-bottom:10px"><label style="margin:0">From <input type="date" id="cn-from" style="width:auto"></label><label style="margin:0">To <input type="date" id="cn-to" style="width:auto"></label></div>
     <label for="cn-q">Question or focus <span class="muted">(optional)</span></label>
-    <input type="text" id="cn-q" placeholder="How am I doing on sodium?">
+    <input type="text" id="cn-q" placeholder="e.g. How am I doing on sodium?">
     <div class="row" style="margin-top:10px"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="cn-email"> Email it to me</label><button class="btn primary" id="cn-go" style="margin-left:auto">Write review</button></div>
   </div>
   <div class="span-lbl" id="coach-bal"></div>
   <div class="cols">
     <div class="card">
       <div class="card-h"><h2>Your why</h2><span class="muted small">every report card refers back to it</span></div>
-      <textarea id="why-text" style="min-height:90px" placeholder="What you're doing this for, in your own words. For example: to keep up with my kids on a hike, and to come off blood-pressure medication."></textarea>
+      <textarea id="why-text" style="min-height:90px" placeholder="What you're doing this for, in your own words. e.g. to keep up with my kids on a hike, and to come off blood-pressure medication."></textarea>
       <div class="row" style="margin-top:8px"><button class="btn small" id="why-save">Save</button><span class="muted small" id="why-msg"></span></div>
     </div>
     <div class="card">
       <div class="card-h"><h2>Reflection</h2><select id="rf-week" style="width:auto;margin-left:auto" aria-label="Which week"></select></div>
-      <label for="rf-in-way">What got in the way?</label><textarea id="rf-in-way" style="min-height:60px" placeholder="Travel Tuesday to Thursday; bad sleep before the deadline"></textarea>
-      <label for="rf-helped" style="margin-top:8px">What helped?</label><textarea id="rf-helped" style="min-height:60px" placeholder="Prepping lunches on Sunday"></textarea>
+      <label for="rf-in-way">What got in the way?</label><textarea id="rf-in-way" style="min-height:60px" placeholder="e.g. travel Tuesday to Thursday; bad sleep before a deadline"></textarea>
+      <label for="rf-helped" style="margin-top:8px">What helped?</label><textarea id="rf-helped" style="min-height:60px" placeholder="e.g. prepping lunches on Sunday"></textarea>
       <div class="row" style="margin-top:8px"><button class="btn small" id="rf-save">Save</button><span class="muted small" id="rf-msg">The week's report card reads this. It can explain a grade, but it doesn't change it.</span></div>
     </div>
   </div>
@@ -739,7 +769,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     </div>
     <div class="card">
       <div class="card-h"><h2>Steps</h2></div>
-      <input type="number" id="f-steps" min="0" step="1" placeholder="Usually imported from Garmin">
+      <input type="number" id="f-steps" min="0" step="1" placeholder="Usually imported from Apple Health">
     </div>
     <div class="card">
       <div class="card-h"><h2>Measurements</h2><span class="muted small" id="f-meas-due"></span></div>
@@ -771,7 +801,7 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
       </div>
     </div>
   </div>
-  <div class="row"><button class="btn primary" id="l-save">Save day</button><span class="muted small" id="l-msg"></span></div>
+  <div class="row savebar" id="l-savebar"><button class="btn primary" id="l-save">Save day</button><span class="muted small" id="l-msg"></span></div>
   <div class="card">
     <div class="card-h"><h2>Fix a mistake</h2></div>
     <p class="small muted" style="margin-top:0">Logged something on the wrong day? Move it to the right day, or delete it.</p>
@@ -842,6 +872,39 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <!-- Settings -->
 <section class="tab" id="tab-set" hidden>
   <div class="card">
+    <div class="card-h"><h2>Where your data lives</h2></div>
+    <p class="small" style="margin-top:0" id="s-where"></p>
+    <div class="row"><button class="btn" id="s-disconnect">Sign out</button></div>
+  </div>
+  <div class="card" id="s-bk-card">
+    <div class="card-h"><h2>Backups</h2><span class="muted small" id="s-bk-sub"></span></div>
+    <div class="sub-h">Nightly copies in Google Drive</div>
+    <p class="small muted" style="margin-top:0">Your script saves a copy in Health Sync › Backups once a day and keeps the newest 30. <b>Replace with this</b> swaps all your data for that copy. Your data as it is now is saved there first, so it can be undone.</p>
+    <div class="list small" id="s-bk"></div>
+    <div class="sub-h">Files on this computer</div>
+    <p class="small muted" style="margin-top:0">Download a copy of everything, or merge a downloaded copy back in: its days replace the same days in your data, and other days are kept.</p>
+    <div class="row">
+      <button class="btn" id="s-export">Download backup (JSON)</button>
+      <button class="btn" id="s-csv">Download daily summary (CSV)</button>
+      <label class="btn" style="margin:0;font-size:inherit;color:inherit" for="s-restore">Merge in a backup file…</label>
+      <input type="file" id="s-restore" accept=".json,application/json" hidden>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Daily anchors</h2></div>
+    <p class="small muted" style="margin-top:0">The habit boxes you check each day in <b>Log today</b>. Changes sync to all your computers.</p>
+    <div id="s-anchors" class="form-grid"></div>
+    <div class="row" style="margin-top:14px">
+      <label for="s-an-goal" style="margin:0">Weekly goal</label>
+      <input type="number" id="s-an-goal" min="1" style="width:90px"><span class="muted small" id="s-an-goal-of"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label for="s-an-day" style="margin:0">Day's calorie goal</label>
+      <input type="number" id="s-an-day" min="0" step="50" style="width:90px"><span class="muted small">calories or fewer for the whole day ticks every meal box (on days at or above your calorie floor). Empty = off.</span>
+      <button class="btn primary small" id="s-an-save" style="margin-left:auto">Save anchors</button>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-h"><h2>Coach</h2></div>
     <p class="small muted" style="margin-top:0">Report cards by Claude. Your key is kept in your Google Drive data, never on GitHub, and is left out of backups.</p>
     <div class="form-grid">
@@ -888,63 +951,29 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
     <div class="row" style="margin-top:14px"><button class="btn primary small" id="cs-save" style="margin-left:auto">Save coach settings</button></div>
   </div>
   <div class="card">
-    <div class="card-h"><h2>Daily anchors</h2></div>
-    <p class="small muted" style="margin-top:0">The habit boxes you check each day in <b>Log today</b>. Changes sync to all your computers.</p>
-    <div id="s-anchors" class="form-grid"></div>
-    <div class="row" style="margin-top:14px">
-      <label for="s-an-goal" style="margin:0">Weekly goal</label>
-      <input type="number" id="s-an-goal" min="1" style="width:90px"><span class="muted small" id="s-an-goal-of"></span>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label for="s-an-day" style="margin:0">Day's calorie goal</label>
-      <input type="number" id="s-an-day" min="0" step="50" style="width:90px"><span class="muted small">calories or fewer for the whole day ticks every meal box (on days at or above your calorie floor). Empty = off.</span>
-      <button class="btn primary small" id="s-an-save" style="margin-left:auto">Save anchors</button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-h"><h2>What you use</h2><span class="muted small" id="s-use-sub"></span></div>
-    <p class="small muted" style="margin-top:0">Which screens you open, counted on each of your devices. Features you never open are candidates to cut.</p>
-    <div class="list small" id="s-use"></div>
-  </div>
-  <div class="card">
-    <div class="card-h"><h2>Where your data lives</h2></div>
-    <p class="small" style="margin-top:0" id="s-where"></p>
-    <div class="row"><button class="btn" id="s-disconnect">Sign out</button></div>
-  </div>
-  <div class="card">
-    <div class="card-h"><h2>Units</h2></div>
+    <div class="card-h"><h2>Display</h2></div>
     <div class="row">
-      <label style="margin:0">Distance</label>
+      <label for="s-units" style="margin:0">Distance</label>
       <select id="s-units" style="width:auto"><option value="imperial">Miles</option><option value="metric">Kilometers</option></select>
       <span class="muted small">Should match the unit setting in Garmin Connect.</span>
     </div>
-  </div>
-  <div class="card" id="s-bk-card">
-    <div class="card-h"><h2>Nightly backups</h2><span class="muted small" id="s-bk-sub"></span></div>
-    <p class="small muted" style="margin-top:0">Your script saves a copy of your data in Google Drive › Health Sync › Backups once a day and keeps the newest 30. <b>Restore</b> replaces all your data with that copy. Your data as it is now is saved there first, so a restore can be undone.</p>
-    <div class="list small" id="s-bk"></div>
-  </div>
-  <div class="card">
-    <div class="card-h"><h2>Backup</h2></div>
-    <p class="small" style="margin-top:0">Download a copy of everything, or restore from a backup file. Restoring a file merges its days with your current data.</p>
-    <div class="row">
-      <button class="btn" id="s-export">Download backup (JSON)</button>
-      <button class="btn" id="s-csv">Download daily summary (CSV)</button>
-      <label class="btn" style="margin:0;font-size:inherit;color:inherit" for="s-restore">Restore backup…</label>
-      <input type="file" id="s-restore" accept=".json,application/json" hidden>
+    <div class="row" style="margin-top:12px">
+      <label for="s-theme" style="margin:0">Theme</label>
+      <select id="s-theme" style="width:auto"><option value="">Match my computer</option><option value="light">Light</option><option value="dark">Dark</option></select>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-h"><h2>Dashboard tiles</h2></div>
-    <p class="small muted" style="margin-top:0">Choose which tiles are visible on the dashboard. You can also hide or show each tile by hovering over it and clicking the eye icon. Your choice is saved with your data, so it's the same on every computer.</p>
+    <div class="sub-h">Dashboard tiles</div>
+    <p class="small muted" style="margin-top:0">Which tiles show on the Dashboard. You can also hover a tile and click its eye icon. Saved with your data, so it's the same on every computer.</p>
     <div id="s-tiles" class="row" style="flex-wrap:wrap;gap:8px 20px"></div>
   </div>
   <div class="card">
     <div class="card-h"><h2>About</h2></div>
-    <p class="small" style="margin:0 0 16px">App version: <b class="app-ver"></b><br><span class="muted">Compare this with the version at the top of README.md and in the folder name of the files you uploaded.</span></p>
-    <div class="card-h"><h2>Theme</h2></div>
-    <select id="s-theme" style="width:auto"><option value="">Match my computer</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    <p class="small" style="margin:0">App version: <b class="app-ver"></b><br><span class="muted">Compare this with the version at the top of README.md and in the folder name of the files you uploaded.</span></p>
   </div>
+  <details class="card set-use">
+    <summary><h2>What you use</h2><span class="muted small" id="s-use-sub"></span></summary>
+    <p class="small muted" style="margin-top:0">Which screens you open, counted on each of your devices. Features you never open are candidates to cut.</p>
+    <div class="list small" id="s-use"></div>
+  </details>
 </section>
 
   <footer class="muted small" style="text-align:center;margin-top:28px">Health Sync <span class="app-ver"></span></footer>
@@ -956,25 +985,25 @@ th.sortable[data-dir="asc"],th.sortable[data-dir="desc"]{color:var(--text)}
 <script>
 'use strict';
 // Kept here, in the page itself, so the update check and the tests can read the version without loading the app.
-const APP_VERSION = '3.9';   // bump with every release; shown in the footer and Settings
+const APP_VERSION = '3.10';   // bump with every release; shown in the footer and Settings
 // The script has its own version, which moves only when email-to-drive.gs itself changes (from v3.8). This is the
 // newest one; Data health asks you to paste it only when yours is older. tests.html checks it matches the script file.
 const SCRIPT_LATEST = '3.8';
 const versionLess = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); return false; };
 </script>
-<script src="core.js?v=3.9"></script>
-<script src="importers.js?v=3.9"></script>
-<script src="rules.js?v=3.9"></script>
-<script src="migrate.js?v=3.9"></script>
-<script src="sync.js?v=3.9"></script>
-<script src="drive.js?v=3.9"></script>
-<script src="dashboard.js?v=3.9"></script>
-<script src="log.js?v=3.9"></script>
-<script src="coach.js?v=3.9"></script>
-<script src="training.js?v=3.9"></script>
-<script src="health.js?v=3.9"></script>
-<script src="weight.js?v=3.9"></script>
-<script src="metrics.js?v=3.9"></script>
-<script src="main.js?v=3.9"></script>
+<script src="core.js?v=3.10"></script>
+<script src="importers.js?v=3.10"></script>
+<script src="rules.js?v=3.10"></script>
+<script src="migrate.js?v=3.10"></script>
+<script src="sync.js?v=3.10"></script>
+<script src="drive.js?v=3.10"></script>
+<script src="dashboard.js?v=3.10"></script>
+<script src="log.js?v=3.10"></script>
+<script src="coach.js?v=3.10"></script>
+<script src="training.js?v=3.10"></script>
+<script src="health.js?v=3.10"></script>
+<script src="weight.js?v=3.10"></script>
+<script src="metrics.js?v=3.10"></script>
+<script src="main.js?v=3.10"></script>
 </body>
 </html>

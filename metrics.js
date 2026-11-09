@@ -113,7 +113,10 @@ function renderMetric() {
     st('vs previous period', change == null ? '—' : `${change > 0 ? '+' : ''}${fmtN(change, 0)}%`, '', pa == null ? 'no earlier data' : `was ${f(pa)} ${unit} the ${plural(n, 'day')} before`),
     st('Trend', slope == null ? '—' : `${slope > 0 ? '+' : ''}${fmtN(slope, M.dp || (Math.abs(slope) < 10 ? 1 : 0))}`, slope == null ? '' : unit + ' / week', slope == null ? 'needs more data' : Math.abs(slope) < 1e-9 ? 'flat' : slope > 0 ? 'going up' : 'going down'),
   ];
-  $('#m-stats').innerHTML = tiles.join('');
+  // Weight: the Weight page's own cards already show the highest, lowest and trend weights, so only these three stay (v3.10).
+  const shown = key === 'weight' ? [tiles[0], tiles[3], tiles[5].replace('<span class="k">Trend</span>', '<span class="k">Rate</span>')] : tiles;
+  $('#m-stats').classList.toggle('three', key === 'weight');
+  $('#m-stats').innerHTML = shown.join('');
 
   // ---- main chart: daily values + 7-day average
   const cs = getComputedStyle(document.documentElement);
