@@ -55,6 +55,8 @@
 - **Settings:** a new order: Where your data lives, **Backups**, Daily anchors, Coach, **Display** (units, theme and Dashboard tiles), About, and **What you use** folded at the bottom. The two backup cards are one, with different words for the two things they do: a nightly copy's **Replace with this** (swaps all your data, as before) and **Merge in a backup file…** (adds a file's days, as before). Both used to say "Restore".
 - **Everywhere:** each tab opens at its top (it kept the last tab's scroll position), and animations stop when your computer or phone is set to reduce motion.
 - **Tests:** 207 checks, up from 206 (the lifting nudge with no workouts). The start-up check adds the v3.10 layout: on a 375 px phone, no sideways scroll, the chosen tab in view and the tab bar's fade, the save bar on screen while unsaved and gone after; on a computer, the 1–5 buttons on one line and a new tab at its top. **All 6 screenshots change** (mostly the darker grey), so run **Update screenshots** once.
+- **Follow-up (Nov 9, tests only):** `.github/run-tests.mjs` takes `HS_SHIFT_DAYS`, which moves the pages' clock forward. The private suite now runs every night a second time 60 days ahead, with this repository's checks too, so a check that depends on the calendar is caught about two months before it would fail. One was found and fixed there (the script suite's fake Garmin account). No app files changed.
+- **Docs follow-up (Nov 16):** README › Tests had old counts (178 checks; 59 script checks): now 207, and 21 + 133 + 73 in the private suite, with the 60-days-ahead run.
 - **Files in this release:**
 
   | File | What changed |
