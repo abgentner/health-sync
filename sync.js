@@ -89,8 +89,15 @@ function mergeLocal(remote, f, local = data, was = base) {
   // Garmin files are tracked by the newest file time per folder now; drop the old per-file entries everywhere.
   const gs = remote.garminSeen || {}, ls = local.garminSeen || {};
   remote.garminSeen = { parser: Math.max(gs.parser || 0, ls.parser || 0) || undefined };
-  // Two devices: the earlier mark wins, because re-reading a file is harmless and skipping one isn't.
-  for (const k of ['days', 'activities']) { const a = gs.parser === remote.garminSeen.parser ? gs[k] : null, b = ls.parser === remote.garminSeen.parser ? ls[k] : null; remote.garminSeen[k] = !a ? b || null : !b ? a : a < b ? a : b; }
+  // Like any other change: a mark this device moved (forward after reading, or back to read a file again) is kept, and
+  // one only the other device moved is kept from there. If both moved it, the earlier wins, because re-reading a file
+  // is harmless and skipping one isn't. (v3.10.2: the earlier mark always won, so once saved it could never move
+  // forward, and from Nov 1 every sync re-read every Garmin file made since.)
+  const ws = was?.garminSeen || {}, P = remote.garminSeen.parser;
+  for (const k of ['days', 'activities']) {
+    const a = gs.parser === P ? gs[k] || null : null, b = ls.parser === P ? ls[k] || null : null, w = was && ws.parser === P ? ws[k] || null : undefined;
+    remote.garminSeen[k] = w !== undefined && b === w ? a : w !== undefined && a === w ? b : !a ? b : !b ? a : a < b ? a : b;
+  }
   if (remote.garminSeen.parser) for (const [id, v] of Object.entries(remote.watched)) if (/^g\d+:/.test(v)) delete remote.watched[id];
   remote.watchedParser = Math.max(remote.watchedParser || 1, local.watchedParser || 1);
   // Size reports: kept from every device, one per date.

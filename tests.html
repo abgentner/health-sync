@@ -958,6 +958,16 @@ describe('Saving: failures and timing', () => {
   });
 });
 
+describe('Saving: the Garmin mark', () => {
+  const g = t => normalize({ garminSeen: { parser: 1, days: t, activities: t } });
+  const save = (remote, local, was) => { mergeLocal(remote, { days: new Set(), imports: true, plan: false, coach: false, tiles: {} }, local, was); return remote.garminSeen.days; };
+  test('a mark moved forward here is saved (v3.10.2: the earlier one always won, so it never moved after Nov 1)', () => eq(save(g('t1'), g('t5'), g('t1')), 't5'));
+  test('a mark moved forward on the other device is kept', () => eq(save(g('t5'), g('t1'), g('t1')), 't5'));
+  test('both devices moved it: the earlier wins, so neither skips a file', () => eq(save(g('t3'), g('t5'), g('t1')), 't3'));
+  test('a mark moved back here (a file to read again) is saved', () => eq(save(g('t5'), g('t2'), g('t5')), 't2'));
+  test('nothing to compare with: the earlier wins', () => eq(save(g('t5'), g('t3'), null), 't3'));
+});
+
 describe('Saving: nothing is silently dropped', () => {
   // Every field the saved file keeps, with a change to it. A new field must be added here, or this test fails.
   const CHANGES = {

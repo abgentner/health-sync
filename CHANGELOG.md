@@ -31,6 +31,24 @@
 6. **Push or upload all the app files together.** They only work as a set.
 7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
 
+### v3.10.2 (November 16, 2026) · script 3.10.1 (unchanged, nothing more to paste)
+
+- **Fixed: the real reason the Garmin folder was read in full on every sync.** Each save combines this device's copy of your data with the one in Drive. For the Garmin folder's place marker, that step always kept the **earlier** of the two, so a saved marker could never move forward. It stuck at Nov 1, 02:48, the first save after v3.3.1. From then on, every sync re-read every Garmin file made since. Now the marker is merged like every other change: a marker this device moved is kept, and one only the other device moved is kept from there. Only when both moved it does the earlier one win, so neither device skips a file. 3.10.1's changes still help (empty files skipped, a stop when Drive says slow down), but alone they couldn't fix this: on your real data, 3.10.1 moved the marker to Nov 11 and the save put it back to Nov 1.
+- **Tests:** 216 checks, up from 211: a marker moved forward here is saved; one moved on the other device is kept; both moved, the earlier wins; moved back here (a file to read again) is saved; nothing to compare with, the earlier wins. The first two failed before the fix.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `sync.js` | The Garmin marker merges three ways (this device, Drive, as last loaded) |
+  | `tests.html` | 5 new checks |
+  | `index.html` | Version 3.10.2 |
+  | `README.md` | Test count |
+  | `CHANGELOG.md` | This entry |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | Other app files | **Version number only** (the `?v=` tag) |
+  | `email-to-drive.gs` | Not changed (3.10.1: paste it if you haven't) |
+  | `config.js` | Not changed |
+
 ### v3.10.1 (November 16, 2026) · script 3.10.1 (paste it)
 
 - **Fixed: the Garmin folder was read in full on every sync.** When a Garmin file failed to read, the app held its place just before that file so it would try again. Three files that could never be read (empty second copies, below) held it at Nov 1, so every sync, about every 10 minutes while the app was open, downloaded all ~3,760 Garmin files made since. That's what caused the burst of 174 "Google Drive: Quota exceeded" errors on Nov 15. Now only trouble that can clear up holds the place: Drive being busy, the network, or a timeout. A file that downloads but can't be read is logged once and passed over. Empty files are skipped without downloading. And when Drive asks to slow down, that sync stops and leaves the rest for the next one, instead of asking again for every file.
