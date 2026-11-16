@@ -1,6 +1,6 @@
 /**
  * Health Sync — automatic imports into Google Drive.
- * Version 3.8
+ * Version 3.10.1
  *
  * Every hour this:
  *  1. looks in your Gmail for new emails from Lose It or Garmin that have a
@@ -30,7 +30,7 @@
 // To add another sender, put it inside the brackets with OR, e.g. 'from:(donotreply@loseit.com OR garmin.com OR reports@example.com)'.
 const SEARCH = 'from:(donotreply@loseit.com OR garmin.com) has:attachment newer_than:30d -label:health-sync-saved';
 
-const SCRIPT_VERSION = '3.8';   // printed at the start of every run
+const SCRIPT_VERSION = '3.10.1';   // printed at the start of every run
 const LABEL = 'health-sync-saved';
 const FOLDER_PATH = ['Health Sync', 'Inbox'];
 const FILE_TYPES = /\.(pdf|csv|zip)$/i;
@@ -741,10 +741,20 @@ function checkSources_(errors) {
 
 /* ============================ Helpers ============================ */
 
-// Saves obj as a JSON file in folder, replacing the file of that name if there is one.
+// Saves obj as a JSON file in folder, replacing the file of that name if there is one. Extra copies of the same name
+// are trashed, keeping the largest, and a new file that comes back empty is written again (v3.10.1: three Garmin
+// files had an empty second copy, made seconds after the good one).
 function saveJson_(folder, name, obj) {
-  const it = folder.getFilesByName(name), text = JSON.stringify(obj);
-  if (it.hasNext()) it.next().setContent(text); else folder.createFile(name, text, 'application/json');
+  const it = folder.getFilesByName(name), text = JSON.stringify(obj), same = [];
+  while (it.hasNext()) same.push(it.next());
+  if (same.length) {
+    same.sort((a, b) => b.getSize() - a.getSize());
+    same.slice(1).forEach(f => f.setTrashed(true));
+    same[0].setContent(text);
+    return;
+  }
+  const f = folder.createFile(name, text, 'application/json');
+  if (!f.getSize()) f.setContent(text);
 }
 function replaceFile_(folder, name, blob) {
   const it = folder.getFilesByName(name);

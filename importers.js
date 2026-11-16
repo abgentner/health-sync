@@ -906,6 +906,12 @@ function nextGarminMark(listed, failed, prev) {
   if (failed.length) { const t = failed.map(f => Date.parse(f.modifiedTime)).sort((a, b) => a - b)[0]; return new Date(t - 1).toISOString(); }
   return listed.reduce((m, f) => (!m || f.modifiedTime > m ? f.modifiedTime : m), prev || null);
 }
+// Which failures hold the mark (v3.10.1). Drive being busy, the network or a timeout can work next time, so those files
+// are read again. A file that downloads but can't be read (cut short, not JSON) won't read any better, so it's logged
+// once and passed over: holding the mark for one such file made every sync re-read every Garmin file since.
+const garminRetryable = msg => /^Google Drive:|took too long|Failed to fetch|NetworkError|network error|Load failed/i.test(msg);
+// Drive asking to slow down: stop this run and leave the rest for next time, rather than ask again for every file.
+const garminSlowDown = msg => /quota|rate ?limit|too many requests|error 429/i.test(msg);
 async function readGarminFolder() {
   const seen = (data.garminSeen ||= {});
   if (seen.parser !== GARMIN_PARSER) { seen.days = seen.activities = null; seen.parser = GARMIN_PARSER; importsDirty = true; }
@@ -924,6 +930,9 @@ async function readGarminFolder() {
     // The per-file list is no longer needed for Garmin files.
     for (const [id, v] of Object.entries(data.watched || {})) if (/^g\d+:/.test(v)) { delete data.watched[id]; importsDirty = true; }
   };
+  // Empty files (a failed save can leave one next to the good copy) are passed over without downloading.
+  const empty = files.filter(f => f.size === '0');
+  if (empty.length) { files = files.filter(f => f.size !== '0'); logImport(`Garmin folder: skipped ${plural(empty.length, 'empty file')} (${empty.map(f => f.name).join(', ')})`); }
   if (!files.length) { done(); return 0; }
   const tally = { steps: new Set(), sleep: new Set(), weight: new Set(), recovery: new Set(), workouts: new Set(), detail: 0 }, queue = files.slice();
   const nDays = files.filter(f => f.kind === 'days').length;
@@ -933,7 +942,17 @@ async function readGarminFolder() {
       try {
         const r = await withTimeout(Drive.api(`files/${f.id}?alt=media`), 60000, 'downloading it took too long');
         (f.kind === 'activities' ? readGarminActivity : readGarminDay)(await r.json(), tally);
-      } catch (e) { failed++; failedFiles.push(f); if (f.kind === 'days') failedDays++; if (typeof logError === 'function') logError('Garmin folder', `${f.name}: ${e.message}`); }
+      } catch (e) {
+        const msg = String(e?.message || e);
+        failed++; if (f.kind === 'days') failedDays++;
+        if (garminRetryable(msg)) failedFiles.push(f);
+        if (typeof logError === 'function') logError('Garmin folder', `${f.name}: ${msg}`);
+        if (garminSlowDown(msg) && queue.length) {
+          const rest = queue.splice(0);
+          failed += rest.length; failedDays += rest.filter(g => g.kind === 'days').length; failedFiles.push(...rest);
+          if (typeof logError === 'function') logError('Garmin folder', `Google Drive asked to slow down: ${plural(rest.length, 'file')} left for the next sync`);
+        }
+      }
       setStatus(`Reading Garmin files: ${++n} of ${files.length}…`, 'busy');
     }
   };

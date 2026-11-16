@@ -2,9 +2,16 @@
 // Health Sync · Data health: is each source still delivering?
 // One of the app's screen files: classic scripts that share one global scope, loaded in order by index.html.
 /* ================= data health ================= */
-let scriptStat = null;
+let scriptStat = null, scriptStatErr = '';
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let scriptStatRetry;
+// A failed read keeps what was read before, says so, and tries again in a minute (v3.10.1: it used to look like the
+// script had never been set up).
 async function loadHealth() {
-  if (store === Drive) { try { scriptStat = await Drive.scriptStatus(); } catch { scriptStat = null; } }
+  if (store === Drive) {
+    try { scriptStat = await Drive.scriptStatus(); scriptStatErr = ''; }
+    catch (e) { scriptStatErr = String(e?.message || e); clearTimeout(scriptStatRetry); scriptStatRetry = setTimeout(loadHealth, 60e3); }
+  }
   renderHealth();
 }
 function healthRows() {
@@ -13,7 +20,8 @@ function healthRows() {
   const since = iso => iso ? Math.round((Date.now() - Date.parse(iso)) / 36e5) : null;
   const lastImport = re => { const x = (data.imports || []).filter(i => re.test(i.what || '')).map(i => i.at).sort().pop(); return x || null; };
   if (store !== Drive) return [['gray', 'This computer only', 'Data health checks need Google Drive mode.', '']];
-  if (!st) rows.push(['warn', 'Google script', 'No status yet from your script.', 'Paste script v2.3 or later into script.google.com and run setup once (README › Updating the app).']);
+  if (!st && scriptStatErr) rows.push(['warn', 'Google script', "Couldn't check it just now.", `Trying again in a minute. (${scriptStatErr})`]);
+  else if (!st) rows.push(['warn', 'Google script', 'No status yet from your script.', 'Paste script v2.3 or later into script.google.com and run setup once (README › Updating the app).']);
   else {
     const h = since(st.checkedAt);
     // The script only needs pasting when its own code changed: when it's older than the newest script (SCRIPT_LATEST).
@@ -29,7 +37,7 @@ function healthRows() {
     const s = st.strava;
     rows.push([s.error ? 'bad' : s.connected ? 'ok' : 'gray', 'Strava', s.connected ? `Connected${s.lastNewAt ? ` · last new workout saved ${H(since(s.lastNewAt))}` : ''}` : 'Not connected', s.error ? `Sync failed: ${s.error} — run stravaCheck in the script.` : '']);
     const bk = st.backup;
-    rows.push(!bk ? ['warn', 'Nightly backups', 'Not running yet', `Your script is v${st.scriptVersion || '?'}; backups start with v${SCRIPT_LATEST}. Paste email-to-drive.gs into script.google.com (README › Updating the app).`]
+    rows.push(!bk ? ['warn', 'Nightly backups', 'Not running yet', `Your script is v${st.scriptVersion || '?'}; backups start with v3.8. Paste the newest, v${SCRIPT_LATEST}: email-to-drive.gs into script.google.com (README › Updating the app).`]
       : bk.error ? ['bad', 'Nightly backups', `Last night's backup failed`, `${bk.error}. Open the script's Executions page for details. Settings › Nightly backups lists the copies you have.`]
       : !bk.lastAt ? ['gray', 'Nightly backups', 'No backup yet', 'The first is saved within the hour.']
       : [bk.hoursAgo > 48 ? 'bad' : 'ok', 'Nightly backups', `Last saved ${H(bk.hoursAgo)} · ${bk.count} kept${bk.sizeKB ? ` · ${bk.sizeKB >= 1024 ? (bk.sizeKB / 1024).toFixed(1) + ' MB' : bk.sizeKB + ' KB'}` : ''}`, bk.hoursAgo > 48 ? 'There should be one a day. Check the script\u2019s hourly trigger (run setup to recreate it).' : '']);

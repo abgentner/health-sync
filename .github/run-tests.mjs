@@ -87,6 +87,18 @@ try {
   const arc = await app.evaluate(() => arcPath(110, 112, 92, 0, 0.8));
   const arcOk = / A92 92 0 0 1 /.test(arc);
   if (!arcOk) console.error(`FAIL  app start-up: gauge arc past halfway is drawn the long way round: ${arc}`);
+  // Data health when the script's status file can't be read just now (v3.10.1): says so and tries again,
+  // instead of telling you to paste the script.
+  const hs = await app.evaluate(async () => {
+    const realStore = store, realStatus = Drive.scriptStatus, realT = window.setTimeout;
+    let retry = null; store = Drive; scriptStat = null;
+    Drive.scriptStatus = async () => { throw new Error('Google Drive: error 503'); };
+    window.setTimeout = (fn, ms, ...a) => { if (fn === loadHealth) { retry = ms; return 0; } return realT(fn, ms, ...a); };
+    try { await loadHealth(); return [healthRows()[0], retry]; }
+    finally { store = realStore; Drive.scriptStatus = realStatus; window.setTimeout = realT; scriptStat = null; }
+  });
+  const hsOk = hs[0][1] === 'Google script' && /couldn.t check/i.test(hs[0][2]) && !/paste/i.test(hs[0].join(' ')) && hs[1] === 60000;
+  if (!hsOk) console.error(`FAIL  app start-up: Data health with an unreadable script status showed ${JSON.stringify(hs)}, expected "Couldn't check…" and a retry in a minute`);
   // The private marks on Log today save, and reach the Coach (dayDigest is what Claude is sent about a day).
   const pv = await app.evaluate(async () => {
     logDate = todayKey(); renderLog();
@@ -159,7 +171,7 @@ try {
   if (!v310Ok) console.error(`FAIL  app start-up: v3.10 layout phone ${JSON.stringify(v310p)} desktop ${JSON.stringify(v310d)}`);
   if (process.env.SHOTS) { await app.setViewport({ width: 1280, height: 2400 }); await app.screenshot({ path: process.env.SHOTS + '/weight.png', fullPage: true });
     await app.evaluate(() => { closeMetric?.(); goTab('dash'); }); await app.screenshot({ path: process.env.SHOTS + '/dash.png' }); }
-  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && sizeOk && arcOk && pvOk && bgOk && v37Ok && v310Ok && !errors.length;
+  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && sizeOk && arcOk && pvOk && hsOk && bgOk && v37Ok && v310Ok && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

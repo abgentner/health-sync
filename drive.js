@@ -152,7 +152,7 @@ const Drive = {
   async scriptStatus() {
     const f = await this.list(`name='health-sync-status.json' and '${this.ids.root}' in parents and trashed=false`);
     if (!f.length) return null;
-    try { return await (await this.api(`files/${f[0].id}?alt=media`)).json(); } catch { return null; }
+    return await (await this.api(`files/${f[0].id}?alt=media`)).json();   // a failed read throws: Data health says so and retries
   },
   async moveToProcessed(f) {
     await this.api(`files/${f.id}?addParents=${this.ids.processed}&removeParents=${this.ids.inbox}&fields=id`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' });

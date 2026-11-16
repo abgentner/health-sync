@@ -443,6 +443,32 @@ describe('Garmin folder: newest-file mark', () => {
   test('with no failures, the mark moves to the newest file', () => eq(nextGarminMark([f('2026-10-01T10:00:00.000Z'), f('2026-10-02T09:00:00.000Z')], [], '2026-09-30T00:00:00.000Z'), '2026-10-02T09:00:00.000Z'));
   test('a failed file holds the mark just before it, so it’s read again', () => eq(nextGarminMark([f('2026-10-01T10:00:00.000Z'), f('2026-10-02T09:00:00.000Z')], [f('2026-10-01T10:00:00.000Z')], null), '2026-10-01T09:59:59.999Z'));
   test('nothing new keeps the mark', () => eq(nextGarminMark([], [], '2026-09-30T00:00:00.000Z'), '2026-09-30T00:00:00.000Z'));
+  // The whole folder read, with a pretend Drive (v3.10.1). Files are named by their time; "bad…" files download but aren't JSON.
+  async function readWith(times, { empty = [], bad = [], fail = {} } = {}) {
+    fresh(); const fetched = [], realStatus = setStatus, realLog = logImport; setStatus = () => {}; logImport = () => {};
+    const files = times.map(t => ({ id: t, name: `garmin-${t.slice(0, 10)}.json`, kind: 'days', modifiedTime: t, size: empty.includes(t) ? '0' : '900' }));
+    window.Drive = { garminFiles: async kind => files.filter(f => f.kind === kind),
+      api: async url => { const id = decodeURIComponent(url.match(/files\/([^?]+)/)[1]); fetched.push(id); await new Promise(r => setTimeout(r, 5));
+        if (fail[id]) throw new Error(fail[id]);
+        return { json: async () => bad.includes(id) ? JSON.parse('') : { date: id.slice(0, 10), data: { steps: { totalSteps: 9000 } } } }; } };
+    try { await readGarminFolder(); } finally { setStatus = realStatus; logImport = realLog; delete window.Drive; }
+    return { fetched, mark: data.garminSeen.days };
+  }
+  const T = ['2026-10-01T10:00:00.000Z', '2026-10-02T10:00:00.000Z', '2026-10-03T10:00:00.000Z'];
+  test('an empty file isn’t downloaded, and doesn’t hold the mark', async () => {
+    const r = await readWith(T, { empty: [T[1]] }); eq([r.fetched.includes(T[1]), r.mark], [false, T[2]]);
+  });
+  test('a file that downloads but can’t be read doesn’t hold the mark (it made every sync re-read every file since)', async () => {
+    const r = await readWith(T, { bad: [T[0]] }); eq(r.mark, T[2]);
+  });
+  test('Drive or network trouble holds the mark, so the file is read again next time', async () => {
+    const r = await readWith(T, { fail: { [T[1]]: 'Google Drive: error 500' } }); eq(r.mark, '2026-10-02T09:59:59.999Z');
+  });
+  test('when Drive says slow down, it stops and leaves the rest for next time', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => new Date(Date.UTC(2026, 9, 1, i)).toISOString());
+    const r = await readWith(many, { fail: { [many[0]]: "Google Drive: Quota exceeded for quota metric 'Total Query Cost' and limit 'Units per minute per user'" } });
+    eq([r.fetched.length <= 6, r.mark], [true, '2026-09-30T23:59:59.999Z']);
+  });
   test('saved data keeps reflections, the Garmin mark and the problems log', () => { const n = normalize({ reflections: { '2026-09-28': { inWay: 'x' } }, garminSeen: { days: 't', parser: 1 }, errors: [{ id: 1 }], errorsClearedAt: 'c' }); eq([!!n.reflections['2026-09-28'], n.garminSeen.days, n.errors.length, n.errorsClearedAt], [true, 't', 1, 'c']); });
 });
 

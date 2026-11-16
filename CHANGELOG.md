@@ -31,6 +31,28 @@
 6. **Push or upload all the app files together.** They only work as a set.
 7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
 
+### v3.10.1 (November 16, 2026) · script 3.10.1 (paste it)
+
+- **Fixed: the Garmin folder was read in full on every sync.** When a Garmin file failed to read, the app held its place just before that file so it would try again. Three files that could never be read (empty second copies, below) held it at Nov 1, so every sync, about every 10 minutes while the app was open, downloaded all ~3,760 Garmin files made since. That's what caused the burst of 174 "Google Drive: Quota exceeded" errors on Nov 15. Now only trouble that can clear up holds the place: Drive being busy, the network, or a timeout. A file that downloads but can't be read is logged once and passed over. Empty files are skipped without downloading. And when Drive asks to slow down, that sync stops and leaves the rest for the next one, instead of asking again for every file.
+- **Fixed: Data health said "No status yet from your script… paste v2.3" when it just couldn't read the status file.** One failed read looked like a script that had never been set up. Now it says **Couldn't check it just now**, keeps what it read before, and tries again in a minute.
+- **Script: no more duplicate files.** Three Garmin files (Nov 2, 6 and 7) had an empty second copy, made seconds after the good one. Saving now trashes extra copies of the same name (keeping the largest), and writes a new file again if it comes back empty. The cause on Google's side isn't proven, so this guards against it rather than explaining it. The three empty copies were moved to Drive's trash by hand on Nov 16; the good copies are unchanged.
+- **Tests:** 211 checks, up from 207: an empty Garmin file isn't downloaded and doesn't hold the place; an unreadable file doesn't either; Drive trouble does; "slow down" stops the run with the rest left for next time. GitHub's start-up check makes the script status unreadable and expects "Couldn't check it just now" and a retry. The private script suite has 75 checks, up from 73: an extra same-name copy is trashed, and an empty new file is written again. Each new check was confirmed to fail before the fix. Not tested against your real Drive: whether the next sync reads only new Garmin files (it should, now that the empty copies are trashed).
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `importers.js` | Garmin folder: which failures hold the place, empty files skipped, stop on "slow down" |
+  | `health.js` | Data health: a failed status read says so and retries; the backups row names 3.8 as the first script with backups |
+  | `drive.js` | A failed read of the script's status now reports the error instead of looking like no status |
+  | `email-to-drive.gs` | `saveJson_`: trashes same-name copies, rewrites an empty new file. **Paste it**, then **Deploy › Manage deployments › ✏️ › New version › Deploy** |
+  | `index.html` | Version 3.10.1 and `SCRIPT_LATEST` 3.10.1 |
+  | `tests.html`, `.github/run-tests.mjs` | The new checks |
+  | `README.md` | Data health's *Couldn't check it just now*; test counts |
+  | `CHANGELOG.md` | This entry |
+  | `SETUP.md`, `ALTERNATIVES.md` | **Version number only** |
+  | Other app files | **Version number only** (the `?v=` tag) |
+  | `config.js` | Not changed |
+
 ### v3.10 (November 8, 2026) · script 3.8 (unchanged, nothing to paste)
 
 **Easier to read and less cluttered: the 19 fixes from the Nov 8 design review**, done at your request during the freeze. No change to your data or the rules, except the Today card's lifting nudge (below).
