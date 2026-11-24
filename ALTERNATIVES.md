@@ -1,6 +1,6 @@
 # Health Sync — Alternatives and extras
 
-> **Version 3.10.2** · November 16, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.10.1) · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.11** · November 23, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.10.1) · [README](README.md) · [Version history](CHANGELOG.md)
 
 Ways to get data in that **aren't part of the standard setup**, kept here in case you need them: manual Garmin files, Garmin's full account export, the free iPhone Shortcut, and Health Auto Export's REST option. The standard setup is in [SETUP.md](SETUP.md).
 

@@ -169,9 +169,45 @@ try {
   await app.setViewport({ width: 800, height: 600 });
   const v310Ok = Object.values(v310p).every(Boolean) && Object.values(v310d).every(Boolean);
   if (!v310Ok) console.error(`FAIL  app start-up: v3.10 layout phone ${JSON.stringify(v310p)} desktop ${JSON.stringify(v310d)}`);
+  // v3.11 appeals, on the real Coach tab with a stand-in for Claude: Appeal opens a form, Send raises the grade by
+  // one letter at most (Claude asked for A+ on an F, so D), the GPA is worked out again, and the button is gone after.
+  const v311 = await app.evaluate(async () => {
+    const realClaude = callClaude, realAuto = autoReviews, prevCfg = data.coachCfg;
+    let sent = null;
+    callClaude = async o => { sent = JSON.parse(o.user); return { decision: 'raise', grade: 'A+', reason: 'You averaged 7,000 steps a day against a usual 4,000.', _cost: 0.01 }; };
+    autoReviews = async () => {};
+    try {
+      data.coachCfg = { ...(prevCfg || {}), apiKey: 'test-key' };
+      const a = addDays(weekStart(todayKey()), -7), key = 'week:' + a, part = { name: 'Steps', detail: '7,000 a day', score: 50, weight: 1 };
+      reviews()[key] = { key, kind: 'week', start: a, end: addDays(a, 6), status: 'done', createdAt: new Date().toISOString(), headline: 'x', summary: 'x', subjects: {},
+        card: { rules: GRADING_RULES, credits: 6, creditsAll: 6, gpa: 2, grade: 'C', subjects: [{ key: 'training', name: 'Training', credits: 3, score: 50, grade: 'F', points: 0, incomplete: '', parts: [part] }, { key: 'calories', name: 'Calories', credits: 3, score: 95, grade: 'A', points: 4, incomplete: '', parts: [part] }] } };
+      goTab('coach'); renderCoach();
+      const btn = document.querySelector(`[data-appeal="${key}|training"]`); if (!btn) return { button: false };
+      btn.click();
+      const ta = document.querySelector(`[data-apf="${key}|training"] textarea`); if (!ta) return { button: true, form: false };
+      ta.value = 'I walked every day but did not start the watch';
+      document.querySelector(`[data-appealgo="${key}|training"]`).click();
+      for (let i = 0; i < 40 && !reviews()[key].card.subjects[0].appeal; i++) await new Promise(r => setTimeout(r, 25));
+      const r = reviews()[key], tr = r.card.subjects[0], html = document.querySelector('#tab-coach').textContent;
+      return { button: true, form: true, asked: sent?.the_users_reason === ta.value && sent?.highest_allowed === 'D', grade: tr.grade === 'F' && tr.appeal?.grade === 'D', gpa: r.gpa === 2.5,
+        shown: /Raised on appeal: F → D/.test(html), once: !document.querySelector(`[data-appeal="${key}|training"]`) };
+    } finally { callClaude = realClaude; autoReviews = realAuto; data.coachCfg = prevCfg; }
+  });
+  // Settings › Coach: picking a focus fills its credits, and changing a credit yourself makes it your own.
+  const v311s = await app.evaluate(() => {
+    goTab('set'); renderCoachSettings();
+    const f = document.querySelector('#rb-focus'), cr = k => document.querySelector(`[data-credit="${k}"]`);
+    const start = f.value === 'calories-walking' && cr('calories').value === '3' && cr('nutrition').value === '1';
+    f.value = 'balanced'; f.onchange(); const filled = cr('nutrition').value === '2';
+    cr('sleep').value = '4'; document.querySelector('#rb-credits').oninput(); const custom = f.value === 'custom';
+    renderCoachSettings();
+    return { start, filled, custom };
+  });
+  const v311Ok = Object.values(v311).every(Boolean) && Object.values(v311s).every(Boolean);
+  if (!v311Ok) console.error(`FAIL  app start-up: v3.11 appeal ${JSON.stringify(v311)} focus ${JSON.stringify(v311s)}`);
   if (process.env.SHOTS) { await app.setViewport({ width: 1280, height: 2400 }); await app.screenshot({ path: process.env.SHOTS + '/weight.png', fullPage: true });
     await app.evaluate(() => { closeMetric?.(); goTab('dash'); }); await app.screenshot({ path: process.env.SHOTS + '/dash.png' }); }
-  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && sizeOk && arcOk && pvOk && hsOk && bgOk && v37Ok && v310Ok && !errors.length;
+  const appOk = saved === 9 && half === '½' && paceOk && hdrOk && sizeOk && arcOk && pvOk && hsOk && bgOk && v37Ok && v310Ok && v311Ok && !errors.length;
   for (const e of errors) console.error('FAIL  app start-up: page error:', e);
   if (saved !== 9) console.error(`FAIL  app start-up: saved steps ${saved}, expected 9`);
   console.log(`app start-up check ${appOk ? 'passed' : 'failed'}`);

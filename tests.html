@@ -277,8 +277,8 @@ describe('Report cards: a week graded from data', () => {
   }
   const g = (c, k) => c.subjects.find(s => s.key === k);
   test('anchors: boxes ticked against the goal, capped at 100%', () => { const c = week(); eq(g(c, 'anchors').grade, 'A+'); ok(g(c, 'anchors').parts[0].detail.startsWith('27 of'), 'detail', g(c, 'anchors').parts[0].detail); });
-  test('nutrition: six parts, protein hit on 6 of 7 days', () => { const c = week(); eq(g(c, 'nutrition').parts.length, 6); eq(g(c, 'nutrition').parts[0].detail, '6 of 7 days'); });
-  test('training: sessions and strength against target; load drops out without 4 weeks', () => { const p = g(week(), 'training').parts; eq([p[0].detail, p[1].detail, p[2].score], ['4 of 4', '2 of 2', null]); });
+  test('food quality: five parts, protein first and hit on 6 of 7 days; calories are their own subject', () => { const c = week(); eq(g(c, 'nutrition').name, 'Food quality'); eq(g(c, 'nutrition').parts.length, 5); eq(g(c, 'nutrition').parts[0].detail, '6 of 7 days'); eq(g(c, 'nutrition').parts[0].weight, 40); });
+  test('training: no steps or history → steps drop out, sessions against the rubric, strength 1 a week, load drops out', () => { const p = g(week(), 'training').parts; eq([p[0].score, p[1].detail, p[2].detail, p[3].score], [null, '4 of 4', '2 of 1', null]); });
   test('sleep habits include the bedtime part', () => { ok(/min off/.test(g(week(), 'sleep').parts[2].detail)); });
   test('assignments are incomplete when none were set, and left out of the GPA', () => { const c = week(); eq(g(c, 'assignments').grade, 'I'); eq([c.credits, c.creditsAll], [11, 12]); });
   test('GPA is the credit-weighted average', () => { const c = week(), s = c.subjects.filter(x => x.points != null); eq(c.gpa, Math.round(s.reduce((a, x) => a + x.points * x.credits, 0) / s.reduce((a, x) => a + x.credits, 0) * 100) / 100); });
@@ -286,6 +286,59 @@ describe('Report cards: a week graded from data', () => {
   test('skipping the log on a bad day costs Logging (no loophole)', () => { const a = week(), b = week({ skipSaturday: true }); ok(g(b, 'logging').score < g(a, 'logging').score, 'logging lower'); ok(g(b, 'nutrition').score >= g(a, 'nutrition').score, 'nutrition no lower'); });
   test('assignments graded from marks: done 1, partly ½, missed 0', () => { const c = finishCard(gradeSubjects(W, addDays(W, 6)), [{ status: 'done' }, { status: 'partly' }, { status: 'missed' }, { status: 'done' }]); eq(g(c, 'assignments').score, 62.5); });
   test('nutrition is incomplete with too few logged days', () => { week(); for (let i = 0; i < 5; i++) getDay(addDays(W, i)).food = []; eq(g(finishCard(gradeSubjects(W, addDays(W, 6)), []), 'nutrition').grade, 'I'); });
+});
+
+describe('Report cards: graded against your own weeks (v3.11)', () => {
+  const W = '2026-09-21';
+  // 4 weeks of light walking before W (4,000 steps, two 15-min walks a week), then a week of 7,000 steps and five
+  // 35-min easy walks, no lifting. Food under the day goal every day, but salty and sugary.
+  function walkingWeek({ cal = 1700, before = true } = {}) {
+    fresh();
+    if (before) for (let i = 28; i >= 1; i--) { const k = addDays(W, -i), d = day(k); d.steps = 4000; if (i % 7 === 2 || i % 7 === 5) d.workouts.push({ id: 'b' + i, source: 'garmin', type: 'Walking', title: 'Walk', start: '07:00', durationMin: 15 }); }
+    for (let i = 0; i < 7; i++) {
+      const k = addDays(W, i), d = day(k);
+      d.steps = 7000;
+      d.food = [{ id: 'f' + i, source: 'loseit', name: 'Burrito', meal: 'Dinner', calories: cal, protein: 110, fiber: 20, sodium: 3500, satFat: 25, sugar: 60 }];
+      d.loseItGen = d.loseItAt = new Date(keyToDate(addDays(k, 1)).getTime() + 8 * 36e5).toISOString();
+      if (i < 5) d.workouts.push({ id: 'w' + i, source: 'garmin', type: 'Walking', title: 'Walk', start: '07:00', durationMin: 35, zones: [20, 15, 0, 0, 0] });
+    }
+    return finishCard(gradeSubjects(W, addDays(W, 6)), []);
+  }
+  const g = (c, k) => c.subjects.find(s => s.key === k);
+  test('a week of walking more than usual, with no lifting, is not an F (B or better)', () => { const t = g(walkingWeek(), 'training'); ok(t.points >= 3, 'training grade', t.grade, t.parts); });
+  test('steps are graded against your last 4 weeks plus a step', () => { const p = g(walkingWeek(), 'training').parts[0]; eq(p.score, 100); ok(/7,000/.test(p.detail) && /4,000/.test(p.detail), 'says this week and usual', p.detail); });
+  test('sessions target starts from your last 4 weeks (2 a week → 3)', () => eq(g(walkingWeek(), 'training').parts[1].detail, '5 of 3'));
+  test('a rise in easy walking counts as building, not as a spike', () => { const p = g(walkingWeek(), 'training').parts[3]; eq(p.score, 100); });
+  test('holding your usual steps is a B, not an F', () => {
+    fresh(); for (let i = 28; i >= 1; i--) day(addDays(W, -i)).steps = 6000; for (let i = 0; i < 7; i++) day(addDays(W, i)).steps = 6000;
+    const p = g(finishCard(gradeSubjects(W, addDays(W, 6)), []), 'training').parts[0]; eq(p.score, 85);
+  });
+  test('strength set to 0 a week drops out instead of breaking the grade', () => {
+    walkingWeek(); data.coachCfg = { rubric: { strengthPerWeek: 0 } };
+    const t = g(finishCard(gradeSubjects(W, addDays(W, 6)), []), 'training'); eq(t.parts[2].score, null); ok(Number.isFinite(t.score), 'score is a number', t.score);
+  });
+  test('calories: every day between the floor and the day goal is an A+, whatever the sodium', () => { const c = walkingWeek(); eq(g(c, 'calories').grade, 'A+'); ok(g(c, 'nutrition').points < 2, 'food quality still low'); ok(c.gpa >= 3, 'overall B or better', c.gpa); });
+  test('calories: days well under the floor lose credit', () => eq(g(walkingWeek({ cal: 1200 }), 'calories').grade, 'F'));
+  test('calories: a little over the day goal is half credit', () => eq(g(walkingWeek({ cal: 2100 }), 'calories').score, 50));
+  test('the default focus is Calories + walking: they carry the most credits', () => { const c = walkingWeek(); eq([g(c, 'calories').credits, g(c, 'training').credits, g(c, 'nutrition').credits], [3, 3, 1]); eq(rubric().focus, 'calories-walking'); });
+  test('a custom focus uses your own credits', () => { fresh(); data.coachCfg = { rubric: { focus: 'custom', credits: { nutrition: 4 } } }; eq([rubric().credits.nutrition, rubric().credits.calories], [4, 3]); });
+});
+describe('Report cards: appeals', () => {
+  test('an appeal can raise a grade by one letter at most', () => eq(['F', 'D-', 'D', 'D+', 'C', 'B+', 'A-', 'A', 'A+'].map(appealCap), ['D', 'C-', 'C', 'C+', 'B', 'A+', 'A+', 'A+', 'A+']));
+  test('a granted grade is held between the rules grade and the cap', () => eq([appealGrade('F', 'A'), appealGrade('C', 'B-'), appealGrade('C', 'D'), appealGrade('B', 'zz')], ['D', 'B-', 'C', 'B']));
+  test('an appeal changes the GPA; the rules grade is kept', () => {
+    const card = { subjects: [{ key: 'training', name: 'Training', credits: 3, grade: 'F', points: 0 }, { key: 'calories', name: 'Calories', credits: 3, grade: 'A', points: 4 }] };
+    applyAppeals(card, { training: { decision: 'raise', grade: 'A', reason: 'x' } });
+    eq([card.subjects[0].grade, card.subjects[0].appeal.grade, card.gpa], ['F', 'D', 2.5]);
+  });
+  test('a turned-down appeal leaves the grade and GPA as they were', () => {
+    const card = { subjects: [{ key: 'training', name: 'Training', credits: 3, grade: 'F', points: 0 }, { key: 'calories', name: 'Calories', credits: 3, grade: 'A', points: 4 }] };
+    applyAppeals(card, { training: { decision: 'stand', grade: 'F', reason: 'x' } }); eq(card.gpa, 2);
+  });
+  test('cards graded under older rules are not rewritten just because the rules changed', () => {
+    eq(gradeChanges({ card: { subjects: [{ key: 'training', grade: 'F' }] } }, { rules: GRADING_RULES, subjects: [{ key: 'training', name: 'Training', grade: 'B' }] }), '');
+    eq(gradeChanges({ card: { rules: GRADING_RULES, subjects: [{ key: 'training', grade: 'F' }] } }, { rules: GRADING_RULES, subjects: [{ key: 'training', name: 'Training', grade: 'B' }] }), 'Training F → B');
+  });
 });
 
 describe('Weight-loss pace alarm', () => {
@@ -657,7 +710,7 @@ describe('Maintenance phases', () => {
 describe('Today: one thing to do', () => {
   test('no strength this week and none for 3+ days → a good day to lift', () => {
     fresh(); const k = '2026-10-29'; day('2026-10-20').workouts = [{ title: 'Strength', type: 'strength_training', durationMin: 40 }];
-    const s = todaySuggestion(k); eq([s.kind, s.strength.n, s.strength.target], ['lift', 0, 2]); ok(/last session/.test(s.why[0]), 'says when', s.why);
+    const s = todaySuggestion(k); eq([s.kind, s.strength.n, s.strength.target], ['lift', 0, 1]); ok(/last session/.test(s.why[0]), 'says when', s.why);
   });
   test('lifted today, or 2 this week already → nothing to say', () => {
     fresh(); const k = '2026-10-29'; day(k).workouts = [{ title: 'Gym', durationMin: 40 }]; eq(todaySuggestion(k).kind, null);
@@ -709,6 +762,14 @@ describe('Upgrading saved data', () => {
     eq([d.anchorCfg.names.length, d.anchorCfg.rules[1].min], [2, 30]);
   });
   test('running it twice changes nothing', () => { const a = normalize({ anchorCfg: { names: ['A', 'B', 'C'], rules: [], target: 17 } }), b = normalize(JSON.parse(JSON.stringify(a))); eq(b, a); });
+  test('v3.11: report card settings left at the old defaults move to the new focus and 1 strength a week', () => {
+    const d = normalize({ schemaVersion: 3, coachCfg: { rubric: { proteinG: 120, strengthPerWeek: 2, credits: { anchors: 3, nutrition: 3, logging: 1, training: 2, sleep: 2, assignments: 1 } } } });
+    eq([d.coachCfg.rubric.proteinG, d.coachCfg.rubric.strengthPerWeek, d.coachCfg.rubric.credits, d.coachCfg.rubric.focus], [120, undefined, undefined, undefined]);
+  });
+  test('v3.11: credits you changed yourself are kept, as a custom focus', () => {
+    const d = normalize({ schemaVersion: 3, coachCfg: { rubric: { strengthPerWeek: 3, credits: { anchors: 5, nutrition: 3, logging: 1, training: 2, sleep: 2, assignments: 1 } } } });
+    eq([d.coachCfg.rubric.focus, d.coachCfg.rubric.credits.anchors, d.coachCfg.rubric.strengthPerWeek], ['custom', 5, 3]);
+  });
   test('anchorCfg() no longer upgrades on read (data that skipped migrate stays as it is)', () => {
     fresh(); data.anchorCfg = { names: ['A', 'B', 'C'], rules: [{ type: 'workout', min: 10 }, null, null], target: 17, v: 1 }; eq([anchorCfg().names.length, anchorCfg().rules[0].min], [3, 10]);
   });

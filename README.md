@@ -1,6 +1,6 @@
 # Health Sync
 
-> **Version 3.10.2** · November 16, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.10.1) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
+> **Version 3.11** · November 23, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.10.1) · [Setup](SETUP.md) · [Alternatives](ALTERNATIVES.md) · [Version history](CHANGELOG.md)
 
 **Health Sync is your private health dashboard.** It brings **food, workouts, steps, sleep, weight, heart rate and how you feel** together in one place, and it updates itself. A Claude-powered **Coach** reviews each week.
 
@@ -243,17 +243,27 @@ How hard to train, and whether your training is building sensibly. It uses the d
 
 **Report cards**, like school: every week, month, quarter and year gets a grade for each subject, and a GPA. Set up in [SETUP.md Step 12](SETUP.md#step-12--report-cards-by-claude-weekly-monthly-quarterly-yearly).
 
-**The app works out every grade from your data with fixed rules, and Claude only writes the words.** So the same data always gets the same grade, a B means the same thing in a week as in a year, and you can see exactly why you got it. The one exception is Assignments, which Claude marks from the data.
+**The app works out every grade from your data with rules, and Claude writes the words.** So the same data always gets the same grade, and you can see exactly why you got it.
+- **Graded against your own weeks (since v3.11).** Steps and workouts are graded against what you did in the 4 weeks before, plus a step. If you've been walking 4,000 steps a day, 4,200 is full marks, and the target rises as you do, up to your step goal. Walking more than your usual is the plan working, and the grade says so.
+- **For weight loss, calories decide.** Calories are their own subject: a day between your calorie floor and the day's goal is a win, whatever its sodium. Food quality is graded separately and counts for less.
+- **You pick the focus.** **Settings › Coach › What you're working on** says which subjects carry the most credits. The default is **Calories + walking**.
+- **You can appeal a grade.** See *Appeals* below.
+- Assignments are the one subject Claude marks itself, from the data.
 
 **What's graded, and how** (all targets editable in **Settings › Coach › Report card targets**):
 
 | Subject | Credits | Score |
 |---|---|---|
-| **Daily anchors** | 3 | Boxes ticked ÷ your weekly goal (23 of 28), scaled to the period, up to 100% |
-| **Nutrition** | 3 | Food *quality* on fully logged days: protein ≥ 100 g (25%), fiber ≥ 25 g (20%), sodium ≤ 2,300 mg (20%), saturated fat ≤ 10% of calories (15%), sugars ≤ 50 g (10%), calories ≥ 1,500 (10%). Each part is the share of days that hit it, with half credit within 10% of the target. Calories against your budgets are already graded under anchors, so they aren't counted twice. Needs 4 fully logged days a week, otherwise **I** |
-| **Logging** | 1 | Days fully logged in Lose It. **This closes a loophole:** without it, skipping the log on a bad day would raise your Nutrition grade |
-| **Training** | 2 | Workouts of 10+ minutes from Garmin or Strava against 4 a week (35%), strength against 2 a week (30%), load against your usual week, 0.8–1.3× (20%), hard share of zone minutes ≤ 25% (15%) |
-| **Sleep habits** | 2 | Average sleep against 7 h, with zero at 6 h (50%), nights of 7 h or more (25%), in bed within 30 minutes of 10:00 pm, with zero at 90+ minutes off (25%) |
+Credits are for the default focus, **Calories + walking**. **Everything evenly** gives Calories, Training, Daily anchors, Food quality and Sleep 2 each; **My own credits** lets you set them.
+
+| Subject | Credits | Score |
+|---|---|---|
+| **Calories** | 3 | Fully logged days from your calorie floor (1,500) up to the day's goal (1,950 by default, or your maintenance calories while practising maintenance). Half credit for a day up to 10% over the goal, or up to 10% under the floor. Further under the floor is a miss, because eating too little costs muscle. Needs 4 fully logged days a week, otherwise **I** |
+| **Training** | 3 | **Steps** against your last 4 weeks plus 5%, up to your step goal (35%): full marks at the target, 85% (a B) for holding your usual, less below it. **Sessions** of 10+ minutes from Garmin or Strava, walks included, against your usual week plus one, up to 4 a week (25%). **Strength** against 1 a week (15%; set it to 0 to leave it out). **Load** against your usual week (15%): 0.8–1.3× is steady, and a rise that's mostly easy walking counts as building, not as a spike. **Hard share** of zone minutes ≤ 25% (10%) |
+| **Daily anchors** | 2 | Boxes ticked ÷ your weekly goal (23 of 28), scaled to the period, up to 100% |
+| **Food quality** | 1 | What the calories were made of, on fully logged days: protein ≥ 100 g (40%), fiber ≥ 25 g (15%), sodium ≤ 2,300 mg (15%), saturated fat ≤ 10% of calories (15%), sugars ≤ 50 g (15%). Each part is the share of days that hit it, with half credit within 10% of the target. Protein leads because it's what keeps the weight you lose from being muscle |
+| **Logging** | 1 | Days fully logged in Lose It. **This closes a loophole:** without it, skipping the log on a bad day would raise your Calories and Food quality grades |
+| **Sleep habits** | 1 | Average sleep against 7 h, with zero at 6 h (50%), nights of 7 h or more (25%), in bed within 30 minutes of 10:00 pm, with zero at 90+ minutes off (25%) |
 | **Assignments** | 1 | Last period's assignments, marked by Claude as done (1), partly (½) or missed (0), with the evidence |
 
 - **Grade scale:** 97+ A+, 93 A, 90 A−, 87 B+, 83 B, 80 B−, 77 C+, 73 C, 70 C−, 67 D+, 63 D, 60 D−, below 60 F.
@@ -284,6 +294,13 @@ How hard to train, and whether your training is building sensibly. It uses the d
 - **A period that's still running** shows its grades so far, worked out live (the dashed badge).
 - **A past period without a written card** still shows its grades from the data, with a **Write report** button.
 - **Weekly reviews written before v3.2** keep their old layout until you Regenerate them, or until their data changes.
+- **Report cards written before v3.11** keep the grades they were given under the old rules. They aren't rewritten just because the rules changed; **Regenerate** one to grade it again under the new rules.
+
+**Appeals (since v3.11):** under each subject on a written report card, **Appeal this grade** asks you why it's wrong.
+- **What happens:** Claude checks your reason against that period's data and the subject's numbers. It raises the grade when the data backs you, or when the rules missed something: a walk you didn't record as a workout, illness, travel, food logged wrong, a target that doesn't fit where you're starting from. It turns the appeal down when the data says otherwise, or when the only reason is that the grade feels harsh.
+- **At most one letter:** F can become D, C can become B, B+ can become A+. It's never lowered.
+- **What you see:** *Raised on appeal: F → D* or *Appeal turned down: F stands*, with Claude's reason and what you said. The appealed grade counts in the GPA, and the grade from the rules stays on the card next to it.
+- **One appeal per subject per report card.** It costs about 1–2¢. An appeal stays if the card is rewritten, unless the rules grade it was made against changes.
 
 **Other controls:**
 - **More swap ideas:** asks Claude for more swaps within your plan's rules.
@@ -595,7 +612,7 @@ No. That was one-time setup. The weekly re-approval happens inside the app's own
 
 **`tests.html`** checks the importers and the rules against **made-up** sample files. Open it from any computer, at `https://YOUR-USERNAME.github.io/health-sync/tests.html` or from a copy of the repository. It shows every check in green or red, with the total at the top. **All green means nothing that used to work has broken.** GitHub also runs it automatically on every change, and **publishes only if it's all green** (see Updating the app).
 
-- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 216 checks as of v3.10.2 (plus the type check and 6 screenshots), including Withings, body composition, waist, push-ups, your learned burn, maintenance phases, Today and assignment results. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
+- **It covers:** Apple Health sleep in every format, which source wins, Garmin day and workout files, keeping one copy of each workout (Garmin, CSV, Strava, Lose It), Lose It reports, training load, intensity, readiness, pain flags, the weight trend and pace alarm, alcohol, patterns, the Garmin file mark, the report-card grades, GPA and period dates, **saving from two devices** (with a pretend Drive), that nothing you save is silently dropped, and that every file carries the same version. That's 234 checks as of v3.11 (plus the type check and 6 screenshots), including Withings, body composition, waist, push-ups, your learned burn, maintenance phases, Today and assignment results. GitHub's run also starts the real app with a made-up day, saves an edit, and fails if the page shows any error.
 - **It has no health data in it,** so it's safe on GitHub and public.
 - **It doesn't cover** the Lose It PDF reader or the screens. Check those by using the app.
 - **When something is fixed or added, a check for it goes in here,** so it can't break again unnoticed.

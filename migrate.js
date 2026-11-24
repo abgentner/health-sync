@@ -5,7 +5,7 @@
 // a device that hasn't opened the app for months still has to go through it. tests.html checks every step.
 // Loaded after rules.js (the steps use its defaults) and before sync.js.
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const MIGRATIONS = [
   { to: 1, from: 'v1.3', why: 'Day Pack moved from "3 shakes" to a daytime calorie budget (only if never customised)',
     run: d => {
@@ -29,6 +29,15 @@ const MIGRATIONS = [
       c.rules = (c.rules || []).map(r => r?.type === 'steps' && r.half == null ? { ...r, half: 5000 } : r?.type === 'workout' ? { ...r, min: 20 } : r);
       c.hints = (c.hints || []).map(h => h in OLD ? ANCHOR_DEFAULTS.hints[OLD[h]] : h);
       c.v = 3;
+    } },
+  { to: 4, from: 'v3.11', why: 'report cards graded against your own weeks: settings still at the old defaults move to the Calories + walking focus and 1 strength session a week; credits you set yourself are kept as a custom focus',
+    run: d => {
+      const r = d.coachCfg?.rubric; if (!r) return;
+      const OLD = { anchors: 3, nutrition: 3, logging: 1, training: 2, sleep: 2, assignments: 1 };
+      if (r.strengthPerWeek === 2) delete r.strengthPerWeek;
+      if (!r.credits) return;
+      if (Object.keys(OLD).every(k => r.credits[k] === OLD[k]) && Object.keys(r.credits).every(k => k in OLD)) delete r.credits;
+      else if (!r.focus) { r.focus = 'custom'; r.credits = { calories: 3, ...r.credits }; }
     } },
 ];
 function migrate(d) {

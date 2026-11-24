@@ -31,6 +31,65 @@
 6. **Push or upload all the app files together.** They only work as a set.
 7. **GitHub runs the type check, the tests and the screenshot comparison, and publishes only if all three pass.** Check for the ✅ next to the change on GitHub. A ❌ means it wasn't published: open it to see the failing check, or the changed screens under Artifacts. If a screen change was meant, run **Actions › Update screenshots**. Then, **only if the script changed**, paste it into script.google.com.
 
+### v3.11 (November 23, 2026) · script 3.10.1 (unchanged, nothing to paste)
+
+**Report cards are graded against your own weeks, calories are their own subject, and you can appeal a grade.** You said the Coach gave a walking week an F and marked you down while you were under your calorie budget: "it's not the tone, it's the complete intractability of it." The grades came from fixed rules that couldn't see where you were starting from, and nothing could change them.
+- **Why a walking week got an F:**
+  - Training counted only workouts started in Garmin or Strava. Steps didn't count at all.
+  - 30% of the grade was strength, at 2 sessions a week.
+  - Walking far more than your usual week scored 0 for load, as an injury "spike".
+  - A new check shows the old rules giving that exact week an F.
+- **New: Training is graded against your last 4 weeks.**
+  - **Steps (35%):** against your usual plus 5%, up to your step goal. Full marks at the target, a B for holding your usual.
+  - **Sessions (25%):** against your usual week plus one, up to 4. Walks recorded on Garmin count.
+  - **Strength (15%):** against 1 a week. A target of 0 leaves it out; before, 0 would have broken the grade.
+  - **Load (15%):** a rise that's mostly easy walking counts as building, not as a spike.
+  - **Hard share (10%):** unchanged.
+- **New: Calories is its own subject**, worth 3 credits. A fully logged day between the floor (1,500) and the day's goal is full credit, whatever its sodium. Up to 10% over the goal, or up to 10% under the floor, is half. Further under the floor is a miss.
+- **Nutrition is now Food quality**, worth 1 credit. Protein is 40% of it. The 1,500 minimum moved to Calories.
+- **New: a focus**, in **Settings › Coach › What you're working on**:
+  - **Calories + walking** is the default: Calories 3 and Training 3, then Daily anchors 2, and 1 each for Food quality, Logging, Sleep and Assignments.
+  - **Everything evenly**, or **My own credits**.
+  - Report card settings still at the old defaults moved to Calories + walking and 1 strength session a week. Credits you'd changed yourself are kept, as My own credits.
+- **New: appeals.** **Appeal this grade** under each subject on a written report card:
+  - You say why the grade is wrong, and Claude checks that against the period's data.
+  - It can raise the grade by **at most one letter** (F → D, C → B, B+ → A+), never lower it, and says why.
+  - The raised grade counts in the GPA, and the grade from the rules stays on the card.
+  - One appeal per subject per card. An appeal survives a rewrite while the rules grade it was made against doesn't change.
+- **The Coach is told that progress counts.** It credits walking more than your usual with the numbers, never calls it "just walking", and treats calories as what decides weight loss. Food quality is a side note. A day well under the floor is still called out.
+- **Old report cards keep their grades.** Cards written under the old rules aren't rewritten just because the rules changed: that would have rewritten every past month at once, at a cost. **Regenerate** a card to grade it again.
+- **Tests:** 234 checks, up from 216.
+  - The walking week is a B or better.
+  - Steps are graded from your usual, and holding it is a B.
+  - Strength 0 drops out.
+  - A week under budget is an A+ in Calories however salty it is; well under the floor is an F, and a little over the goal is half.
+  - The focus credits.
+  - The one-letter cap, held both ways, and its effect on the GPA.
+  - Old cards aren't rewritten.
+  - The settings upgrade.
+  - GitHub's start-up check now clicks **Appeal** on the real Coach tab with a stand-in for Claude: an F asked up to A+ comes back as D, and the GPA changes. It also checks that picking a focus fills its credits.
+  - The first new checks and the appeal start-up check failed before the fix, or with the one-letter cap broken on purpose.
+  - All real-file suites pass, today and 60 days ahead.
+- **Screens:** only Weight changes (42 pixels: strength 1 a week instead of 2), under the comparison's limit.
+- **Files in this release:**
+
+  | File | What changed |
+  |---|---|
+  | `rules.js` | Calories subject; Training against your last 4 weeks (`movementBaseline`); Food quality weights; focus and credits (`FOCUSES`); appeals (`appealCap`, `appealGrade`, `applyAppeals`); `gradeChanges` and `GRADING_RULES` so old cards aren't rewritten |
+  | `coach.js` | Appeal button, form and Claude call; the progress paragraph in both Coach prompts; focus sent to Claude; appeals kept over a rewrite; focus in Settings |
+  | `migrate.js` | Step 4: old default report card settings → the new focus and 1 strength a week |
+  | `main.js` | Appeal clicks on the Coach tab |
+  | `index.html` | Settings › Coach: focus picker and new wording; appeal styles; version 3.11 |
+  | `tests.html` | 18 new checks; 3 updated for the new rules |
+  | `.github/run-tests.mjs` | Start-up check: appeal and focus |
+  | `README.md` | Coach › what's graded, Appeals; test count |
+  | `SETUP.md` | Step 12 wording |
+  | `CHANGELOG.md` | This entry |
+  | `ALTERNATIVES.md` | **Version number only** |
+  | Other app files | **Version number only** (the `?v=` tag) |
+  | `email-to-drive.gs` | Not changed (3.10.1) |
+  | `config.js` | Not changed |
+
 ### v3.10.2 (November 16, 2026) · script 3.10.1 (unchanged, nothing more to paste)
 
 - **Fixed: the real reason the Garmin folder was read in full on every sync.** Each save combines this device's copy of your data with the one in Drive. For the Garmin folder's place marker, that step always kept the **earlier** of the two, so a saved marker could never move forward. It stuck at Nov 1, 02:48, the first save after v3.3.1. From then on, every sync re-read every Garmin file made since. Now the marker is merged like every other change: a marker this device moved is kept, and one only the other device moved is kept from there. Only when both moved it does the earlier one win, so neither device skips a file. 3.10.1's changes still help (empty files skipped, a stop when Drive says slow down), but alone they couldn't fix this: on your real data, 3.10.1 moved the marker to Nov 11 and the save put it back to Nov 1.

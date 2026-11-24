@@ -1,6 +1,6 @@
 # Health Sync — Setup from scratch
 
-> **Version 3.10.2** · November 16, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.10.1) · [README](README.md) · [Version history](CHANGELOG.md)
+> **Version 3.11** · November 23, 2026 · same version as the app and the other docs (the Google script has its own number, now 3.10.1) · [README](README.md) · [Version history](CHANGELOG.md)
 
 This is the one-time setup, in the order that matches **your** setup: GitHub hosting, your Google Drive, Lose It report emails, Strava, Health Auto Export (Garmin + Withings via Apple Health), the Claude Coach, and Garmin straight from Garmin. Everyday use is in [README.md](README.md). Other ways to get data in are in [ALTERNATIVES.md](ALTERNATIVES.md).
 
@@ -487,7 +487,7 @@ Once set up, this runs on its own in the background. You never export anything b
 
 ## Step 12 — Report cards by Claude: weekly, monthly, quarterly, yearly
 
-**What this does:** Health Sync grades each week, month, quarter and year like a school report card (README › Coach). **The app works out the grades and GPA itself, from your data, with fixed rules.** Claude writes the words: a summary, and praise, criticism and a suggestion for each subject. It also marks last period's assignments and sets the next ones.
+**What this does:** Health Sync grades each week, month, quarter and year like a school report card (README › Coach). **The app works out the grades and GPA itself, from your data, with rules that start from your own last 4 weeks.** You can appeal a grade, and Claude can raise it by up to one letter. Claude writes the words: a summary, and praise, criticism and a suggestion for each subject. It also marks last period's assignments and sets the next ones.
 
 - **Weekly:** every Monday from noon, once Sunday's Lose It report is in.
 - **Monthly:** on the 1st, from noon. **Quarterly:** on the first day of each quarter. **Yearly:** on January 1.

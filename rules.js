@@ -690,10 +690,23 @@ function findPatterns(end, days = 90) {
 /* ================= report cards: grades worked out from the data by fixed rules ================= */
 // The app grades; Claude only writes the words. So the same data always gets the same grade, and a GPA means the same
 // thing in a week as in a year. Every number below is editable in Settings › Coach › Report card.
-const RUBRIC_DEFAULT = { proteinG: 100, calorieFloor: 1500, sessionsPerWeek: 4, sessionMinMinutes: 10, strengthPerWeek: 2, sleepHours: 7, bedtime: '22:00',
-  credits: { anchors: 3, nutrition: 3, logging: 1, training: 2, sleep: 2, assignments: 1 } };
-const rubric = () => { const r = data.coachCfg?.rubric || {}; return { ...RUBRIC_DEFAULT, ...r, credits: { ...RUBRIC_DEFAULT.credits, ...(r.credits || {}) } }; };
-const SUBJECTS = [['anchors', 'Daily anchors'], ['nutrition', 'Nutrition'], ['logging', 'Logging'], ['training', 'Training'], ['sleep', 'Sleep habits'], ['assignments', 'Assignments']];
+// The focus says what you're working on this phase, and so which subjects carry the most credits (v3.11).
+// "custom" uses the credits you set yourself in Settings › Coach.
+const FOCUSES = {
+  'calories-walking': { name: 'Calories + walking', credits: { calories: 3, training: 3, anchors: 2, nutrition: 1, logging: 1, sleep: 1, assignments: 1 } },
+  balanced: { name: 'Everything evenly', credits: { calories: 2, training: 2, anchors: 2, nutrition: 2, logging: 1, sleep: 2, assignments: 1 } },
+};
+// sessionsPerWeek and strengthPerWeek are where the targets top out: below that, they start from your own last 4 weeks.
+const RUBRIC_DEFAULT = { proteinG: 100, calorieFloor: 1500, sessionsPerWeek: 4, sessionMinMinutes: 10, strengthPerWeek: 1, sleepHours: 7, bedtime: '22:00',
+  focus: 'calories-walking', credits: FOCUSES['calories-walking'].credits };
+const rubric = () => {
+  const r = data.coachCfg?.rubric || {}, focus = r.focus === 'custom' || FOCUSES[r.focus] ? r.focus : RUBRIC_DEFAULT.focus;
+  return { ...RUBRIC_DEFAULT, ...r, focus, credits: focus === 'custom' ? { ...RUBRIC_DEFAULT.credits, ...(r.credits || {}) } : { ...FOCUSES[focus].credits } };
+};
+const SUBJECTS = [['calories', 'Calories'], ['training', 'Training'], ['anchors', 'Daily anchors'], ['nutrition', 'Food quality'], ['logging', 'Logging'], ['sleep', 'Sleep habits'], ['assignments', 'Assignments']];
+// Raise this when the rules change what a grade means. Report cards written under older rules keep their grades and
+// are not rewritten just because the rules changed (that would rewrite every old month at once).
+const GRADING_RULES = 2;
 const GRADE_STEPS = [[97, 'A+', 4], [93, 'A', 4], [90, 'A-', 3.7], [87, 'B+', 3.3], [83, 'B', 3], [80, 'B-', 2.7], [77, 'C+', 2.3], [73, 'C', 2], [70, 'C-', 1.7], [67, 'D+', 1.3], [63, 'D', 1], [60, 'D-', 0.7], [0, 'F', 0]];
 const toGrade = score => { const g = GRADE_STEPS.find(([min]) => score >= +min - 1e-9); return { grade: g[1], points: g[2] }; };
 const GPA_STEPS = [[3.85, 'A'], [3.5, 'A-'], [3.15, 'B+'], [2.85, 'B'], [2.5, 'B-'], [2.15, 'C+'], [1.85, 'C'], [1.5, 'C-'], [1.15, 'D+'], [0.85, 'D'], [0.5, 'D-'], [0, 'F']];
@@ -712,6 +725,14 @@ function scoreParts(parts) {
   const live = parts.filter(p => p.score != null), w = live.reduce((s, p) => s + p.weight, 0);
   return w ? Math.round(live.reduce((s, p) => s + p.score * p.weight, 0) / w * 1000) / 10 : null;
 }
+// What you've been doing in the 4 weeks before a period: average daily steps (needs 7 days of steps) and sessions a
+// week. null means no history to start from.
+function movementBaseline(start) {
+  const ks = windowKeys(addDays(start, -1), 28), R = rubric(), D = ks.map(getDay);
+  const st = D.map(d => d?.steps).filter(x => x != null), any = D.some(d => d && (d.steps != null || d.workouts?.length || d.food?.length));
+  const n = D.reduce((s, d) => s + (d?.workouts || []).filter(w => ['garmin', 'strava'].includes(w.source) && (w.durationMin || 0) >= R.sessionMinMinutes).length, 0);
+  return { steps: st.length >= 7 ? avg(st) : null, sessions: any ? n / 4 : null };
+}
 function gradeSubjects(start, end) {
   const R = rubric(), ks = windowKeys(end, Math.round((+keyToDate(end) - +keyToDate(start)) / 864e5) + 1).filter(k => k < todayKey());
   const n = ks.length, weeks = n / 7, D = ks.map(k => [k, getDay(k)]), out = {};
@@ -719,36 +740,61 @@ function gradeSubjects(start, end) {
   // Daily anchors: boxes ticked against the weekly goal, scaled to the period.
   { const c = anchorCfg(), got = D.reduce((s, [, d]) => s + anchorCount(d), 0), goal = c.target * weeks;
     out.anchors = { parts: [{ name: 'Boxes ticked vs goal', weight: 1, score: clamp01(got / goal), detail: `${boxN(got)} of a goal of ${Math.round(goal)} (${c.target} a week)` }] }; }
-  // Nutrition: food quality on fully logged days. Calories are graded under the anchors (Day Pack, Dinner Boundary).
+  // Calories (v3.11): for weight loss, calories decide. A fully logged day between the calorie floor and the day's
+  // goal is full credit; a little over the goal, or a little under the floor, is half. Under the floor by more is a
+  // miss, because eating too little costs muscle.
+  { const R0 = rubric(), full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).map(([k, d]) => ({ k, cal: totals(d).calIn, goal: dayGoalOn(k) }));
+    const need = Math.max(3, Math.ceil(n * 4 / 7)), floor = R0.calorieFloor;
+    const dayScore = x => !x.goal ? (x.cal >= floor ? 1 : x.cal >= floor * 0.9 ? 0.5 : 0)
+      : x.cal >= floor && x.cal <= x.goal ? 1 : (x.cal > x.goal && x.cal <= x.goal * 1.1) || (x.cal < floor && x.cal >= floor * 0.9) ? 0.5 : 0;
+    const goals = [...new Set(full.map(x => x.goal).filter(Boolean))];
+    out.calories = full.length >= need ? { parts: [{ name: `Days from ${fmtN(floor)} up to ${goals.length === 1 ? fmtN(goals[0]) : 'the day’s goal'}`, weight: 1, score: full.reduce((s, x) => s + dayScore(x), 0) / full.length,
+      detail: `${full.filter(x => dayScore(x) === 1).length} of ${full.length} days · average ${fmtN(Math.round(avg(full.map(x => x.cal))))} cal${full.filter(x => x.cal < floor).length ? ` · ${full.filter(x => x.cal < floor).length} under ${fmtN(floor)}` : ''}` }] }
+      : { incomplete: `only ${full.length} fully logged day${full.length === 1 ? '' : 's'} (needs ${need})` }; }
+  // Food quality: what the calories were made of, on fully logged days. Protein leads: it's what keeps the weight
+  // you lose from being muscle.
   { const t = coachCfg().targets, full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).map(([k, d]) => totals(d));
     const share = f => full.length ? full.reduce((s, x) => s + f(x), 0) / full.length : null;
     const hit = f => `${full.filter(x => f(x) === 1).length} of ${full.length} days`;
     const pr = x => atLeast(x.protein, R.proteinG), fi = x => atLeast(x.fiber, t.fiberMin), so = x => atMost(x.sodium, t.sodiumMax);
-    const sf = x => x.calIn ? atMost(x.satFat * 9 / x.calIn * 100, t.satFatPctMax) : 0, su = x => atMost(x.sugar, t.sugarMax), fl = x => atLeast(x.calIn, R.calorieFloor);
+    const sf = x => x.calIn ? atMost(x.satFat * 9 / x.calIn * 100, t.satFatPctMax) : 0, su = x => atMost(x.sugar, t.sugarMax);
     const enough = full.length >= Math.max(3, Math.ceil(n * 4 / 7));
     out.nutrition = enough ? { parts: [
-      { name: `Protein ≥ ${R.proteinG} g`, weight: 25, score: share(pr), detail: hit(pr) },
-      { name: `Fiber ≥ ${t.fiberMin} g`, weight: 20, score: share(fi), detail: hit(fi) },
-      { name: `Sodium ≤ ${fmtN(t.sodiumMax)} mg`, weight: 20, score: share(so), detail: hit(so) },
+      { name: `Protein ≥ ${R.proteinG} g`, weight: 40, score: share(pr), detail: hit(pr) },
+      { name: `Fiber ≥ ${t.fiberMin} g`, weight: 15, score: share(fi), detail: hit(fi) },
+      { name: `Sodium ≤ ${fmtN(t.sodiumMax)} mg`, weight: 15, score: share(so), detail: hit(so) },
       { name: `Saturated fat ≤ ${t.satFatPctMax}% of calories`, weight: 15, score: share(sf), detail: hit(sf) },
-      { name: `Sugars ≤ ${t.sugarMax} g`, weight: 10, score: share(su), detail: hit(su) },
-      { name: `Calories ≥ ${fmtN(R.calorieFloor)} (safety floor)`, weight: 10, score: share(fl), detail: hit(fl) }] }
+      { name: `Sugars ≤ ${t.sugarMax} g`, weight: 15, score: share(su), detail: hit(su) }] }
       : { incomplete: `only ${full.length} fully logged day${full.length === 1 ? '' : 's'} (needs ${Math.max(3, Math.ceil(n * 4 / 7))})` }; }
   // Logging: without it, skipping the log on bad days would raise the Nutrition grade.
   { const full = D.filter(([k, d]) => totals(d).hasFood && !foodPartial(d, k)).length;
     out.logging = { parts: [{ name: 'Days fully logged in Lose It', weight: 1, score: full / n, detail: `${full} of ${n} days` }] }; }
-  // Training: anything from Garmin or Strava of at least the minimum length is a session.
-  { const ws = D.flatMap(([k, d]) => (d?.workouts || []).filter(w => ['garmin', 'strava'].includes(w.source) && (w.durationMin || 0) >= R.sessionMinMinutes).map(w => ({ k, w })));
-    const goal = R.sessionsPerWeek * weeks, sGoal = R.strengthPerWeek * weeks, strength = ws.filter(x => isStrength(x.w)).length;
-    // Load: share of the period's 7-day blocks that sat in the steady range (half credit for building fast or a bit light).
-    const blocks = []; for (let e = end; e >= addDays(start, 6); e = addDays(e, -7)) { const ls = loadStatus(e); if (ls.ratio != null) blocks.push(ls); }
-    const loadScore = blocks.length ? blocks.reduce((s, b) => s + (b.ratio >= 0.8 && b.ratio <= 1.3 ? 1 : (b.ratio >= 0.6 && b.ratio < 0.8) || (b.ratio > 1.3 && b.ratio <= 1.5) ? 0.5 : 0), 0) / blocks.length : null;
+  // Training (v3.11): graded against your own last 4 weeks, so building up from a low start gets credit.
+  // Steps count (a walk you didn't start on the watch still counts), sessions and strength have targets that start
+  // from what you've been doing, and a rise in easy walking is building, not an injury risk.
+  { const B = movementBaseline(start), stepGoal = anchorCfg().rules.find(r => r?.type === 'steps')?.min || STEPS_BOX.rule.min;
+    const stepDays = D.map(([, d]) => d?.steps).filter(x => x != null), avgSteps = stepDays.length >= Math.ceil(n / 2) ? avg(stepDays) : null;
+    const stepTarget = B.steps == null ? stepGoal : B.steps >= stepGoal ? stepGoal : Math.min(stepGoal, Math.round(B.steps * 1.05));
+    // Full credit at the target; holding your usual is 85% (a B); below your usual it falls off in proportion.
+    const stepScore = avgSteps == null ? null : avgSteps >= stepTarget ? 1 : B.steps == null || B.steps >= stepTarget ? clamp01(avgSteps / stepTarget)
+      : avgSteps >= B.steps ? 0.85 + 0.15 * (avgSteps - B.steps) / (stepTarget - B.steps) : 0.85 * avgSteps / B.steps;
+    const ws = D.flatMap(([k, d]) => (d?.workouts || []).filter(w => ['garmin', 'strava'].includes(w.source) && (w.durationMin || 0) >= R.sessionMinMinutes).map(w => ({ k, w })));
+    // Sessions: your usual week plus one, at least 1 and at most the rubric's number. No history at all: the rubric's number.
+    const perWeek = B.sessions == null ? R.sessionsPerWeek : Math.min(R.sessionsPerWeek, Math.max(1, Math.round(B.sessions) + 1));
+    const goal = perWeek * weeks, sGoal = R.strengthPerWeek * weeks, strength = ws.filter(x => isStrength(x.w)).length;
     const mix = intensityMix(ks), hard = mix.hardPct;
+    // Load: share of the period's 7-day blocks in the steady range. A rise that's mostly easy walking counts as building,
+    // whatever its size: the spike rule of thumb (over 1.5× your usual week) is about running and hard training.
+    const walky = ws.length && ws.filter(x => /walk|hik/i.test(`${x.w.type} ${x.w.title}`)).length >= ws.length / 2 && (hard == null || hard <= 25);
+    const blocks = []; for (let e = end; e >= addDays(start, 6); e = addDays(e, -7)) { const ls = loadStatus(e); if (ls.ratio != null) blocks.push(ls); }
+    const blockScore = b => b.ratio >= 0.8 && b.ratio <= 1.3 ? 1 : walky && b.ratio > 1.3 ? 1 : (b.ratio >= 0.6 && b.ratio < 0.8) || (b.ratio > 1.3 && b.ratio <= 1.5) ? 0.5 : 0;
+    const loadScore = blocks.length ? blocks.reduce((s, b) => s + blockScore(b), 0) / blocks.length : null;
     out.training = { parts: [
-      { name: `Sessions (${R.sessionsPerWeek} a week, ${R.sessionMinMinutes}+ min)`, weight: 35, score: clamp01(ws.length / goal), detail: `${ws.length} of ${Math.round(goal)}` },
-      { name: `Strength (${R.strengthPerWeek} a week)`, weight: 30, score: clamp01(strength / sGoal), detail: `${strength} of ${Math.round(sGoal)}` },
-      { name: 'Load vs usual week (0.8–1.3×)', weight: 20, score: loadScore, detail: blocks.length ? blocks.map(b => b.ratio + '×').reverse().join(', ') : 'needs 4 weeks of history' },
-      { name: 'Hard share of zone minutes (≤ 25%)', weight: 15, score: hard == null ? null : hard <= 25 ? 1 : hard <= 35 ? 0.5 : 0, detail: hard == null ? 'no heart-rate zones' : `${hard}% hard` }] }; }
+      { name: `Steps (your last 4 weeks plus a step, up to ${fmtN(stepGoal)})`, weight: 35, score: stepScore, detail: avgSteps == null ? 'steps recorded on too few days' : `${fmtN(Math.round(avgSteps))} a day · usual ${B.steps == null ? 'not known yet' : fmtN(Math.round(B.steps))} · target ${fmtN(stepTarget)}` },
+      { name: `Sessions (${R.sessionMinMinutes}+ min, from your usual week)`, weight: 25, score: clamp01(ws.length / goal), detail: `${ws.length} of ${Math.round(goal)}` },
+      { name: `Strength (${R.strengthPerWeek} a week)`, weight: 15, score: sGoal > 0 ? clamp01(strength / sGoal) : null, detail: sGoal > 0 ? `${strength} of ${Math.round(sGoal)}` : 'not graded (target 0)' },
+      { name: walky ? 'Load vs usual week (building with walks is fine)' : 'Load vs usual week (0.8–1.3×)', weight: 15, score: loadScore, detail: blocks.length ? blocks.map(b => b.ratio + '×').reverse().join(', ') : 'needs 4 weeks of history' },
+      { name: 'Hard share of zone minutes (≤ 25%)', weight: 10, score: hard == null ? null : hard <= 25 ? 1 : hard <= 35 ? 0.5 : 0, detail: hard == null ? 'no heart-rate zones' : `${hard}% hard` }] }; }
   // Sleep habits: hours asleep and going to bed on time. Needs data for half the nights.
   { const nights = D.filter(([, d]) => sleepHours(d) != null).map(([, d]) => d.sleep), T = R.sleepHours;
     if (nights.length < Math.ceil(n / 2)) out.sleep = { incomplete: `sleep recorded on ${nights.length} of ${n} nights` };
@@ -763,9 +809,34 @@ function gradeSubjects(start, end) {
   for (const [key, name] of SUBJECTS) if (out[key]) out[key].name = name;
   return out;
 }
+// Appeals (v3.11): you can appeal a subject's grade; Claude checks your reason against the data and can raise it by
+// at most one letter (F → D, C → B, B+ → A+). The rules grade stays on the card; the appealed grade counts in the GPA.
+const GRADE_ORDER = ['F', 'D-', 'D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A', 'A+'];
+const appealCap = g => { const i = GRADE_ORDER.indexOf(g); return i < 0 ? g : i === 0 ? 'D' : GRADE_ORDER[Math.min(12, i + 3)]; };
+const appealGrade = (raw, asked) => { const i = GRADE_ORDER.indexOf(raw), j = GRADE_ORDER.indexOf(asked), cap = GRADE_ORDER.indexOf(appealCap(raw)); return i < 0 || j < 0 ? raw : GRADE_ORDER[Math.max(i, Math.min(cap, j))]; };
+const gradePoints = g => GRADE_STEPS.find(x => x[1] === g)?.[2] ?? null;
+// Put appeals ({ subjectKey: { decision, grade, reason, asked, at } }) on a card and work its GPA out again.
+function applyAppeals(card, appeals) {
+  let pts = 0, cr = 0;
+  for (const s of card.subjects) {
+    const a = appeals?.[s.key];
+    if (a) s.appeal = { ...a, grade: a.decision === 'raise' ? appealGrade(s.grade, a.grade) : s.grade };
+    const p = s.appeal ? gradePoints(s.appeal.grade) : s.points;
+    if (p != null && s.credits) { pts += +p * s.credits; cr += s.credits; }
+  }
+  card.gpa = cr ? Math.round(pts / cr * 100) / 100 : null;
+  card.grade = card.gpa == null ? 'I' : gpaLetter(card.gpa);
+  return card;
+}
+// Which rules grades changed since a report was written, for rewriting it. Cards from older rules aren't compared.
+function gradeChanges(r, now) {
+  if ((r.card?.rules || 1) !== now.rules) return '';
+  const was = Object.fromEntries(r.card.subjects.map(x => [x.key, x.grade]));
+  return now.subjects.filter(x => x.key !== 'assignments' && was[x.key] && was[x.key] !== x.grade).map(x => `${x.name} ${was[x.key]} → ${x.grade}`).join(' · ');
+}
 // Finish a card: grade each subject, add the assignments Claude marked, and work out the GPA.
 function finishCard(subjects, marks) {
-  const R = rubric(), card = { subjects: [], credits: 0, creditsAll: 0 };
+  const R = rubric(), card = { rules: GRADING_RULES, subjects: [], credits: 0, creditsAll: 0 };
   if (marks) subjects.assignments = marks.length ? { name: 'Assignments', parts: [{ name: 'Last period’s assignments', weight: 1, score: marks.reduce((s, m) => s + (m.status === 'done' ? 1 : m.status === 'partly' ? 0.5 : 0), 0) / marks.length, detail: `${marks.filter(m => m.status === 'done').length} done, ${marks.filter(m => m.status === 'partly').length} partly, ${marks.filter(m => m.status === 'missed').length} missed` }] }
     : { name: 'Assignments', incomplete: 'no assignments were set for this period' };
   let pts = 0;

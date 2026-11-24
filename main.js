@@ -413,7 +413,9 @@ $('#tab-coach').addEventListener('click', async e => {
   const hp = e.target.closest('[data-helped]');
   if (hp) { e.preventDefault(); e.stopPropagation(); const [key, i, v] = hp.dataset.helped.split('|'), r = reviews()[key], m = r?.marks?.[+i]; if (!m) return;
     m.helped = m.helped === v ? null : v; r.updatedAt = new Date().toISOString(); coachDirty = true; await savePersist(); renderCoach(); return; }
-  const t = e.target.closest('[data-regen],[data-swaps],[data-savenote],[data-force],[data-delrev],[data-write]');
+  const ap = e.target.closest('[data-appeal],[data-appealx]');
+  if (ap) { e.preventDefault(); e.stopPropagation(); if (ap.dataset.appeal) { const [key, sk] = ap.dataset.appeal.split('|'); appealForm(key, sk); } else renderCoach(); return; }
+  const t = e.target.closest('[data-regen],[data-swaps],[data-savenote],[data-force],[data-delrev],[data-write],[data-appealgo]');
   if (!t) return;
   e.preventDefault(); e.stopPropagation();
   if (coachBusy && !t.dataset.savenote && !t.dataset.delrev) { toast('A review is being written — one moment.'); return; }
@@ -421,6 +423,7 @@ $('#tab-coach').addEventListener('click', async e => {
     if (t.dataset.regen) { const r = reviews()[t.dataset.regen]; await writeReview(r.key, { kind: r.kind, start: r.start, end: r.end, question: r.question, email: false, force: true }); }
     else if (t.dataset.write) { const [kind, a, b, key] = t.dataset.write.split('|'); await writeReview(key, { kind, start: a, end: b, email: false, force: true }); }
     else if (t.dataset.swaps) await moreSwaps(t.dataset.swaps);
+    else if (t.dataset.appealgo) { const [key, sk] = t.dataset.appealgo.split('|'); await appealSubject(key, sk, t.closest('[data-apf]')?.querySelector('textarea')?.value.trim() || ''); }
     else if (t.dataset.force) { const r = reviews()[t.dataset.force]; await writeReview(r.key, { kind: r.kind, start: r.start, end: r.end, email: false, force: true }); }
     else if (t.dataset.savenote) { const r = reviews()[t.dataset.savenote]; r.note = $(`[data-note="${CSS.escape(r.key)}"]`).value.trim(); r.updatedAt = new Date().toISOString(); coachDirty = true; await savePersist(); toast('Note saved.'); renderCoach(); }
     else if (t.dataset.delrev) { if (!confirm('Delete this review?')) return; const k = t.dataset.delrev; reviews()[k] = { key: k, deleted: true, updatedAt: new Date().toISOString() }; coachDirty = true; await savePersist(); renderCoach(); }

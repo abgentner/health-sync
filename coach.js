@@ -102,7 +102,9 @@ Voice: matter-of-fact and specific. No flattery, no cheerleading, no filler. Sta
 
 Judge against THEIR plan (anchors, daily food plan, budgets, targets in the data), not generic advice. A day with no food logged is missing data, not a failure: say how much is missing, and grade only what can be judged. Never invent numbers; use only what is in the data, and say "about" for estimates.
 
-Grade: a letter A to F with + or - allowed. Base it mainly on anchor completion against the weekly goal, then nutrition against targets, movement and sleep consistency, and how complete the logging was. grade_reason says why in 2-4 sentences with the key numbers.
+Grade: a letter A to F with + or - allowed. Base it mainly on calories against the day's goal and anchor completion against the weekly goal, then movement against the user's own recent weeks, food quality, sleep consistency, and how complete the logging was. grade_reason says why in 2-4 sentences with the key numbers.
+
+Progress counts. Steps and sessions are graded against the user's own last 4 weeks (the parts say their usual and the target), because they are building habits from a low start. Walking more than their usual is the plan working: say so with the numbers, and never call it "just walking" or treat it as falling short of a workout. For weight loss, calories decide: days between the calorie floor and the day's goal are the win. Food quality (protein, fiber, sodium, saturated fat, sugars) is a side note that supports it, never the headline or the reason a good calorie week reads as a bad one. focus says what the user is working on this phase; lead with those subjects. A day well under the floor is not a win: say so, because it costs muscle.
 
 Narrative: a short story of the period in plain prose, as long as it needs to be and no longer. Separate paragraphs with a blank line.
 
@@ -136,6 +138,8 @@ const REPORT_SYSTEM = `You are the coach inside Health Sync, a personal health a
 THE GRADES ARE ALREADY DECIDED. The app worked out every subject's grade and the GPA from the data with fixed rules (card.subjects, each with its parts, scores and details). Never change, question, soften or restate a different grade. Explain each grade with the numbers in its parts. The one thing you judge is assignments (see below).
 
 Voice: matter-of-fact, specific, unvarnished. No flattery, no cheerleading, no filler, no "great job". The user has asked not to be glazed. Write to them as "you". Every sentence should carry a number, a named food, a day or a concrete action.
+
+Progress counts. Steps and sessions are graded against the user's own last 4 weeks (the parts say their usual and the target), because they are building habits from a low start. Walking more than their usual is the plan working: say so with the numbers, and never call it "just walking" or treat it as falling short of a workout. For weight loss, calories decide: days between the calorie floor and the day's goal are the win. Food quality (protein, fiber, sodium, saturated fat, sugars) is a side note that supports it, never the headline or the reason a good calorie week reads as a bad one. focus says what the user is working on this phase; lead with those subjects. A day well under the floor is not a win: say so, because it costs muscle.
 
 For each subject in card.subjects, write:
 - praise: what genuinely went well, with the number. If nothing did, return an empty string. Never invent praise to balance criticism.
@@ -183,6 +187,7 @@ function reportDigest(kind, start, end, subjects, opts) {
   const base = buildDigest(from, end, { kind: kind === 'adhoc' ? 'adhoc' : kind, question: opts.question });
   const card = finishCard(JSON.parse(JSON.stringify(subjects)), null);
   const d = { level: LEVELS[kind], period: { start, end, label: periodLabel(kind, start, end), graded_from: from !== start ? from : undefined, days: ks.length },
+    focus: (() => { const R = rubric(); return { name: R.focus === 'custom' ? 'the user\'s own credits' : FOCUSES[R.focus].name, credits: R.credits }; })(),
     card: { gpa_before_assignments: card.gpa, subjects: card.subjects.filter(s => s.key !== 'assignments').map(s => ({ subject: s.name, grade: s.grade, score: s.score, credits: s.credits, incomplete: s.incomplete || undefined, parts: s.parts })) },
     previous_period: prevCard ? { gpa: prevCard.gpa, grades: Object.fromEntries(prevCard.subjects.map(s => [s.name, s.grade])) } : null,
     outcomes: periodOutcomes(from, end), plan: base.plan, training: base.training, totals: base.this_period,
@@ -327,6 +332,9 @@ async function writeReview(key, { kind, start, end, question = '', email = true,
     const marks = prevAssignments.length ? prevAssignments.map((a, i) => { const m = out.assignments_review?.[i] ? { ...out.assignments_review[i], assignment: a.text } : { assignment: a.text, status: 'missed', evidence: 'not marked' };
       const ch = a.measure && a.measure !== 'none' ? measureChange(a.measure, beforeKs, ks) : null; return ch ? { ...m, change: ch } : m; }) : [];
     const card = finishCard(subjects, marks);
+    // An appeal survives a rewrite when the rules grade it was made against hasn't changed.
+    { const kept = {}; if (old?.card?.rules === card.rules) for (const x of old.card.subjects) if (x.appeal && card.subjects.find(y => y.key === x.key)?.grade === x.grade) kept[x.key] = x.appeal;
+      if (Object.keys(kept).length) applyAppeals(card, kept); }
     const assignments = (out.next_assignments || []).slice(0, 3).map(a => { const p = prevAssignments[a.carries]; const carried = p ? (p.carried || 0) + 1 : 0;
       return { text: a.text, carried, measure: a.measure && a.measure !== 'none' ? a.measure : null, reason: a.reason || (carried > 2 ? '(carried again without a stated reason)' : '') }; });
     const { next_assignments, assignments_review, ...words } = out;
@@ -444,8 +452,7 @@ async function autoReviews() {
       if (r?.status === 'done') {
         // Rewrite when a grade has changed since (late food logs, Garmin history arriving…).
         if (!r.card || rewrites >= REWRITES_PER_RUN) continue;
-        const now = quickCard(a, b), was = Object.fromEntries(r.card.subjects.map(x => [x.key, x.grade]));
-        const why = now.subjects.filter(x => x.key !== 'assignments' && was[x.key] && was[x.key] !== x.grade).map(x => `${x.name} ${was[x.key]} → ${x.grade}`).join(' · ');
+        const why = gradeChanges(r, quickCard(a, b));
         if (!why) continue;
         rewrites++;
         try { await writeReview(key, { kind, start: a, end: b, email: false, rewrite: why }); } catch (e) { toast(e.message, 8000); return; }
@@ -474,10 +481,11 @@ function reportHtml(r, compact) {
     <div class="rc-top"><div><div class="rc-k">GPA</div><div class="rc-v">${c.gpa == null ? '—' : c.gpa.toFixed(2)}</div><div class="rc-s">${prev?.card?.gpa != null && c.gpa != null ? `${c.gpa >= prev.card.gpa ? '+' : '−'}${Math.abs(c.gpa - prev.card.gpa).toFixed(2)} vs last` : `${c.credits} of ${c.creditsAll} credits graded`}</div></div>
       ${ytd?.gpa != null ? `<div><div class="rc-k">Year to date</div><div class="rc-v">${ytd.gpa.toFixed(2)}</div><div class="rc-s">before assignments</div></div>` : ''}</div>
     <div class="rv-story">${(r.summary || '').split(/\n\s*\n/).map(p => `<p>${esc(p)}</p>`).join('')}</div>
-    <div class="rc-list">${c.subjects.map(s => { const t = w[s.key] || {};
-      return `<details class="rc-row"${compact ? '' : ' open'}><summary><span class="rc-n">${esc(s.name)}<span class="muted small"> · ${s.credits} credit${s.credits === 1 ? '' : 's'}</span></span><span class="rc-g ${s.grade === 'I' ? 'none' : gradeTone(s.grade)}">${esc(s.grade)}</span><span class="rc-t">${trend(s)}</span></summary>
+    <div class="rc-list">${c.subjects.map(s => { const t = w[s.key] || {}, g = s.appeal?.grade || s.grade;
+      return `<details class="rc-row"${compact ? '' : ' open'}><summary><span class="rc-n">${esc(s.name)}<span class="muted small"> · ${s.credits} credit${s.credits === 1 ? '' : 's'}</span></span><span class="rc-g ${g === 'I' ? 'none' : gradeTone(g)}"${g !== s.grade ? ` title="${esc(s.grade)} by the rules, ${esc(g)} on appeal"` : ''}>${esc(g)}</span><span class="rc-t">${trend(s)}</span></summary>
         <div class="rc-body">${s.incomplete ? `<p class="muted small" style="margin:0 0 4px">Incomplete: ${esc(s.incomplete)}. Not counted in the GPA.</p>` : ''}
           ${t.praise ? `<p><b class="good">Praise:</b> ${esc(t.praise)}</p>` : ''}${t.criticism ? `<p><b class="bad">Criticism:</b> ${esc(t.criticism)}</p>` : ''}${t.suggestion ? `<p><b>Next:</b> ${esc(t.suggestion)}</p>` : ''}
+          ${appealHtml(r, s, compact)}
           ${s.parts.length ? `<table class="rc-parts">${s.parts.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.detail)}</td><td>${p.score == null ? 'no data' : p.score + '%'}</td><td class="muted">${s.parts.length > 1 ? (p.weight + (p.weight > 1 ? '%' : '')) : ''}</td></tr>`).join('')}</table>` : ''}
           ${s.key === 'assignments' && r.marks?.length ? `<ul class="rc-marks">${r.marks.map((m, mi) => `<li><b class="${m.status === 'done' ? 'good' : m.status === 'missed' ? 'bad' : ''}">${esc(m.status)}</b> · ${esc(m.assignment)}<div class="muted small">${esc(m.evidence)}</div>${m.change ? `<div class="small">${esc(m.change.name)}: ${fmtN(m.change.before, m.change.dp)} → <b class="${m.change.better ? 'good' : m.change.better === false ? 'bad' : ''}">${fmtN(m.change.after, m.change.dp)}</b> ${esc(m.change.unit)} <span class="muted">vs the period before</span></div>` : ''}${m.status !== 'missed' ? `<div class="small rc-helped">Did it help? ${['yes', 'somewhat', 'no'].map(h => `<button class="btn small${m.helped === h ? ' primary' : ''}" data-helped="${esc(r.key)}|${mi}|${h}">${h[0].toUpperCase() + h.slice(1)}</button>`).join(' ')}</div>` : ''}</li>`).join('')}</ul>` : ''}</div></details>`; }).join('')}</div>
     ${o ? `<div class="rv-box" style="margin-top:12px"><div class="rv-h">Results (tracked, not graded)</div><p style="margin:0">${esc(o)}</p></div>` : ''}
@@ -485,6 +493,45 @@ function reportHtml(r, compact) {
     ${r.assignments?.length ? `<div class="rv-focus"><div class="rv-h">Assignments for next ${r.kind === 'adhoc' ? 'time' : r.kind}</div><ol>${r.assignments.map(a => `<li>${esc(a.text)}${a.carried ? ` <span class="tag">carried ${a.carried}×</span>` : ''}${a.reason ? `<div class="muted small">${esc(a.reason)}</div>` : ''}</li>`).join('')}</ol></div>` : ''}
     ${r.retired?.length ? `<div class="muted small" style="margin-top:8px"><b>Retired:</b> ${r.retired.map(x => `${esc(x.assignment)} (${esc(x.reason)})`).join(' · ')}</div>` : ''}
     <div class="muted small" style="margin-top:10px">Attendance: food fully logged ${r.card.subjects.find(x => x.key === 'logging')?.parts[0]?.detail || '—'}${r.gradedFrom ? ` · graded from ${esc(fmtDay(r.gradedFrom, { month: 'short', day: 'numeric' }))}, when your data starts` : ''}</div>`;
+}
+// The appeal under a subject: its result, or the button to make one (one per subject per report card).
+function appealHtml(r, s, compact) {
+  if (s.key === 'assignments' || s.grade === 'I') return '';
+  const a = s.appeal;
+  if (a) return `<p class="rc-appeal"><b>${a.grade !== s.grade ? `Raised on appeal: ${esc(s.grade)} → ${esc(a.grade)}.` : `Appeal turned down: ${esc(s.grade)} stands.`}</b> ${esc(a.reason)}${a.asked ? `<br><span class="muted small">You said: ${esc(a.asked)}</span>` : ''}</p>`;
+  if (compact || r.status !== 'done' || !coachCfg().apiKey || s.grade === 'A+') return '';
+  return `<div class="rc-appeal" data-apf="${esc(r.key)}|${s.key}"><button class="btn small" data-appeal="${esc(r.key)}|${s.key}">Appeal this grade</button> <span class="muted small">Claude checks your reason against the data and can raise it by up to one letter (to ${esc(appealCap(s.grade))})</span></div>`;
+}
+function appealForm(key, sk) {
+  const el = $(`[data-apf="${CSS.escape(key + '|' + sk)}"]`); if (!el) return;
+  el.innerHTML = `<label class="small" style="margin:0 0 4px">Why is this grade wrong?</label><textarea data-apt rows="3" placeholder="What the rules missed, for example: I walked every day but didn't start the watch"></textarea>
+    <div class="row" style="margin-top:6px"><button class="btn primary small" data-appealgo="${esc(key)}|${sk}">Send appeal</button><button class="btn small" data-appealx="1">Cancel</button></div>`;
+  el.querySelector('textarea').focus();
+}
+const APPEAL_SYSTEM = `You review an appeal of one report-card grade in Health Sync, a personal health app. The app graded the subject with fixed rules (parts, each with a score and the numbers behind it). The user says the grade is wrong and why. Decide from the data whether their reason holds.
+
+Raise the grade when the reason is backed by the data, or points to something the rules can't see: activity that wasn't recorded as a workout but shows in steps or their notes, illness, injury, travel, food logged wrong, or a rule that doesn't fit their plan or where they are starting from (for example building a walking habit from a low start). Turn it down when the data contradicts the reason, or when the only reason is that the grade feels harsh. You can raise it to highest_allowed at most; choose the grade the evidence supports, which may be lower than that. Never lower the grade.
+
+reason: 1-3 sentences to the user, as "you", with the numbers that decided it. Matter-of-fact, no flattery, no lecture.`;
+const APPEAL_SCHEMA = { type: 'object', additionalProperties: false, required: ['decision', 'grade', 'reason'],
+  properties: { decision: { type: 'string', enum: ['raise', 'stand'] }, grade: { type: 'string', enum: GRADE_ORDER.slice().reverse() }, reason: { type: 'string' } } };
+async function appealSubject(key, sk, asked) {
+  const r = reviews()[key], s = r?.card?.subjects.find(x => x.key === sk);
+  if (!s || s.appeal) return;
+  if (!asked) { toast('Say why the grade is wrong first.'); return; }
+  const btn = $(`[data-appealgo="${CSS.escape(key + '|' + sk)}"]`); if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  try {
+    const from = r.gradedFrom || r.start, base = buildDigest(from, r.end, { kind: 'adhoc' });
+    const out = await callClaude({ system: APPEAL_SYSTEM, schema: APPEAL_SCHEMA, maxTokens: 3000, what: `Appeal · ${s.name} · ${periodLabel(r.kind, r.start, r.end)}`,
+      user: JSON.stringify({ period: periodLabel(r.kind, r.start, r.end), subject: s.name, grade: s.grade, highest_allowed: appealCap(s.grade), parts: s.parts, what_the_report_said: r.subjects?.[sk] || null,
+        the_users_reason: asked, plan: base.plan, training: base.training, totals: base.this_period, days: r.kind === 'week' || r.kind === 'adhoc' ? base.days : undefined,
+        your_reflections: (() => { const o = []; for (let w = weekStart(from); w <= r.end; w = addDays(w, 7)) { const x = reflections()[w]; if (x && (x.inWay || x.helped)) o.push({ week: fmtRange(w, addDays(w, 6)), what_got_in_the_way: x.inWay || null, what_helped: x.helped || null }); } return o; })() }) });
+    applyAppeals(r.card, { [sk]: { decision: out.decision, grade: out.grade, reason: out.reason, asked, at: new Date().toISOString() } });
+    r.grade = r.card.grade; r.gpa = r.card.gpa; r.cost = Math.round(((r.cost || 0) + out._cost) * 10000) / 10000; r.updatedAt = new Date().toISOString();
+    coachDirty = true; await savePersist(); renderCoach();
+    const a = r.card.subjects.find(x => x.key === sk).appeal;
+    toast(a.grade !== s.grade ? `${s.name} raised to ${a.grade} on appeal.` : `Appeal turned down: ${s.name} stays ${s.grade}.`, 6000);
+  } catch (e) { toast(e.message, 7000); if (btn) { btn.disabled = false; btn.textContent = 'Send appeal'; } }
 }
 function reviewHtml(r, compact) {
   if (r.card && r.status === 'done') return reportHtml(r, compact);
@@ -613,7 +660,11 @@ function renderCoachSettings() {
   $('#cs-planday').value = cc.planDay; $('#cs-foods').value = cc.planFoods;
   const R = rubric();
   $('#rb-protein').value = R.proteinG; $('#rb-floor').value = R.calorieFloor; $('#rb-sessions').value = R.sessionsPerWeek; $('#rb-minmin').value = R.sessionMinMinutes; $('#rb-strength').value = R.strengthPerWeek; $('#rb-sleep').value = R.sleepHours; $('#rb-bed').value = R.bedtime;
-  $('#rb-credits').innerHTML = SUBJECTS.map(([k, n]) => `<label style="margin:0">${esc(n)} <input type="number" min="0" step="1" data-credit="${k}" value="${R.credits[k]}" style="width:56px"></label>`).join('');
+  $('#rb-focus').value = R.focus;
+  $('#rb-credits').innerHTML = SUBJECTS.map(([k, n]) => `<label style="margin:0">${esc(n)} <input type="number" min="0" step="1" data-credit="${k}" value="${R.credits[k] ?? 0}" style="width:56px"></label>`).join('');
+  // Picking a focus fills in its credits; changing a credit yourself makes it your own (custom).
+  $('#rb-focus').onchange = () => { const f = FOCUSES[$('#rb-focus').value]; if (f) $$('[data-credit]').forEach(i => { i.value = f.credits[i.dataset.credit] ?? 0; }); };
+  $('#rb-credits').oninput = () => { $('#rb-focus').value = 'custom'; };
   $('#cs-fiber').value = cc.targets.fiberMin; $('#cs-sodium').value = cc.targets.sodiumMax; $('#cs-satfat').value = cc.targets.satFatPctMax; $('#cs-sugar').value = cc.targets.sugarMax;
 }
 async function saveCoachSettings() {
@@ -627,7 +678,8 @@ async function saveCoachSettings() {
     targets: { fiberMin: num($('#cs-fiber').value) ?? 25, sodiumMax: num($('#cs-sodium').value) ?? 2300, satFatPctMax: num($('#cs-satfat').value) ?? 10, sugarMax: num($('#cs-sugar').value) ?? 50 },
     rubric: { proteinG: num($('#rb-protein').value) ?? RUBRIC_DEFAULT.proteinG, calorieFloor: num($('#rb-floor').value) ?? RUBRIC_DEFAULT.calorieFloor, sessionsPerWeek: num($('#rb-sessions').value) ?? RUBRIC_DEFAULT.sessionsPerWeek,
       sessionMinMinutes: num($('#rb-minmin').value) ?? RUBRIC_DEFAULT.sessionMinMinutes, strengthPerWeek: num($('#rb-strength').value) ?? RUBRIC_DEFAULT.strengthPerWeek, sleepHours: num($('#rb-sleep').value) ?? RUBRIC_DEFAULT.sleepHours,
-      bedtime: $('#rb-bed').value || RUBRIC_DEFAULT.bedtime, credits: Object.fromEntries($$('[data-credit]').map(i => [i.dataset.credit, Math.max(0, num(i.value) ?? RUBRIC_DEFAULT.credits[i.dataset.credit])])) } };
+      bedtime: $('#rb-bed').value || RUBRIC_DEFAULT.bedtime, focus: $('#rb-focus').value,
+      ...($('#rb-focus').value === 'custom' ? { credits: Object.fromEntries($$('[data-credit]').map(i => [i.dataset.credit, Math.max(0, num(i.value) ?? RUBRIC_DEFAULT.credits[i.dataset.credit] ?? 0)])) } : {}) } };
   coachDirty = true;
   await savePersist();
   if (!coachDirty) { toast('Coach settings saved.'); renderCoachSettings(); renderCoach(); autoReviews(); }
